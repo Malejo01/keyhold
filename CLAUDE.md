@@ -25,7 +25,7 @@ Tech lead: Mauro. Product, pitch and brand: Ani, with a design partner.
 - **Mon 12/10, 23:59:** Superteam Earn submission and Colosseum submission. Target internal freeze: **Sun 11/10, 20:00**.
 
 ## Non-negotiables
-- **English** for README, UI copy shown to judges, commits, code and comments. Product agents answer in the user's language.
+- **English** for README, commits, code and comments. The web UI is **bilingual ES/EN** (AD-15): Spanish by default, English for judge-facing videos and screenshots. Product agents answer in the user's language.
 - **Devnet only.** No keypairs, `.env` or API keys in git.
 - **No PII on-chain** and none in Memo strings. Only pubkeys, amounts, timestamps and sha256 hashes.
 - **The model extracts, the code decides.** Business decisions live in `lib/rules/*`.

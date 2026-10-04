@@ -59,6 +59,7 @@ Out of scope for F0: Anchor, scannable QR, embedded wallet, database, real visit
 | F1-03 | Visual fixes found while recording | ui-motion-engineer | 60 | F0-10 |
 | F1-04 | Compliance checklist: English, repo access for `hackathon@superteam.ar`, Disclosures | qa-security-reviewer | 20 | F1-01, F1-03 |
 | F1-05 | Complete the detailed boards for F2–F7 in this file | lead | 30 | — |
+| F1-07 | Bilingual UI ES/EN, Spanish default (AD-15): string catalogue for components/**, ES \| EN switch, fixed orchestrator replies follow the chosen language; re-shoot browser test in both. **Start only after the demo is recorded** | ui (+ agents, writer for ES copy, qa) | 150–180 | F1-06 recorded |
 | F1-06 | Record pitch and demo (product team: Ani and teammates), **submit before 15:30**, rehearse the 5 Demo Day questions | Product team (recording), Mauro + Ani (submit) | — | F1-04 |
 
 ### F2–F7 — summary (detailed on Sunday in F1-05)

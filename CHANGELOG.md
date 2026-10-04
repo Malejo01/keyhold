@@ -32,6 +32,8 @@ Work before the tag `v0-hackathon-start` or imported via `chore(import)` commits
 - test: first real-browser run (headless Chrome via CDP, 1280 px light and 375 px dark) against the real routes on localhost; Ana, Bruno and Carla end to end with real devnet payments. Found: rent payable before the deposit, which left Verify locked (lead).
 - fix(solana): `/api/pay` refuses rent before a confirmed deposit with 409 "Pay the deposit first." (solana-client-engineer).
 - fix(ui): rent card locked until the deposit is paid; deposit card shows only the amount; "secured" removed from deposit copy (escrow is custodial); one status term, "Payment confirmed"; next-step chip highlighted and mobile chip row hints that it scrolls (ui-motion-engineer).
+- test: e2e 59/59 and headless-Chrome demo flow pass on production after deploy `c1f2ac0`; recording verdict GO (lead).
+- docs: AD-15, bilingual UI ES/EN with Spanish by default, scheduled after the recording (F1-07); CLAUDE.md language rule updated (lead).
 - fix(api): `/api/chat` rate limit is 120 messages per 5 min per IP in replay mode (no model cost) and stays 30 with live AI (fullstack-engineer).
 - chore(config): Next dev indicator hidden so it does not cover the chat input at 375 px (fullstack-engineer).
 - docs(submission): `preselection.md` with counted fields, `pitch-script.md` (2:00), demo script rewritten for the product team; README positioning line no longer claims trustless escrow (submission-writer).

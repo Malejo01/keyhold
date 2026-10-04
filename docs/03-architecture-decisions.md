@@ -107,6 +107,11 @@ Format: decision · context · consequence. Status: **Accepted** unless noted.
 - Documents and contract text stay off-chain.
 - Uploaded document text is treated as untrusted data (prompt-injection test in evals).
 
+## AD-15 · Bilingual UI, Spanish by default (decided 2026-10-04)
+- **Context:** Mauro asked for every text on the web in Spanish; the hackathon asks for the pitch, demo and repo in English.
+- **Decision:** the web UI ships in Spanish and English with an ES | EN switch in the header. Spanish is the default for users; judge-facing videos and screenshots use English. README, code, comments and commits stay in English. Product agents already answer in the user's language.
+- **Timing:** implemented after the pre-selection recording (Sun 04/10), so the English demo script and the production checklist stay valid for that take.
+
 ## Open
 - **AD-13 (Proposed):** deposit reduction based on `on_time_streak` for the next lease. Stretch goal for Phase 5.
 - **AD-14 (Proposed):** compressed-NFT badge (Metaplex Bubblegum). Only if everything else is done.

@@ -176,3 +176,11 @@ pnpm exec tsc --noEmit -> 0;  pnpm lint -> no findings
 That makes three local e2e passes on this branch (runs 1-2 before the fix, run 3 after). The e2e drives the API, not the UI, so the button-path change is covered by code review plus the lead's browser run, not by this script.
 
 **Still not covered:** production (pending deploy), my own real-browser pass, and vitest (blocked on this machine).
+
+## Addendum (lead, Sun 04/10 ~03:10 ART): production condition met
+
+Branch merged to `main` (`c1f2ac0`, adds the replay-mode chat limit of 120 per 5 min) and deployed to production (Vercel `dpl_h6kwrvyYqsVoAj82kSpNCZmLX9ha`, READY). Run by the lead with this reviewer's script, not by the reviewer:
+- `node tests/e2e/phase0.mjs` against https://keyhold-app.vercel.app: **59/59 checks passed in 14 s**; deposit `2eTMjt1k…` and rent `5ijcvrVN…` on devnet with `lease:v1:` memos.
+- Headless Chrome following `demo-script.md` exactly (card buttons, not chips) against production: Ana 1280 light, Bruno/Carla/Ana 375 dark, 0 issues.
+
+Verdict for recording: **GO**. Remaining: one practice take by the product team before the final one.

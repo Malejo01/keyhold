@@ -102,3 +102,54 @@ $ git ls-files | grep -iE '\.env|id\.json'   -> .env.example only
 ```
 
 Live AI calls made by this review: 0 (REPLAY=1 throughout).
+
+## Re-gate (qa)
+
+Reviewer: qa-security-reviewer (did not write the fix). Branch `f2-db` at `c717182`. Date: Sun 04/10 (overnight).
+
+| Decision | Result |
+|---|---|
+| Set `DATABASE_URL` on a **preview** (Neon branch, devnet) | **GO**, with the conditions below |
+| Production `DATABASE_URL` | Not in scope of this gate. Needs the Neon e2e run below first, plus R1 |
+
+Conditions for the preview: run `pnpm db:migrate` (0000 + 0001) and `pnpm db:seed` on a dedicated Neon branch first; set the variable on Preview only (the lead does env changes); run `node tests/e2e/phase0.mjs` against that preview with `E2E_COOKIE` and check the `payments` rows (one confirmed row per slot, `session_id` and `last_valid_block_height` filled).
+
+### B3-1: fixed. Double-spend windows checked
+
+| Release path | Can the released tx still land? | Verdict |
+|---|---|---|
+| `preparePayment` throws (balance, 429, blockhash, keys, memo) | No. Nothing was serialized out of the process; `sendRawTransaction` is never reached | Safe |
+| `recordAttempt` throws, `releaseNotSent` | No. The route returns 503 before `submitPayment`. If the UPDATE actually committed and only the response was lost, the row is deleted and the in-memory tx is dropped unsent | Safe |
+| 180 s no-signature release (`releaseStaleUnsigned`) | No. The DELETE requires `signature IS NULL` and Postgres serialises it against the UPDATE. If the original request is still alive (slow prepare) and loses the race, its `recordAttempt` matches `id = <old claim>` and `status = pending`, finds no row, throws, and it never sends. The new claim has a new uuid, so the old request's `releasePayment(oldId)` cannot delete it | Safe |
+| Status `failed` (landed with an error) | No. A processed signature cannot be processed again | Safe |
+| Status `expired` (unknown and height > lastValidBlockHeight + 40) | Only in R1 below | Safe on devnet; R1 before real money |
+| `releaseAttempt` deleting a newer attempt | No. The DELETE is guarded by `id` and the stored `signature` | Safe |
+| Recovered path (tx confirmed, response lost before recording) | Reuses the same row id. `resultFromChain` uses the stored amount and the chain `blockTime` | Safe, no second transfer |
+
+Also checked: the blockhash comes from `getLatestBlockhash("confirmed")` and the pending check reads `getBlockHeight("confirmed")`, the same commitment, so `lastValidBlockHeight` and the height compare like for like. The `sendPreparedTransfer` signature-mismatch guard keeps the stored signature authoritative.
+
+B3-2 fixed: `describeError` drops `params:` for `DrizzleQueryError` and logs `cause.code` and `cause.message` only; the former `it.fails` test is a regular test and passes. B3-4 fixed: `payments.session_id` + partial `UNIQUE (session_id) WHERE kind = 'deposit'` (migration 0001), and `claimPayment` uses `ON CONFLICT DO NOTHING` without a target so either constraint yields "not inserted". B3-5 fixed: `ApiError.code` and `resetStaleSession()` clear the blob on `stale_session` in both chat and pay.
+
+### Non-blocking
+
+- **R1. Expiry decision reads two possibly different RPC backends in the wrong order.** `getTransferStatus` (`lib/solana/transfer.ts`) calls `getSignatureStatuses` first and `getBlockHeight` second. Behind the load-balanced public devnet RPC, a status node that lags more than 40 blocks (about 16 s) behind the height node can answer `null` for a tx that already landed. The claim is then released and a second transfer goes out (double pay; the first signature row is gone, so the DB shows one payment). Rare, and test tokens only on a preview. Fix before any real-money use: read the height first with its context slot (e.g. `getLatestBlockhashAndContext("confirmed")`: current height = `value.lastValidBlockHeight - 150`, slot `S1`), then read the status and require `context.slot >= S1` before returning `expired`; otherwise return `pending`. A dedicated RPC (Helius etc.) also shrinks the window.
+- **R2.** The race between the INSERT and the follow-up SELECT in `claimPayment` can report `other_lease_in_session` when the conflicting row was released in between. Wrong 409 wording only; the retry succeeds.
+- **R3.** B3-3 (lost response with a *recorded* confirmation still gives `already_paid` with no session) and B3-6..B3-10 are unchanged, as agreed.
+- **R4. Merge conflict with `f3-solana-pay`.** Both branches rewrite `app/api/pay/route.ts`, `lib/solana/pay.ts` (`executePayment`) and `lib/solana/transfer.ts`. When merging, the Solana Pay `reference` must be carried into `preparePayment`/`buildSignedTransfer`, and the "wallet payment already on chain" check must run before the claim/prepare, not after. Re-run both test suites after the merge.
+
+### Evidence
+
+```
+$ pnpm test                       (f2-db worktree, Windows, vitest 5.0.3)
+ Test Files  11 passed (11)   Tests  104 passed (104)
+ # includes route.test.ts B3-1 cases: pre-send failure frees the claim; signature stored before the send;
+ # ambiguous send keeps the claim (in_progress); reconcile confirmed -> receipt, no 2nd transfer;
+ # reconcile expired -> release + pay once; on-chain failure -> release; RPC down -> 503 keeps claim;
+ # unsigned claim released only after 180 s; recordAttempt failure frees the claim; B3-4 constraint
+ # and tests/e2e/b3-attacks.test.ts (formerly 3 x it.fails) all green
+$ gh run list --branch f2-db --limit 2
+ completed success  B3: Drizzle persistence + idempotent payments ...  pull_request  37180144101
+ completed success  fix(pay): release the claim on pre-send errors ...  push          37180141896
+```
+
+No devnet transactions and 0 live AI calls in this re-gate.

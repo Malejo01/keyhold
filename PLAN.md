@@ -2,7 +2,7 @@
 
 Status: **F0 approved by Mauro on Sat 2026-10-03.** F2–F7 replanned the same night for his real availability and the approved cuts; their detailed boards are completed on Sunday (F1-05).
 
-Current phase: **F0 — gate passed (see `docs/reviews/phase-0.md`, addendum); demo video still to be recorded by Mauro.** Next: F1 on Sun 04/10 09:00.
+Current phase: **F0 — gate passed (see `docs/reviews/phase-0.md`, addendum); demo video still to be recorded by the product team (Ani and teammates; Mauro only does code).** Next: F1 on Sun 04/10 09:00.
 
 Legend: **[U]** = long task that can run unattended while Mauro teaches. It still ends in a review by Mauro before merging.
 
@@ -44,7 +44,7 @@ Times are minutes of agent work. `T` is the moment Mauro says "OK F0" (target 21
 | F0-07 | `README.md` v0 (problem, how to run, what is simulated, **custodial** escrow stated, Disclosures, Security considerations) + `docs/submission/demo-script.md` | submission-writer | 30 | F0-01 | `README.md`, `docs/submission/**` | English; no invented traction; escrow mode stated |
 | F0-08 | Integration: wire UI to routes, set Vercel env vars, `pnpm build`, evals, production deploy | lead | 30 | F0-03b…F0-06 | glue only | Public URL runs the full flow |
 | F0-09 | Gate: full flow 3 times in a row, secrets scan, PII-in-Memo check | qa-security-reviewer | 20 | F0-08 | `tests/e2e/**`, `docs/reviews/phase-0.md` | GO, or a list of blocking issues |
-| F0-10 | Record the demo (≤ 3 min, English) following `demo-script.md` | **Mauro** | 30 | F0-09 | — | Video uploaded |
+| F0-10 | Record the demo (≤ 3 min, English) following `demo-script.md` | **Product team** (Ani and teammates) | 30 | F0-09 | — | Video uploaded |
 
 Out of scope for F0: Anchor, scannable QR, embedded wallet, database, real visits agent.
 
@@ -57,7 +57,7 @@ Out of scope for F0: Anchor, scannable QR, embedded wallet, database, real visit
 | F1-03 | Visual fixes found while recording | ui-motion-engineer | 60 | F0-10 |
 | F1-04 | Compliance checklist: English, repo access for `hackathon@superteam.ar`, Disclosures | qa-security-reviewer | 20 | F1-01, F1-03 |
 | F1-05 | Complete the detailed boards for F2–F7 in this file | lead | 30 | — |
-| F1-06 | Record pitch (Ani), re-record demo if needed, **submit before 15:30**, rehearse the 5 Demo Day questions | Mauro + Ani | — | F1-04 |
+| F1-06 | Record pitch and demo (product team: Ani and teammates), **submit before 15:30**, rehearse the 5 Demo Day questions | Product team (recording), Mauro + Ani (submit) | — | F1-04 |
 
 ### F2–F7 — summary (detailed on Sunday in F1-05)
 
@@ -94,7 +94,7 @@ gantt
     section Close
     F0-08 integration + deploy (lead) :c1, 23:30, 30m
     F0-09 QA gate                     :c2, after c1, 20m
-    F0-10 record (Mauro)              :c3, after c2, 30m
+    F0-10 record (product team)       :c3, after c2, 30m
     Buffer                            :c4, after c3, 10m
 ```
 
@@ -282,7 +282,7 @@ Mauro's exact hours within each weekday are still unknown; if his slot is in the
 ### Before and during F0
 - [ ] **Mauro:** create GitHub repo `tuki-rentals`; link it to Vercel; have `ANTHROPIC_API_KEY` ready.
 - [ ] **Mauro:** request devnet SOL at faucet.solana.com for the address printed by F0-03a.
-- [ ] **Mauro:** record the demo.
+- [ ] **Product team (Ani and teammates):** record the demo. Mauro only does code.
 - [ ] **Everyone:** Colosseum account (arena.colosseum.org) with country **Argentina**; project location Argentina.
 - [ ] **Everyone:** register on Luma.
 - [ ] **Ani or Mauro:** team Google Form; Telegram renamed to "Name Surname | Keyhold".

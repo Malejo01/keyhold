@@ -28,5 +28,13 @@ Work before the tag `v0-hackathon-start` or imported via `chore(import)` commits
 - chore: GitHub repo renamed to `keyhold`; Vercel project renamed to `keyhold-app` (https://keyhold-app.vercel.app; `keyhold.vercel.app` was taken). `tuki-rentals.vercel.app` stays as an alias until Mon 12/10.
 - chore: `.claude/settings.json` enables agent teams and pre-approves routine commands.
 - docs: MIT `LICENSE`, `docs/HANDOFF.md`.
+- fix(agents): orchestrator offers one payment at a time, deposit first and then the next unpaid rent month; asking for rent before the deposit gets "The deposit comes first" plus the deposit card. Reply copy: "pre-qualified", "cross-check", "ID", deposit "held in the demo custody wallet", move-out "not built yet", singular/plural on-time count. New eval "deposit before rent"; replay evals pass (ai-agents-engineer).
+- test: first real-browser run (headless Chrome via CDP, 1280 px light and 375 px dark) against the real routes on localhost; Ana, Bruno and Carla end to end with real devnet payments. Found: rent payable before the deposit, which left Verify locked (lead).
+- fix(solana): `/api/pay` refuses rent before a confirmed deposit with 409 "Pay the deposit first." (solana-client-engineer).
+- fix(ui): rent card locked until the deposit is paid; deposit card shows only the amount; "secured" removed from deposit copy (escrow is custodial); one status term, "Payment confirmed"; next-step chip highlighted and mobile chip row hints that it scrolls (ui-motion-engineer).
+- chore(config): Next dev indicator hidden so it does not cover the chat input at 375 px (fullstack-engineer).
+- docs(submission): `preselection.md` with counted fields, `pitch-script.md` (2:00), demo script rewritten for the product team; README positioning line no longer claims trustless escrow (submission-writer).
+- docs(validation): honest GTM draft `docs/submission/gtm.md` (plan, no traction), 15 Salta agencies to contact, empty evidence log (market-validation-analyst).
+- docs: the demo and pitch videos are recorded by the product team, not Mauro; no new Gemini key, production stays on `REPLAY=1`; Monday design debates prepared in `docs/debates/` (lead).
 
 ## Week 2 — 2026-10-05 → 2026-10-12

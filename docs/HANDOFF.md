@@ -19,7 +19,7 @@ Read `CLAUDE.md` and `PLAN.md` first; this file only records the state at handof
 | F0-07 | README v0, demo script | Done; README still has TODOs for the humans (below) |
 | F0-08 | Integration and deploy | Done |
 | F0-09 | QA gate | See "Gate" below |
-| F0-10 | Demo video | **Not recorded yet (Mauro)** |
+| F0-10 | Demo video | **Not recorded yet.** Recorded by the product team (Ani and teammates), not by Mauro; Mauro only does code |
 | F0-11 | Gemini provider (added during the session) | Done |
 
 ### F1 — pre-selection, Sun 04/10, submit before 15:30
@@ -49,10 +49,10 @@ Nothing started. Tasks F1-01 to F1-06 are in `PLAN.md` §2.
 | Variable | Local | Vercel | Notes |
 |---|---|---|---|
 | `AI_PROVIDER` | yes | yes | `gemini` |
-| `GEMINI_API_KEY` | yes | **no** | Mauro loads a new key from a separate Google project |
+| `GEMINI_API_KEY` | yes | **no** | No new key (corrected Sun 04/10): local uses the current key, bounded by `AI_DAILY_CALL_CAP` |
 | `AI_MODEL`, `EXTRACTION_MODEL` | yes | yes | `gemini-3.5-flash-lite` |
 | `AI_DAILY_CALL_CAP` | yes | yes | 300 |
-| `REPLAY` | no | yes (`1`) | Production serves recordings until the key is loaded |
+| `REPLAY` | no | yes (`1`) | Production serves recordings until further notice from Mauro |
 | `SESSION_SECRET` | yes | yes | Different value in each place |
 | `PLATFORM_SECRET_KEY`, `LANDLORD_SECRET_KEY`, `TENANT_ANA_SECRET_KEY`, `TENANT_BRUNO_SECRET_KEY`, `TENANT_CARLA_SECRET_KEY` | yes | yes | Devnet demo keypairs |
 | `AGENCY_SECRET_KEY` | yes | no | Not used until the 2-of-3 release |
@@ -92,8 +92,8 @@ Not blocking, to close in F2:
 
 ## Next 5 steps
 
-1. Mauro: record the demo (≤ 3 min, English) with `docs/submission/demo-script.md`. Use `http://localhost:3000` for live Gemini or the public URL for recorded answers.
+1. Product team (Ani and teammates): record the demo (≤ 3 min, English) with `docs/submission/demo-script.md`, on the public URL (recorded answers). Mauro only does code.
 2. Mauro: close the app, rename the folder to `keyhold`, open a new session there (`.claude/settings.json` enables agent teams). Check with `/agents` that the 8 dev agents load. Remove the `tuki-rentals.vercel.app` alias after Mon 12/10.
 3. F1-01 and F1-02 in parallel: `docs/submission/preselection.md` with character counts and `pitch-script.md` (submission-writer), GTM text and the list of 15 agencies (market-validation-analyst). Product model is named "Google Gemini"; Claude Code stays declared as the coding assistant.
-4. Mauro and Ani: answer the README TODOs, record the pitch, share the repo with `hackathon@superteam.ar` if it is ever made private, and submit the form **before 15:30**.
+4. Mauro and Ani: answer the README TODOs; the product team records the pitch; share the repo with `hackathon@superteam.ar` if it is ever made private, and submit the form **before 15:30**.
 5. Lead: complete the detailed boards for F2–F7 in `PLAN.md` (F1-05), then start F2 on Monday with the Neon project and the program account table.

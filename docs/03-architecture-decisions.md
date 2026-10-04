@@ -71,7 +71,7 @@ Format: decision · context · consequence. Status: **Accepted** unless noted.
   - Fallback: if the orchestrator fails the evals with Flash-Lite, raise only `AI_MODEL` to `gemini-3.6-flash`.
   - **Checked on 2026-10-03:** Flash-Lite passes every eval live, 3/3, so both models stay on Flash-Lite. Two things had to be fixed first: the crosscheck prompt now says how to build the full name when an ID card gives names and surname in separate fields (Flash-Lite had dropped the surname, Carla 1/3), and the listings eval now also accepts "no tiene / no cuenta con ningún…" as a not-in-catalog answer.
   - `AI_DAILY_CALL_CAP` (default 300) caps live calls per day; past it the app serves recordings.
-  - Production stays on `REPLAY=1` until a `GEMINI_API_KEY` from a separate Google project is loaded.
+  - Production stays on `REPLAY=1` until further notice. No new key (corrected 2026-10-04): local development uses the current `GEMINI_API_KEY`, bounded by `AI_DAILY_CALL_CAP`.
   - Structured output through a JSON schema, validated again with zod. Function calling for the orchestrator tools.
   - Retry with backoff on 429, because the free tier has low rate limits.
   - Anthropic stays as an optional provider and nothing breaks when its key is missing.

@@ -135,7 +135,7 @@ lease:v1:<leaseId>:release:<reasonSha256hex>
 
 - `leaseId`: random opaque id. Never a name, DNI or address.
 - `sha256hex`: hash of the final contract text.
-- `release` (added in B6, lead-approved): custodial deposit release by the agency panel. The trailing hash is the sha256 of the release reason text, which is never stored. A lease has at most one release memo; the panel refuses a second one (idempotency) and counts it only when the custody wallet authorised the transfers out. Simulated 2-of-3: the demo server signs the release terms with two of the three demo keys before sending; the Anchor program is to enforce the real 2-of-3.
+- `release` (added in B6, lead-approved): custodial deposit release by the agency panel. The trailing hash is the sha256 of the release reason text, which is never stored. A lease has at most one release: every release transaction also creates a per-lease marker account (`createAccountWithSeed`, seed `rel:` + 24 hex of sha256(leaseId)) in instruction 0, so a second release fails on chain; the panel shows the 409 with the original link, lists every release transaction and flags duplicates in red, and counts a release only when the custody wallet authorised the transfers out. Simulated 2-of-3: the demo server signs the release terms with two of the three demo keys before sending; the Anchor program (built and tested, not yet deployed) is to enforce the real 2-of-3.
 - This resolves the difference between AD-03 (no month) and the solana-client brief (month for rent).
 
 ### PaymentIntent (agents → solana)

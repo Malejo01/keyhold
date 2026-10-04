@@ -10,14 +10,15 @@ import {
   getAccount,
   getAssociatedTokenAddressSync,
 } from "@solana/spl-token";
-import { Transaction, type Keypair, type PublicKey } from "@solana/web3.js";
+import { Transaction, type Connection, type Keypair, type PublicKey } from "@solana/web3.js";
 import { getDevnetConnection } from "../solana/connection";
-import { explorerTxUrl } from "../solana/explorer";
+import { explorerAddressUrl, explorerTxUrl } from "../solana/explorer";
 import { sha256Hex } from "../solana/hash";
 import { PAYMENT_DECIMALS, getPaymentMint, loadKeypair, platformKeypair } from "../solana/keys";
 import { fetchBlockTime, memoInstruction } from "../solana/transfer";
 import { ROLES, signWithSecretKey, termsMessage, verifyTwoOfThree, type Approval, type ReleaseTerms, type Role, type SignerSet } from "./approvals";
 import { invalidateLedgerCache, loadLeaseForRelease } from "./chain";
+import { isAlreadyInUse, releaseMarkerAddress, releaseMarkerInstruction } from "./marker";
 import { buildReleaseMemo } from "./memo";
 import { ReleaseError, planRelease } from "./plan";
 
@@ -50,7 +51,10 @@ export interface ReleaseResult {
   simulated: true;
 }
 
-/** Same-instance double-submit guard (the chain scan only sees confirmed releases). */
+/**
+ * Same-instance double-submit guard: it only saves a round trip. The real idempotency is on chain: every release
+ * transaction creates the per-lease marker account (lib/agency/marker.ts), so a second one fails atomically.
+ */
 const inFlight = new Set<string>();
 
 function loadAgencyKey(): Keypair {
@@ -71,6 +75,25 @@ async function custodyBalance(owner: PublicKey): Promise<bigint> {
   }
 }
 
+const ALREADY_RELEASED = "Already released: this lease's deposit was already paid out (its on-chain release marker exists).";
+
+/** Whether the lease's marker account exists and, if so, the oldest successful transaction that touched it (the original release). */
+async function markerState(connection: Connection, marker: PublicKey): Promise<{ exists: boolean; originalSignature: string | null }> {
+  const info = await connection.getAccountInfo(marker, "confirmed");
+  if (!info) return { exists: false, originalSignature: null };
+  try {
+    const sigs = await connection.getSignaturesForAddress(marker, { limit: 10 }, "confirmed");
+    const ok = sigs.filter((x) => !x.err);
+    return { exists: true, originalSignature: ok.length ? ok[ok.length - 1].signature : null };
+  } catch {
+    return { exists: true, originalSignature: null };
+  }
+}
+
+function alreadyReleased(marker: PublicKey, originalSignature: string | null): ReleaseError {
+  return new ReleaseError(ALREADY_RELEASED, 409, originalSignature ? explorerTxUrl(originalSignature) : explorerAddressUrl(marker.toBase58()));
+}
+
 function tryLoad(name: "ana" | "bruno" | "carla"): Keypair | null {
   try {
     return loadKeypair(name);
@@ -87,17 +110,22 @@ export async function releaseDeposit(input: ReleaseInput): Promise<ReleaseResult
   if (inFlight.has(input.leaseId)) throw new ReleaseError("A release for this lease is already in progress.", 409);
   inFlight.add(input.leaseId);
   try {
-    // Targeted fresh read, never the 30 s cache: the idempotency check must see the latest chain state.
+    const custody = platformKeypair();
+    const connection = await getDevnetConnection();
+    const marker = await releaseMarkerAddress(custody.publicKey, input.leaseId);
+
+    // Fast path for a friendly 409: the on-chain marker of an earlier release (the chain also enforces it below).
+    const existing = await markerState(connection, marker);
+    if (existing.exists) throw alreadyReleased(marker, existing.originalSignature);
+
+    // Targeted fresh read, never the 30 s cache. Releases made before the marker existed are found by the ledger
+    // (only transactions authorised by custody count, so a forged memo cannot block a release).
     const found = await loadLeaseForRelease(input.leaseId);
-    if (found.releaseMemoSeen) {
-      throw new ReleaseError("This deposit was already released (a release memo exists on chain).", 409);
-    }
-    if (found.incomplete) {
-      throw new ReleaseError("The deposit transaction could not be read yet (RPC rate limit). Try again in a moment.", 503);
+    if (found.incomplete && !found.lease?.release) {
+      throw new ReleaseError("The lease transactions could not be read yet (RPC rate limit). Try again in a moment.", 503);
     }
     const plan = planRelease(found.lease, input.toTenant, input.toLandlord);
 
-    const custody = platformKeypair();
     const landlord = loadKeypair("landlord");
     const tenant = (["ana", "bruno", "carla"] as const)
       .map(tryLoad)
@@ -131,10 +159,11 @@ export async function releaseDeposit(input: ReleaseInput): Promise<ReleaseResult
       throw new ReleaseError("The custody wallet does not hold enough test tokens for this release.", 409);
     }
 
-    const connection = await getDevnetConnection();
     const mint = getPaymentMint();
     const custodyAta = getAssociatedTokenAddressSync(mint, custody.publicKey);
     const tx = new Transaction();
+    // Instruction 0: creates the per-lease marker. If it already exists this whole transaction fails, no tokens move.
+    tx.add(await releaseMarkerInstruction(custody.publicKey, plan.leaseId, await connection.getMinimumBalanceForRentExemption(0)));
     const payouts: Array<[PublicKey, bigint]> = [
       [tenant.publicKey, plan.toTenant],
       [landlord.publicKey, plan.toLandlord],
@@ -152,9 +181,24 @@ export async function releaseDeposit(input: ReleaseInput): Promise<ReleaseResult
     tx.recentBlockhash = blockhash;
     tx.feePayer = custody.publicKey;
     tx.sign(custody);
-    const signature = await connection.sendRawTransaction(tx.serialize());
-    const confirmation = await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, "confirmed");
-    if (confirmation.value.err) throw new ReleaseError("The release transaction failed on chain.", 502);
+    let signature = "";
+    let failure: unknown = null;
+    try {
+      signature = await connection.sendRawTransaction(tx.serialize());
+      const confirmation = await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, "confirmed");
+      failure = confirmation.value.err;
+    } catch (err) {
+      failure = err ?? new Error("send failed");
+    }
+    if (failure) {
+      // Either the marker rejected a concurrent second release, or the send/confirmation failed. Read the marker:
+      // if our own transaction created it, the release landed (e.g. a confirmation timeout); otherwise refuse.
+      const after = await markerState(connection, marker).catch(() => ({ exists: false, originalSignature: null }));
+      if (!(signature && after.originalSignature === signature)) {
+        if (after.exists || isAlreadyInUse(failure)) throw alreadyReleased(marker, after.originalSignature);
+        throw new ReleaseError("The release could not be completed. Nothing was released; check the lease status before retrying (a retry cannot pay twice).", 502);
+      }
+    }
     const blockTime = await fetchBlockTime(signature);
     invalidateLedgerCache();
     return {

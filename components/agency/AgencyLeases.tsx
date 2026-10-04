@@ -24,6 +24,9 @@ const STATUS: Record<LeaseDto["status"], { label: string; tone: "accent" | "succ
   no_deposit: { label: "No deposit seen", tone: "neutral" },
 };
 
+const sumReleases = (releases: LeaseDto["releases"]): string =>
+  releases.reduce((sum, r) => sum + BigInt(r.toTenant) + BigInt(r.toLandlord), BigInt(0)).toString();
+
 function ExplorerLink({ href, children }: { href: string; children: React.ReactNode }) {
   return (
     <a
@@ -54,7 +57,7 @@ function ReleaseForm({
   const [reason, setReason] = useState("");
   const [approver, setApprover] = useState<"tenant" | "landlord">("tenant");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ message: string; explorerUrl?: string } | null>(null);
 
   const tenantBase = usdcToBaseUnits(tenantText);
   const landlordBase = landlordShare(deposit, tenantBase);
@@ -72,14 +75,14 @@ function ReleaseForm({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ leaseId: lease.leaseId, toTenant: tenantBase, toLandlord: landlordBase, reason: reason.trim(), approver }),
       });
-      const json = (await res.json().catch(() => null)) as { release?: ReleaseOk; error?: string } | null;
+      const json = (await res.json().catch(() => null)) as { release?: ReleaseOk; error?: string; explorerUrl?: string } | null;
       if (!res.ok || !json?.release) {
-        setError(json?.error ?? `The release failed (HTTP ${res.status}).`);
+        setError({ message: json?.error ?? `The release failed (HTTP ${res.status}).`, explorerUrl: json?.explorerUrl });
         return;
       }
       onDone(json.release);
     } catch {
-      setError("Network error. Nothing was sent; check the lease status and try again.");
+      setError({ message: "Network error. Check the lease status before trying again; a second release cannot pay out twice." });
     } finally {
       setBusy(false);
     }
@@ -144,11 +147,20 @@ function ReleaseForm({
         </select>
       </div>
       <p className="rounded-md bg-warning-soft p-2 text-xs text-warning">
-        Simulated 2-of-3 approval: the demo server holds all three keys. The Anchor program (in progress) enforces this on chain.
+        Simulated 2-of-3 approval: the demo server holds all three keys. The Anchor program (built and tested, not yet deployed) will enforce this on chain.
       </p>
       {error && (
         <p role="alert" className="flex items-start gap-2 text-sm font-semibold text-danger">
-          <AlertIcon className="mt-0.5 size-4 shrink-0" /> {error}
+          <AlertIcon className="mt-0.5 size-4 shrink-0" />
+          <span>
+            {error.message}
+            {error.explorerUrl && (
+              <>
+                {" "}
+                <ExplorerLink href={error.explorerUrl}>Original release</ExplorerLink>
+              </>
+            )}
+          </span>
         </p>
       )}
       <div className="flex flex-wrap gap-2">
@@ -239,19 +251,49 @@ function LeaseCard({
         <p className="mt-2 text-xs text-muted">On time is inferred from the amount: a 5% discount means the payment was confirmed by the due date.</p>
       )}
 
-      {(lease.release || done) && (
-        <div className="mt-4 rounded-md border border-border bg-success-soft p-3 text-sm text-success">
-          <p className="flex items-center gap-1.5 font-semibold">
-            <CheckIcon className="size-4" /> Released: {formatUsdc((done ?? lease.release)!.toTenant)} USDC to the tenant,{" "}
-            {formatUsdc((done ?? lease.release)!.toLandlord)} USDC to the landlord
+      {lease.duplicateRelease && (
+        <div role="alert" className="mt-4 rounded-md border border-danger bg-danger-soft p-3 text-sm font-semibold text-danger">
+          <p className="flex items-start gap-1.5">
+            <AlertIcon className="mt-0.5 size-4 shrink-0" />
+            <span>
+              Duplicate release: {lease.releases.length} release transactions are on chain for this lease, paying out{" "}
+              {formatUsdc(sumReleases(lease.releases))} USDC against a {lease.deposit ? formatUsdc(lease.deposit.amount) : "0.00"} USDC deposit.
+              Check every transaction below.
+            </span>
           </p>
-          {done && (
-            <p className="mt-1 text-xs">Approved by {done.approvedBy.join(" and ")} (simulated 2-of-3).</p>
+        </div>
+      )}
+      {(lease.releases.length > 0 || done) && (
+        <div className="mt-4 flex flex-col gap-2">
+          {lease.releases.map((r, i) => (
+            <div
+              key={r.signature}
+              className={`rounded-md border p-3 text-sm ${lease.duplicateRelease ? "border-danger bg-danger-soft text-danger" : "border-border bg-success-soft text-success"}`}
+            >
+              <p className="flex items-center gap-1.5 font-semibold">
+                {lease.duplicateRelease ? <AlertIcon className="size-4" /> : <CheckIcon className="size-4" />}
+                {lease.releases.length > 1 ? `Release ${i + 1} of ${lease.releases.length}: ` : "Released: "}
+                {formatUsdc(r.toTenant)} USDC to the tenant, {formatUsdc(r.toLandlord)} USDC to the landlord
+              </p>
+              <p className="mt-1 break-all font-mono text-xs">Reason hash: {shortHash(r.reasonHash, 12, 8)}</p>
+              {r.blockTime && <p className="mt-1 text-xs">{formatTs(r.blockTime)}</p>}
+              <p className="mt-1">
+                <ExplorerLink href={r.explorerUrl}>Release transaction</ExplorerLink>
+              </p>
+            </div>
+          ))}
+          {done && lease.releases.length === 0 && (
+            <div className="rounded-md border border-border bg-success-soft p-3 text-sm text-success">
+              <p className="flex items-center gap-1.5 font-semibold">
+                <CheckIcon className="size-4" /> Released: {formatUsdc(done.toTenant)} USDC to the tenant, {formatUsdc(done.toLandlord)} USDC to the landlord
+              </p>
+              <p className="mt-1 text-xs">Approved by {done.approvedBy.join(" and ")} (simulated 2-of-3).</p>
+              <p className="mt-1 break-all font-mono text-xs">Reason hash: {shortHash(done.reasonHash, 12, 8)}</p>
+              <p className="mt-1">
+                <ExplorerLink href={done.explorerUrl}>Release transaction</ExplorerLink>
+              </p>
+            </div>
           )}
-          <p className="mt-1 break-all font-mono text-xs">Reason hash: {shortHash((done ?? lease.release)!.reasonHash, 12, 8)}</p>
-          <p className="mt-1">
-            <ExplorerLink href={(done ?? lease.release)!.explorerUrl}>Release transaction</ExplorerLink>
-          </p>
         </div>
       )}
 

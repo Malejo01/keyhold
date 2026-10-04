@@ -148,3 +148,44 @@ risk is low. Cleaner: pass a replay option down to `evaluateTenant`, or use `Asy
 
 Live model calls by this review: **0** (server ran with `REPLAY=1`; the queue forces replay).
 Devnet transactions by this review: 2 (the race), plus 2 from the phase0 e2e.
+
+## Fixes (fullstack)
+
+Author: fullstack-engineer, Sun 04/10/2026, branch `f2-agency`. Re-review by qa is still needed before the verdict changes.
+
+| Item | Status | What changed |
+| --- | --- | --- |
+| B1 double release | Fixed | `lib/agency/marker.ts`, `lib/agency/release.ts` |
+| Ledger hides duplicates | Fixed | `lib/agency/ledger.ts`, `dto.ts`, `components/agency/AgencyLeases.tsx` |
+| N1 forged release memos and junk leases | Fixed | `lib/agency/chain.ts`, `ledger.ts` |
+| N2 unthrottled `?lease=` | Fixed | `app/api/agency/leases/route.ts`, `lib/agency/ratelimit.ts`, `chain.ts` |
+| N3 Anchor copy | Fixed | `AgencyLeases.tsx`, `PLAN.md` |
+| N4, N5 | Not touched | unchanged from the review |
+
+### B1: on-chain idempotency
+- Instruction 0 of every release transaction is `SystemProgram.createAccountWithSeed`: base and payer are the custody wallet (it is also the fee payer), `seed = "rel:" + sha256(leaseId)[0..24]` (28 bytes, limit 32), space 0, owner System Program, lamports = rent-exempt minimum for 0 bytes (890,880, about 0.00089 devnet SOL, locked per release). The address is deterministic per lease, so a second release transaction fails atomically (System error 0, "already in use") before any token moves, whichever process or RPC node sends it. The memo `lease:v1:<id>:release:<sha256>` is unchanged and no PII is added (the seed is a truncated hash of an opaque id).
+- Before building anything, `releaseDeposit` reads the marker account. If it exists the answer is `409 "Already released: ..."` with `explorerUrl` of the original release (oldest transaction that touched the marker, found with `getSignaturesForAddress(marker)`; falls back to the marker's address page). The route returns `{ error, explorerUrl }`, and the release form shows an "Original release" link.
+- After any failed send or confirmation the marker is read again. If our own signature created it, the release is reported as a success (confirmation timeout that landed); if another transaction created it, 409; otherwise 502 with "Nothing was released" (a retry cannot pay twice). The in-memory `inFlight` set stays as a cheap same-instance short cut only.
+- Releases made before this fix have no marker: they are still caught by the ledger scan (below), which now needs a verified release transaction instead of any memo.
+- Known limit: the marker address can be computed by anyone, and anyone can send lamports to it. Funding it makes `createAccountWithSeed` fail for that lease, which blocks that lease's release (a nuisance, funds are safe; custody can recover it by `transferWithSeed`). Not mitigated.
+
+Tests (all in `pnpm test`, 91 passed in 16 files):
+- `lib/agency/marker.test.ts`: seed length and determinism, address equals `PublicKey.createWithSeed`, decoded instruction fields, recognition of the already-in-use error shapes.
+- `lib/agency/release.race.test.ts`: two separate module registries (two "instances", so the in-flight Set is not shared) call `releaseDeposit` for the same lease against a mock RPC that, like the cluster, rejects instruction 0 when the marker exists. A barrier makes both pass the pre-check before either sends. Result: one fulfilled, one `409` with the winner's explorer link, one landed transaction, 420 tUSDC out. Also covered: a later attempt is refused without sending, same-instance duplicate, confirmation timeout that landed, memo format kept. Mutating the mock so the marker does not reject makes the race test fail, so the test does exercise the guard.
+- Real devnet (3 transactions total): the phase 0 e2e created `ls_f579a120d4811676` (deposit `58wobWvH...`, rent `4UHsxChw...`). `scripts/agency-release-race.ts` then fired one POST to the server on port 3006 and one direct `releaseDeposit()` call at the same time: exactly one landed (`3qFsZuhsBmjzC3kE2FMWdnUyWYhk6QRBncAaBgfG58gRm3ec2W2koVQi27Mye6MgKUXemAa2ghoEFgEVuqf9prj1`, https://explorer.solana.com/tx/3qFsZuhsBmjzC3kE2FMWdnUyWYhk6QRBncAaBgfG58gRm3ec2W2koVQi27Mye6MgKUXemAa2ghoEFgEVuqf9prj1?cluster=devnet), the other got `409 Already released` with that link. In that run the loser was stopped by the pre-check, not by the cluster, so the on-chain rejection itself was shown without spending a transaction: `simulateTransaction` of a second release for the same lease returned `{"InstructionError":[0,{"Custom":0}]}` with the log `Create Account: account Address { address: ECdnDyGf..., base: Some(4sroL1aF...) } already in use`. The mock-RPC test covers the race where both pass the pre-check. A later POST for the same lease also answered 409 with the same link, and the panel API now shows that lease as `deposit_released` with one release.
+
+### Ledger shows every release
+`LeaseLedger.releases` holds every release transaction authorised by custody (oldest first, de-duplicated by signature); `release` stays the earliest for the status badge; `duplicateRelease` is true when there is more than one or the payouts exceed the deposit. The card lists each release ("Release 1 of 2: ..."), turns red and shows a "Duplicate release" alert with the total paid against the deposit. Against the live devnet history, lease `ls_44c6adbf21d470c1` (the double release found by this review) now renders as `deposit_released` with the duplicate flag.
+
+### N1: forged memos
+- The release check no longer counts any release memo. `loadLeaseForRelease` reads every transaction of the lease, including the release-memo ones, and the ledger rule applies: a release counts only if every token transfer is authorised by the custody wallet out of the custody token account, with the configured mint (`transfersOf` already drops other mints). If a release-memo transaction cannot be read yet, the route answers 503 instead of assuming "no release".
+- Zero-amount deposit and rent memos are ignored. `isTrustedLease` drops leases that have no custody-authorised release and whose deposit (or rent, if no deposit) was not paid by a demo tenant wallet; when no tenant key is configured (read-only preview) only the amount rule applies. The list reads the newest 12 candidate leases, filters, and widens the window only as far as needed (up to 36 candidates, within the same 9 s read budget) to still show 12 real leases. Against live devnet the list converges to 12 leases over a few follow-up refreshes.
+
+### N2: `?lease=`
+`createLimiter` (`lib/agency/ratelimit.ts`, also used by the release route, with an LRU cap on tracked keys) limits `GET /api/agency/leases?lease=` to 20 per 5 minutes per IP (429 with `Retry-After`); the default list is not limited. One lookup spends at most 8 `getSignaturesForAddress` calls (retries included), with 4 pages per account instead of 6; when the budget is spent the lookup returns what it has, which is "not found" and therefore the safe side for a release. Empty single-lease results are cached for 20 s, and eviction never removes the shared `"*"` snapshot. Checked on localhost: 19 requests for one unknown id returned 200 and the next four 429.
+
+### N3
+The release form now says: "The Anchor program (built and tested, not yet deployed) will enforce this on chain." `PLAN.md` was updated the same way, and its claim about at most one release memo now describes the marker.
+
+### Checks run
+`pnpm exec tsc --noEmit` clean, `pnpm lint` clean, `pnpm test` 91/91, `pnpm build` ok, phase 0 e2e against `pnpm start -p 3006` (`REPLAY=1`): 59/59. Live model calls: 0. Devnet transactions: 3 (2 from the e2e, 1 release). Server on 3006 stopped afterwards.

@@ -6,7 +6,7 @@ import { TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync } from "@solana/spl-tok
 import { Connection, PublicKey, type ParsedTransactionWithMeta } from "@solana/web3.js";
 import { getDevnetConnection, getRpcUrl } from "../solana/connection";
 import { getPaymentMint, landlordKeypair, platformKeypair, tenantKeypair } from "../solana/keys";
-import { buildLedger, type ChainRecord, type ChainTransfer, type LeaseLedger, type LedgerContext } from "./ledger";
+import { buildLedger, isTrustedLease, type ChainRecord, type ChainTransfer, type LeaseLedger, type LedgerContext } from "./ledger";
 import { matchBySignature } from "./match";
 import { extractLeaseMemo } from "./memo";
 
@@ -27,6 +27,12 @@ const CHUNK_PAUSE_MS = 700;
 const READ_BUDGET_MS = 9_000;
 /** A partial read (rate limited) is cached only briefly so the next refresh continues where it stopped. */
 const PARTIAL_TTL_MS = 3_000;
+/** Never more than this many leases examined to fill the list when spam leases are filtered out. */
+const MAX_CANDIDATE_LEASES = 36;
+/** A lookup of one lease id may spend at most this many getSignaturesForAddress calls, retries included. */
+const MAX_SIGNATURE_CALLS = 8;
+/** A single-lease lookup that found nothing is remembered this long (stops random-id loops from hitting the RPC). */
+const NEGATIVE_TTL_MS = 20_000;
 const RATE_LIMIT_RE = /too many requests|429|rate limit/i;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -66,6 +72,19 @@ export function tenantLabelFor(wallet: string): string | null {
     }
   }
   return null;
+}
+
+/** Demo tenant wallets this deployment knows. Empty when no tenant key is configured (e.g. a read-only preview). */
+export function knownTenantWallets(): Set<string> {
+  const out = new Set<string>();
+  for (const id of ["ana", "bruno", "carla"] as const) {
+    try {
+      out.add(tenantKeypair(id).publicKey.toBase58());
+    } catch {
+      /* key not configured in this environment */
+    }
+  }
+  return out;
 }
 
 function transfersOf(tx: ParsedTransactionWithMeta, mint: string): ChainTransfer[] {
@@ -128,10 +147,14 @@ async function listLeaseSignatures(connection: Connection, ctx: LedgerContext, o
   return value;
 }
 
-const MAX_PAGES = 6;
+const MAX_PAGES = 4;
 
-async function signaturePage(connection: Connection, address: string, before?: string) {
+class SignatureBudgetError extends Error {}
+
+async function signaturePage(connection: Connection, address: string, before: string | undefined, budget: { calls: number }) {
   for (let attempt = 0; ; attempt++) {
+    if (budget.calls >= MAX_SIGNATURE_CALLS) throw new SignatureBudgetError("RPC call budget for this lookup is spent");
+    budget.calls++;
     try {
       return await connection.getSignaturesForAddress(new PublicKey(address), { limit: SIGNATURES_PER_ADDRESS, before }, "confirmed");
     } catch (err) {
@@ -143,10 +166,18 @@ async function signaturePage(connection: Connection, address: string, before?: s
 
 async function fetchLeaseSignatures(connection: Connection, ctx: LedgerContext, leaseId?: string): Promise<SigInfo[]> {
   const bySig = new Map<string, SigInfo>();
+  const budget = { calls: 0 };
   for (const address of [ctx.custodyAta, ctx.landlordAta]) {
     let before: string | undefined;
     for (let page = 0; page < (leaseId ? MAX_PAGES : 1); page++) {
-      const infos = await signaturePage(connection, address, before);
+      let infos;
+      try {
+        infos = await signaturePage(connection, address, before, budget);
+      } catch (err) {
+        // Out of budget: return what was found (a lease deeper in history shows as "not found", the safe side).
+        if (err instanceof SignatureBudgetError) break;
+        throw err;
+      }
       let foundLease = false;
       for (const info of infos) {
         if (info.err) continue;
@@ -193,55 +224,72 @@ async function readTransactions(connection: Connection, sigs: SigInfo[], mint: s
   }
 }
 
-/** Keeps every transaction of the `max` leases with the newest activity (all of a lease, never half of it). */
-function newestLeases(sigs: SigInfo[], max: number): SigInfo[] {
-  const keep: string[] = [];
+/** Lease ids in order of latest activity, newest first (spam leases included until their transactions are read). */
+function candidateLeaseIds(sigs: SigInfo[]): string[] {
+  const ids: string[] = [];
   for (const s of sigs) {
     const id = extractLeaseMemo(s.memo)?.leaseId;
-    if (id && !keep.includes(id)) keep.push(id);
-    if (keep.length >= max) break;
+    if (id && !ids.includes(id)) ids.push(id);
   }
-  return sigs.filter((s) => keep.includes(extractLeaseMemo(s.memo)?.leaseId ?? ""));
+  return ids;
 }
 
 async function readChain(leaseId?: string): Promise<LedgerSnapshot> {
   const connection = await readConnection();
   const ctx = currentContext();
   const mint = getPaymentMint().toBase58();
+  const known = knownTenantWallets();
   const all = await listLeaseSignatures(connection, ctx, { leaseId });
-  const wanted = leaseId ? all.filter((s) => extractLeaseMemo(s.memo)?.leaseId === leaseId) : newestLeases(all, MAX_LEASES);
-  await readTransactions(connection, wanted, mint, READ_BUDGET_MS);
-  const records = wanted.map((w) => txCache.get(w.signature)).filter((r): r is ChainRecord => !!r);
+  const startedAt = Date.now();
+  const sigsOf = (ids: string[]) => all.filter((s) => ids.includes(extractLeaseMemo(s.memo)?.leaseId ?? ""));
+  const candidates = leaseId ? [leaseId] : candidateLeaseIds(all);
+
+  // Anyone can send a memo, so the newest leases by memo alone may include spam. Read the newest MAX_LEASES
+  // candidates, drop the ones without real money movement from a demo wallet (see isTrustedLease), and widen the
+  // window only as far as needed to still list MAX_LEASES real leases.
+  let take = Math.min(leaseId ? 1 : MAX_LEASES, candidates.length);
+  let wanted: SigInfo[] = [];
+  let trusted: LeaseLedger[] = [];
+  let records: ChainRecord[] = [];
+  for (;;) {
+    wanted = sigsOf(candidates.slice(0, take));
+    await readTransactions(connection, wanted, mint, Math.max(0, READ_BUDGET_MS - (Date.now() - startedAt)));
+    records = wanted.map((w) => txCache.get(w.signature)).filter((r): r is ChainRecord => !!r);
+    trusted = buildLedger(records, ctx).filter((l) => isTrustedLease(l, known));
+    const unread = wanted.length - records.length;
+    if (leaseId || trusted.length >= MAX_LEASES || take >= candidates.length || take >= MAX_CANDIDATE_LEASES || unread > 0) break;
+    if (Date.now() - startedAt >= READ_BUDGET_MS) break;
+    take = Math.min(candidates.length, MAX_CANDIDATE_LEASES, take + (MAX_LEASES - trusted.length));
+  }
   return {
     ctx,
-    leases: buildLedger(records, ctx),
+    leases: trusted.slice(0, MAX_LEASES),
     readAt: Date.now(),
     cached: false,
     stale: false,
     pending: wanted.length - records.length,
-    totalLeases: new Set(all.map((s) => extractLeaseMemo(s.memo)?.leaseId)).size,
+    totalLeases: candidates.length,
   };
 }
 
 /**
- * What a release needs to know about one lease, without reading every other lease: whether any release memo exists
- * (read from the signature list, no transaction fetch) and the lease's own deposit and rent transactions.
- * A release memo seen on chain blocks a second release even if its transfers are not verified here (refusing is the
- * safe side). Returns `incomplete` when the deposit transaction could not be read (rate limit).
+ * What a release needs to know about one lease, without reading every other lease: the lease's own transactions,
+ * including every release memo. A release only counts when its transaction was authorised by the custody wallet
+ * (the ledger rule), so a forged memo from a stranger neither blocks nor fakes a release. When a release-memo
+ * transaction cannot be read yet, `incomplete` is true and the caller refuses (503): not knowing is not "no release".
+ * The on-chain marker account (lib/agency/marker.ts) remains the source of truth for idempotency.
  */
-export async function loadLeaseForRelease(
-  leaseId: string,
-): Promise<{ lease: LeaseLedger | undefined; releaseMemoSeen: boolean; incomplete: boolean }> {
+export async function loadLeaseForRelease(leaseId: string): Promise<{ lease: LeaseLedger | undefined; incomplete: boolean }> {
   const connection = await readConnection();
   const ctx = currentContext();
   const mint = getPaymentMint().toBase58();
   const all = (await listLeaseSignatures(connection, ctx, { fresh: true, leaseId })).filter((s) => extractLeaseMemo(s.memo)?.leaseId === leaseId);
-  const releaseMemoSeen = all.some((s) => extractLeaseMemo(s.memo)?.kind === "release");
-  const needed = all.filter((s) => extractLeaseMemo(s.memo)?.kind !== "release");
-  await readTransactions(connection, needed, mint, READ_BUDGET_MS);
+  await readTransactions(connection, all, mint, READ_BUDGET_MS);
   const records = all.map((w) => txCache.get(w.signature)).filter((r): r is ChainRecord => !!r);
   const lease = buildLedger(records, ctx).find((l) => l.leaseId === leaseId);
-  return { lease, releaseMemoSeen, incomplete: needed.some((s) => !txCache.has(s.signature)) && !lease?.deposit };
+  const unreadRelease = all.some((s) => extractLeaseMemo(s.memo)?.kind === "release" && !txCache.has(s.signature));
+  const unreadOther = all.some((s) => extractLeaseMemo(s.memo)?.kind !== "release" && !txCache.has(s.signature));
+  return { lease, incomplete: unreadRelease || (unreadOther && !lease?.deposit) };
 }
 
 /**
@@ -257,8 +305,14 @@ export async function loadLedger(opts: { fresh?: boolean; leaseId?: string } = {
   if (!pending) {
     pending = readChain(opts.leaseId)
       .then((value) => {
-        snapshots.set(key, { at: Date.now(), ttl: value.pending > 0 || value.leases.length === 0 ? PARTIAL_TTL_MS : CACHE_TTL_MS, value });
-        if (snapshots.size > 50) snapshots.delete(snapshots.keys().next().value as string);
+        const empty = value.leases.length === 0 && value.pending === 0;
+        const ttl = value.pending > 0 ? PARTIAL_TTL_MS : empty && opts.leaseId ? NEGATIVE_TTL_MS : value.leases.length === 0 ? PARTIAL_TTL_MS : CACHE_TTL_MS;
+        snapshots.set(key, { at: Date.now(), ttl, value });
+        if (snapshots.size > 50) {
+          // Evict the oldest single-lease entry, never the shared "*" snapshot.
+          const oldest = [...snapshots.keys()].find((k) => k !== "*");
+          if (oldest) snapshots.delete(oldest);
+        }
         return value;
       })
       .finally(() => {

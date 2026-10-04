@@ -48,6 +48,8 @@ export interface RentEntry {
   discountBps: number | null;
   /** 500 bps (USDC 3% + on-time 2%) means the payment landed by the due date. Null when unknown. */
   onTime: boolean | null;
+  /** Wallet that authorised the payment. */
+  payer: string;
 }
 
 export interface ReleaseEntry {
@@ -68,7 +70,12 @@ export interface LeaseLedger {
   status: LeaseStatus;
   deposit: DepositEntry | null;
   rent: RentEntry[];
+  /** The earliest release transaction (the one the panel treats as the release). */
   release: ReleaseEntry | null;
+  /** EVERY release transaction authorised by custody for this lease, oldest first. More than one is a red flag. */
+  releases: ReleaseEntry[];
+  /** True when more than one release landed, or the releases together pay out more than the deposit. */
+  duplicateRelease: boolean;
   /** Latest blockTime across entries, for sorting. */
   lastActivity: number | null;
 }
@@ -90,6 +97,20 @@ export function inferDiscountBps(rentAmount: string, depositAmount: string | nul
   return 10_000 - Number(paidBps);
 }
 
+const isPositive = (amount: string): boolean => /^[0-9]+$/.test(amount) && BigInt(amount) > BigInt(0);
+
+/**
+ * Whether a lease should be listed. Anyone can send a memo, so a lease needs real, positive-amount money movement
+ * from a demo tenant wallet (when this deployment knows any), or a release authorised by the custody wallet.
+ * Spam leases (0 amounts, strangers) are dropped so they cannot push real leases out of the newest-leases window.
+ */
+export function isTrustedLease(lease: LeaseLedger, knownPayers: ReadonlySet<string>): boolean {
+  if (lease.releases.length > 0) return true;
+  if (knownPayers.size === 0) return lease.deposit !== null || lease.rent.length > 0;
+  if (lease.deposit) return knownPayers.has(lease.deposit.payer);
+  return lease.rent.some((r) => knownPayers.has(r.payer));
+}
+
 function earliest<T extends { blockTime: number | null }>(a: T | undefined, b: T): T {
   if (!a) return b;
   return (b.blockTime ?? Infinity) < (a.blockTime ?? Infinity) ? b : a;
@@ -102,7 +123,7 @@ export function buildLedger(records: ChainRecord[], ctx: LedgerContext): LeaseLe
     hash: string | null;
     deposit?: DepositEntry;
     rent: Map<number, RentEntry>;
-    release?: ReleaseEntry;
+    releases: Map<string, ReleaseEntry>;
   }
   const byLease = new Map<string, Acc>();
   const seen = new Set<string>();
@@ -116,16 +137,16 @@ export function buildLedger(records: ChainRecord[], ctx: LedgerContext): LeaseLe
     let entry: { kind: "deposit"; v: DepositEntry } | { kind: "rent"; v: RentEntry } | { kind: "release"; v: ReleaseEntry } | null = null;
 
     if (memo.kind === "deposit") {
-      const t = record.transfers.find((x) => x.destination === ctx.custodyAta);
+      const t = record.transfers.find((x) => x.destination === ctx.custodyAta && isPositive(x.amount));
       if (t) {
         entry = { kind: "deposit", v: { signature: record.signature, blockTime: record.blockTime, amount: t.amount, payer: t.authority } };
       }
     } else if (memo.kind === "rent") {
-      const t = record.transfers.find((x) => x.destination === ctx.landlordAta);
+      const t = record.transfers.find((x) => x.destination === ctx.landlordAta && isPositive(x.amount));
       if (t && memo.monthIndex !== undefined) {
         entry = {
           kind: "rent",
-          v: { signature: record.signature, blockTime: record.blockTime, monthIndex: memo.monthIndex, amount: t.amount, discountBps: null, onTime: null },
+          v: { signature: record.signature, blockTime: record.blockTime, monthIndex: memo.monthIndex, amount: t.amount, discountBps: null, onTime: null, payer: t.authority },
         };
       }
     } else {
@@ -146,13 +167,13 @@ export function buildLedger(records: ChainRecord[], ctx: LedgerContext): LeaseLe
     }
     if (!entry) continue;
 
-    const acc = byLease.get(memo.leaseId) ?? { legacy: memo.legacy, hash: null, rent: new Map<number, RentEntry>() };
+    const acc = byLease.get(memo.leaseId) ?? { legacy: memo.legacy, hash: null, rent: new Map<number, RentEntry>(), releases: new Map<string, ReleaseEntry>() };
     byLease.set(memo.leaseId, acc);
     if (memo.kind !== "release") acc.hash ??= memo.hash;
     if (!memo.legacy) acc.legacy = false;
     if (entry.kind === "deposit") acc.deposit = earliest(acc.deposit, entry.v);
     else if (entry.kind === "rent") acc.rent.set(entry.v.monthIndex, earliest(acc.rent.get(entry.v.monthIndex), entry.v));
-    else acc.release = earliest(acc.release, entry.v);
+    else acc.releases.set(entry.v.signature, entry.v);
   }
 
   const ledgers: LeaseLedger[] = [];
@@ -164,8 +185,11 @@ export function buildLedger(records: ChainRecord[], ctx: LedgerContext): LeaseLe
         return { ...r, discountBps, onTime: discountBps === null ? null : discountBps >= ON_TIME_TOTAL_BPS };
       })
       .sort((a, b) => a.monthIndex - b.monthIndex);
-    const release = acc.release ?? null;
-    const times = [deposit?.blockTime, release?.blockTime, ...rent.map((r) => r.blockTime)].filter((t): t is number => typeof t === "number");
+    const releases = [...acc.releases.values()].sort((a, b) => (a.blockTime ?? Infinity) - (b.blockTime ?? Infinity));
+    const release = releases[0] ?? null;
+    const paidOut = releases.reduce((sum, r) => sum + BigInt(r.toTenant) + BigInt(r.toLandlord), BigInt(0));
+    const duplicateRelease = releases.length > 1 || (deposit !== null && paidOut > BigInt(deposit.amount));
+    const times = [deposit?.blockTime, ...releases.map((r) => r.blockTime), ...rent.map((r) => r.blockTime)].filter((t): t is number => typeof t === "number");
     ledgers.push({
       leaseId,
       legacy: acc.legacy,
@@ -174,6 +198,8 @@ export function buildLedger(records: ChainRecord[], ctx: LedgerContext): LeaseLe
       deposit,
       rent,
       release,
+      releases,
+      duplicateRelease,
       lastActivity: times.length ? Math.max(...times) : null,
     });
   }

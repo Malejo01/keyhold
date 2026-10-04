@@ -1,6 +1,6 @@
 // JSON-safe view of the ledger for the panel and the API. Adds explorer links and demo persona labels.
 import { explorerAddressUrl, explorerTxUrl } from "../solana/explorer";
-import type { LeaseLedger, LeaseStatus } from "./ledger";
+import type { LeaseLedger, LeaseStatus, ReleaseEntry } from "./ledger";
 import { CACHE_TTL_MS, tenantLabelFor, type LedgerSnapshot } from "./chain";
 
 export interface TxRef {
@@ -18,8 +18,15 @@ export interface LeaseDto {
   payer: { wallet: string; label: string | null } | null;
   deposit: (TxRef & { amount: string }) | null;
   rent: Array<TxRef & { monthIndex: number; amount: string; discountBps: number | null; onTime: boolean | null }>;
-  release: (TxRef & { toTenant: string; toLandlord: string; reasonHash: string }) | null;
+  /** The earliest release, kept for the status badge. */
+  release: ReleaseDto | null;
+  /** Every release transaction on chain for this lease, oldest first. */
+  releases: ReleaseDto[];
+  /** More than one release landed, or the releases pay out more than the deposit. Shown in red. */
+  duplicateRelease: boolean;
 }
+
+export type ReleaseDto = TxRef & { toTenant: string; toLandlord: string; reasonHash: string };
 
 export interface LeasesResponse {
   leases: LeaseDto[];
@@ -40,6 +47,13 @@ export interface LeasesResponse {
 
 const tx = (signature: string, blockTime: number | null): TxRef => ({ signature, blockTime, explorerUrl: explorerTxUrl(signature) });
 
+const releaseDto = (r: ReleaseEntry): ReleaseDto => ({
+  ...tx(r.signature, r.blockTime),
+  toTenant: r.toTenant,
+  toLandlord: r.toLandlord,
+  reasonHash: r.reasonHash,
+});
+
 export function toLeaseDto(l: LeaseLedger): LeaseDto {
   return {
     leaseId: l.leaseId,
@@ -49,9 +63,9 @@ export function toLeaseDto(l: LeaseLedger): LeaseDto {
     payer: l.deposit ? { wallet: l.deposit.payer, label: tenantLabelFor(l.deposit.payer) } : null,
     deposit: l.deposit ? { ...tx(l.deposit.signature, l.deposit.blockTime), amount: l.deposit.amount } : null,
     rent: l.rent.map((r) => ({ ...tx(r.signature, r.blockTime), monthIndex: r.monthIndex, amount: r.amount, discountBps: r.discountBps, onTime: r.onTime })),
-    release: l.release
-      ? { ...tx(l.release.signature, l.release.blockTime), toTenant: l.release.toTenant, toLandlord: l.release.toLandlord, reasonHash: l.release.reasonHash }
-      : null,
+    release: l.release ? releaseDto(l.release) : null,
+    releases: l.releases.map(releaseDto),
+    duplicateRelease: l.duplicateRelease,
   };
 }
 

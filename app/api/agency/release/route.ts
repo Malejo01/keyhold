@@ -4,6 +4,7 @@ import { z } from "zod";
 import { releaseDeposit } from "@/lib/agency/release";
 import { ReleaseError } from "@/lib/agency/plan";
 import { SplitError } from "@/lib/agency/approvals";
+import { clientIp, createLimiter } from "@/lib/agency/ratelimit";
 import { jsonError, logError, parseBody } from "@/lib/db/http";
 
 export const runtime = "nodejs";
@@ -17,29 +18,10 @@ const bodySchema = z.strictObject({
 });
 
 // Every call can move test tokens: keep a small per-IP budget (best effort, per warm instance).
-const WINDOW_MS = 5 * 60 * 1000;
-const MAX_REQUESTS = 6;
-const hits = new Map<string, number[]>();
-
-function clientIp(request: Request): string {
-  const forwarded = request.headers.get("x-forwarded-for");
-  if (forwarded) return forwarded.split(",")[0].trim() || "unknown";
-  return request.headers.get("x-real-ip") ?? "unknown";
-}
-
-function retryAfterSeconds(ip: string, now: number): number {
-  const recent = (hits.get(ip) ?? []).filter((t) => now - t < WINDOW_MS);
-  if (recent.length >= MAX_REQUESTS) {
-    hits.set(ip, recent);
-    return Math.max(1, Math.ceil((WINDOW_MS - (now - recent[0])) / 1000));
-  }
-  recent.push(now);
-  hits.set(ip, recent);
-  return 0;
-}
+const limiter = createLimiter({ windowMs: 5 * 60 * 1000, max: 6 });
 
 export async function POST(request: Request): Promise<Response> {
-  const wait = retryAfterSeconds(clientIp(request), Date.now());
+  const wait = limiter.check(clientIp(request));
   if (wait > 0) return jsonError("Too many release attempts, slow down", 429, { "Retry-After": String(wait) });
 
   const body = await parseBody(request, bodySchema);
@@ -48,7 +30,10 @@ export async function POST(request: Request): Promise<Response> {
   try {
     return Response.json({ release: await releaseDeposit(body.data) });
   } catch (err) {
-    if (err instanceof ReleaseError) return jsonError(err.message, err.status);
+    if (err instanceof ReleaseError) {
+      // "Already released" carries the explorer link of the original release.
+      return Response.json(err.explorerUrl ? { error: err.message, explorerUrl: err.explorerUrl } : { error: err.message }, { status: err.status });
+    }
     if (err instanceof SplitError) return jsonError(err.message, 422);
     logError("agency/release", err);
     return jsonError("The release could not be completed", 502);

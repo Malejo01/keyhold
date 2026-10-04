@@ -10,6 +10,8 @@ const base: LeaseLedger = {
   deposit: { signature: "s", blockTime: 1, amount: "400000000", payer: "TENANT" },
   rent: [],
   release: null,
+  releases: [],
+  duplicateRelease: false,
   lastActivity: 1,
 };
 
@@ -27,8 +29,14 @@ describe("planRelease", () => {
     expect(planRelease(base, "250000000", "150000000")).toMatchObject({ leaseId: "ls_a", payer: "TENANT", toTenant: BigInt(250000000), toLandlord: BigInt(150000000) });
   });
   it("is idempotent: refuses when a release memo already exists on chain", () => {
-    const released: LeaseLedger = { ...base, status: "deposit_released", release: { signature: "r", blockTime: 2, toTenant: "400000000", toLandlord: "0", reasonHash: "b".repeat(64) } };
+    const entry = { signature: "r", blockTime: 2, toTenant: "400000000", toLandlord: "0", reasonHash: "b".repeat(64) };
+    const released: LeaseLedger = { ...base, status: "deposit_released", release: entry, releases: [entry] };
     expect(status(() => planRelease(released, "400000000", "0"))).toBe(409);
+    try {
+      planRelease(released, "400000000", "0");
+    } catch (e) {
+      expect((e as ReleaseError).explorerUrl).toContain("/tx/r");
+    }
   });
   it("refuses an unknown lease and a lease without a deposit", () => {
     expect(status(() => planRelease(undefined, "1", "1"))).toBe(404);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildLedger, inferDiscountBps, type ChainRecord, type LedgerContext } from "./ledger";
+import { buildLedger, inferDiscountBps, isTrustedLease, type ChainRecord, type LedgerContext } from "./ledger";
 
 const H = "c".repeat(64);
 const R = "d".repeat(64);
@@ -18,8 +18,8 @@ const rent = (id: string, month: number, t: number, amount: string, sig = `rent-
   memo: `[1] lease:v1:${id}:rent:${month}:${H}`,
   transfers: [{ source: "TENANT_ATA", destination: "LANDLORD_ATA", authority: TENANT, amount }],
 });
-const release = (id: string, t: number, toTenant: string, toLandlord: string, authority = "CUSTODY"): ChainRecord => ({
-  signature: `rel-${id}`,
+const release = (id: string, t: number, toTenant: string, toLandlord: string, authority = "CUSTODY", sig = `rel-${id}`): ChainRecord => ({
+  signature: sig,
   blockTime: t,
   memo: `[1] lease:v1:${id}:release:${R}`,
   transfers: [
@@ -89,5 +89,56 @@ describe("buildLedger", () => {
     const z = l.find((x) => x.leaseId === "ls_z");
     expect(z?.status).toBe("no_deposit");
     expect(z?.rent[0].onTime).toBeNull();
+  });
+
+  it("lists EVERY release for a lease and flags a duplicate", () => {
+    const one = buildLedger([dep("ls_a", 100), release("ls_a", 400, "400000000", "0", "CUSTODY", "rel-1")], ctx)[0];
+    expect(one.releases).toHaveLength(1);
+    expect(one.duplicateRelease).toBe(false);
+
+    const two = buildLedger(
+      [dep("ls_a", 100), release("ls_a", 500, "400000000", "0", "CUSTODY", "rel-2"), release("ls_a", 400, "400000000", "0", "CUSTODY", "rel-1")],
+      ctx,
+    )[0];
+    expect(two.releases.map((r) => r.signature)).toEqual(["rel-1", "rel-2"]); // oldest first, none hidden
+    expect(two.release?.signature).toBe("rel-1");
+    expect(two.duplicateRelease).toBe(true);
+    expect(two.lastActivity).toBe(500);
+  });
+
+  it("flags a single release that pays out more than the deposit", () => {
+    const over = buildLedger([dep("ls_a", 100, "400000000"), release("ls_a", 400, "300000000", "200000000")], ctx)[0];
+    expect(over.duplicateRelease).toBe(true);
+  });
+
+  it("ignores zero-amount deposit and rent memos (spam)", () => {
+    expect(buildLedger([dep("ls_spam", 10, "0")], ctx)).toEqual([]);
+    expect(buildLedger([rent("ls_spam", 0, 10, "0")], ctx)).toEqual([]);
+  });
+});
+
+describe("isTrustedLease", () => {
+  const known = new Set([TENANT]);
+  const stranger = (id: string): ChainRecord => ({ ...dep(id, 10), transfers: [{ source: "X_ATA", destination: "CUSTODY_ATA", authority: "STRANGER", amount: "5" }] });
+
+  it("keeps leases funded by a demo wallet and drops stranger spam", () => {
+    const ledger = buildLedger([dep("ls_real", 100), stranger("ls_spam")], ctx);
+    expect(ledger.filter((l) => isTrustedLease(l, known)).map((l) => l.leaseId)).toEqual(["ls_real"]);
+  });
+
+  it("keeps a lease whose release was authorised by custody", () => {
+    const l = buildLedger([release("ls_old", 400, "100", "0")], ctx)[0];
+    expect(isTrustedLease(l, known)).toBe(true);
+  });
+
+  it("does not filter by wallet when no demo wallet is known (read-only preview)", () => {
+    const l = buildLedger([stranger("ls_any")], ctx)[0];
+    expect(isTrustedLease(l, new Set())).toBe(true);
+  });
+
+  it("checks the rent payer when there is no deposit", () => {
+    const l = buildLedger([rent("ls_r", 0, 20, "380000000")], ctx)[0];
+    expect(isTrustedLease(l, known)).toBe(true);
+    expect(isTrustedLease(l, new Set(["OTHER"]))).toBe(false);
   });
 });

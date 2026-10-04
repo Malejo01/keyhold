@@ -99,6 +99,12 @@ Not blocking, to close in F2:
 - Monday debates prepared, not started: `docs/debates/2026-10-05-prepared.md`.
 - Mauro starts Sunday with the 10-point production checklist (in the session report).
 
+## Visible name "AlquilIA" (Sun 04/10, branch `f1-design`) — pending team decision
+
+- Visible name changed from "Keyhold" to **"AlquilIA"** (alquilar + IA), provisional until the team confirms it. Changed only in `lib/config/brand.ts`, the UI, metadata, favicon/OG, contract template, agent prompts, README and submission docs.
+- **Not renamed:** the GitHub repo (`Malejo01/keyhold`), the Vercel project (`keyhold-app`) and its domain (`keyhold-app.vercel.app`).
+- **Known name conflicts, to be weighed by the team before confirming:** `alquilia.io`, `alquilia.eu`, and an app called "Alquilia" from Salta on the Google Play Store.
+
 ## Next 5 steps
 
 1. Product team (Ani and teammates): record the demo (≤ 3 min, English) with `docs/submission/demo-script.md`, on the public URL (recorded answers). Mauro only does code.

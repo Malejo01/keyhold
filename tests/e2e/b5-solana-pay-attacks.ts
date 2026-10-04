@@ -109,6 +109,27 @@ async function main() {
     );
   }
 
+  // --- Probe 2b (re-gate): even if the wallet DOES sign, only the wallet's own tokens move; custody is untouched ------
+  if (builtJson.transaction) {
+    const raw = Buffer.from(builtJson.transaction, "base64");
+    const anaAta = getAssociatedTokenAddressSync(mint, ana);
+    const watched = [custodyAta, landlordAta, anaAta];
+    const sim = await connection.simulateTransaction(VersionedTransaction.deserialize(raw), {
+      sigVerify: false, // as if the wallet had signed: shows what the server signature can and cannot authorise
+      commitment: "confirmed",
+      accounts: { encoding: "base64", addresses: watched.map((x) => x.toBase58()) },
+    });
+    const before = await Promise.all(watched.map((x) => connection.getTokenAccountBalance(x, "confirmed")));
+    const after = (sim.value.accounts ?? []).map((acc) => (acc ? Buffer.from(acc.data[0], "base64").readBigUInt64LE(64) : null));
+    const delta = (i: number) => (after[i] === null || after[i] === undefined ? null : (after[i] as bigint) - BigInt(before[i].value.amount));
+    const rent = BigInt(tj.amountBaseUnits);
+    check(
+      "wallet-signed simulation: custody 0, landlord +rent, wallet -rent",
+      !sim.value.err && delta(0) === BigInt(0) && delta(1) === rent && delta(2) === -rent,
+      `err=${JSON.stringify(sim.value.err)} custody=${delta(0)} landlord=${delta(1)} wallet=${delta(2)}`,
+    );
+  }
+
   // --- Probe 3: two tickets for the same slot share one reference (second approval is refused / flagged) ----------
   const t2 = await post(ticketRoute.POST, "http://localhost/api/solana-pay/ticket", { kind: "rent", session });
   const t2j = (await t2.json()) as { ticket: string; reference: string };

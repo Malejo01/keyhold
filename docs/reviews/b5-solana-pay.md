@@ -137,3 +137,59 @@ Author: solana-client-engineer. Re-review needed for flag ON. Evidence is at the
 | `pnpm build` | OK |
 | phase0 e2e, flag off (`next start -p 3016`, `REPLAY=1`) | 59/59; OPTIONS on the tx route 404. Txs: [2u7gYq…](https://explorer.solana.com/tx/2u7gYqjFsSdchb9Y3Zm1bkEA9CHiNzpMcfur8QhnHHPzTqnkyF2hEinEwxWegxgZLZu1CHCnTH9Ve4MXjy3qbwNe?cluster=devnet), [iqboAu…](https://explorer.solana.com/tx/iqboAuQHWNbd8ZkbyuzesWxNJvmvDWdhHxd7x2dUCmL2VrvWLtcq2QMPWedCXkmRnVTpxWzmPD7Nrgdg526xdbv?cluster=devnet) |
 | `scripts/solana-pay-e2e.ts`, flag on (`next dev -p 3015`) | ALL CHECKS PASSED. Deposit [3AMPPe…](https://explorer.solana.com/tx/3AMPPeQyyvQtqofccX1d7pueW9kctNBSZENB5vcwsJ2Uyn4mg9vJuVYZxJbpXEt8G8iqfPEnBgC8m4gNQjCkcwQp?cluster=devnet), rent [4EYHnw…](https://explorer.solana.com/tx/4EYHnwDTsJKqwF9J4uFWayjJyHcmEq3cAhKcg1yKA9am2N2KWTZrThAB71WgqmjeGQpoeJR8rsrSVYg313SEyxW7?cluster=devnet) (the 2 devnet txs of this fix, plus the 2 of phase0). Both dev servers stopped. |
+
+## Re-gate (qa)
+
+Reviewer: qa-security-reviewer (did not write the fix). Branch `f3-solana-pay` at `cfdbc48`. Date: Sun 04/10 (overnight).
+
+| Decision | Result |
+| --- | --- |
+| Turn the flag ON on a **preview** (devnet, `SOLANA_PAY_PUBLIC_URL` set) | **GO** |
+| Flag ON in production | Not before R1 is accepted by Mauro and the `f2-db` merge (R4) is re-tested |
+
+### B5-1: fixed
+
+- **Server keys refused as `account`.** The tx route checks `isForbiddenPayer` (platform/fee payer/custody, landlord, agency, destination owner) before any RPC read or signature, and `buildSolanaPayTransaction` refuses them again (`ForbiddenPayerError`). Re-run probe: platform, landlord and agency all get 400 and no transaction.
+- **Same rule in the scan.** `transferAmountIfValid` invalidates the whole tx when the matching transfer's authority is a server key or the destination owner, when the source is not `ATA(mint, authority)`, or when the authority is not among the first `numRequiredSignatures` keys. Unit tests cover the original custody drain, every server authority, a pull from custody, an unsigned authority and a self-transfer; a junk tx under the same reference does not block the honest one.
+- **Authority = `account`, source = `ATA(account)`.** Verified in the built tx (probe) and in tests.
+- **`assertFeePayerAuthorizesNothing` is sound.** Signer privilege can only be used by an instruction that lists the key, and the assert allows the platform key only in the associated-token-account instruction at positions 0 (funder) and 2 (owner). Position 2 is never a signer. Creating an ATA with the platform as owner only creates (or, idempotently, finds) the platform's own custody token account. The funder's signature lets the ATA program move at most the rent-exempt minimum, once, into a fixed address `ATA(destinationOwner, mint)` that already exists on devnet. The platform signature covers the exact message, so the wallet cannot add an instruction, change the blockhash or reuse the signature. New probe 2b simulates the returned tx **as if the wallet had signed** (`sigVerify: false`): custody 0, landlord +399 tUSDC, wallet -399 tUSDC. The server signature authorises nothing beyond the fee.
+- **Reference per slot.** `slotReference` = HMAC-derived key over (session, lease, kind, month). Two tickets share it (probe 3); the tx route returns 409 if a valid payment already exists under it; the custodial button carries it and refuses a slot already paid by wallet.
+- **No grace.** The price is checked only at the confirmed `blockTime`; the build quote looks 120 s ahead. Tests: 1 s late and `due + 149` with the on-time amount are refused, and so is a self-built tx at `due + 100`. (`STATUS_GRACE_SECONDS` in the status route only extends *ticket* expiry for polling; it does not change the price.)
+- **Rate limits.** ticket 20, tx 30, status 200 per IP per 5 min, 429 + `Retry-After`; tested. Best effort per warm instance.
+- **OPTIONS 404 with the flag off.** Tested (`routes.test.ts:173`), and GET/POST answer 404 too.
+
+**Tenant demo keys as acceptable `account`: acceptable for the devnet demo.** A tx built for Ana's pubkey needs Ana's signature. Only the server holds that key, and no endpoint signs arbitrary transactions with it, so an outsider cannot complete it (probe: `SignatureFailure`, nothing moves). The scan accepts tenant-key authorities on purpose, because the custodial button pays with them under the same reference. Condition: when real tenant wallets replace the demo keys, or if a tenant key were ever used for anything but that tenant's own payments, add the tenant keys to `serverHeldPublicKeys()`. Write this in the ADR or in a comment on the custodial button.
+
+### Non-blocking
+
+- **R1. Fee griefing.** A visitor can mint a ticket, request a tx for their own funded wallet, move their tokens away and then broadcast: the tx fails and the platform pays the 5,000-lamport fee. This is bounded by the tx rate limit (30 per IP per 5 min per instance) and costs devnet SOL only. A dedicated low-balance fee-payer key would isolate it. Mauro decides.
+- **R2. Lookahead vs blockhash life.** 150 blocks can exceed 120 s when devnet skips many slots. An honest tx that crosses the due date and lands after 120 s with the on-time amount stays pending: the money moved, but it is not recorded, and there is no refund path. The window is very narrow. Option: quote at now + 180 s, or show the late price in the last few minutes.
+- **R3.** The residual N1 race (QR plus button within one poll, or two approvals) is flagged as `duplicatePayments` and not prevented. The UI does not show it yet.
+- **R4. Merge with `f2-db`.** Both branches rewrite `/api/pay`, `executePayment` and `sendTokenTransferWithMemo`. After merging, the reference must go through `preparePayment`/`buildSignedTransfer`, and the wallet-payment check must run before the DB claim. Re-run both suites and this probe.
+- **Process.** `tests/e2e/b5-solana-pay-attacks.ts` (a qa-owned path) was edited in `cfdbc48`. The edit is correct and was reviewed here. Next time, hand it off instead.
+
+### Evidence
+
+```
+$ pnpm test                        (f3-solana-pay worktree, Windows, vitest 5.0.3)
+ Test Files  8 passed (8)   Tests  90 passed (90)
+$ pnpm exec tsc --noEmit ; pnpm lint     -> clean
+$ pnpm exec tsx tests/e2e/b5-solana-pay-attacks.ts      (x3, simulation only, no tx sent)
+PASS  tx endpoint refuses account = platform  (got 400 Invalid account)
+PASS  tx endpoint refuses account = landlord  (got 400 Invalid account)
+PASS  tx endpoint refuses account = agency  (got 400 Invalid account)
+PASS  tx endpoint builds for a normal wallet  (200)
+PASS  returned tx still needs a signature the server does not hold
+PASS  transfer authority is the wallet and the source is its own token account
+PASS  simulation (sigVerify on) of the server-signed tx fails and moves nothing  (simulate err="SignatureFailure" custody delta=0 landlord delta=0)
+PASS  wallet-signed simulation: custody 0, landlord +rent, wallet -rent  (err=null custody=0 landlord=399000000 wallet=-399000000)
+PASS  two tickets for the same slot share the reference
+PASS  quote at the due date minus the lookahead is the on-time price
+PASS  quote inside the lookahead window is the late price
+ALL PROBES PASSED                  (3 of 3 runs)
+$ gh run list --branch f3-solana-pay --limit 2
+ completed success  B5: Solana Pay transaction request + QR ...  pull_request  37181280485
+ completed success  fix(solana): B5 security gate ...             push          37181277440
+```
+
+No devnet transactions and 0 live AI calls in this re-gate.

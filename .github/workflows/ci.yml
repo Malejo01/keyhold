@@ -190,11 +190,14 @@ jobs:
           echo "$HOME/.avm/bin" >> "$GITHUB_PATH"
           export PATH="$HOME/.local/share/solana/install/active_release/bin:$HOME/.cargo/bin:$HOME/.avm/bin:$PATH"
           avm use "${ANCHOR_VERSION}"
-          solana --version
-          anchor --version
+          # Capture first: `cmd | grep -q` can fail with SIGPIPE under pipefail.
+          SOLANA_OUT="$(solana --version)"
+          ANCHOR_OUT="$(anchor --version 2>&1)"
+          echo "$SOLANA_OUT"
+          echo "$ANCHOR_OUT"
           # Fail if what runs is not what is pinned.
-          solana --version | grep -q "${SOLANA_VERSION}"
-          anchor --version | grep -q "${ANCHOR_VERSION}"
+          [[ "$SOLANA_OUT" == *"solana-cli ${SOLANA_VERSION} "* ]]
+          [[ "$ANCHOR_OUT" == *"anchor-cli ${ANCHOR_VERSION}"* ]]
 
       - name: Set up pnpm (for the TypeScript tests)
         if: steps.detect.outputs.present == 'true'

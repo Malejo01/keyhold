@@ -178,33 +178,49 @@ Disclosure (qa objection 7, to be used verbatim in README › Security considera
 - Max compute units per instruction: `create_lease` 30 679, `deposit_escrow` 11 959, `pay_rent` 22 801, `vote_release` (with payout) 19 682, `cancel_lease` 13 749. All are far below the 200 000 default, so the client needs no `SetComputeUnitLimit`. (`vote_release` and `pay_rent` got cheaper: no ATA derivation any more.)
 - Worst-case tx `[create_lease, deposit_escrow + reference, memo]` with 4 signatures fits under 1 232 bytes (D-06).
 
-## Deploy (documented, NOT executed)
+## Deploy (prepared, NOT executed)
 
-Nothing has been deployed. CI never deploys and holds no key.
+Nothing has been deployed yet. Decision 4A: the deploy runs in GitHub Actions, workflow `.github/workflows/deploy-devnet.yml`, **manual trigger only** (`workflow_dispatch`; it never runs on push or PR). `ci.yml` still never deploys and holds no key.
 
-- **Who runs it:** Mauro.
-- **Where:** a Linux or WSL shell with Agave 4.1.2 and Anchor 1.2.0 installed (≈ 1 h the first time). The alternative is option (c) of the debate: a `workflow_dispatch` job with a devnet-only deployer key in Actions secrets.
-- **Which keys:** a new dedicated **deployer key**. It becomes the upgrade authority. It is not the platform, landlord or agency key, and it is never committed. The **program keypair** is generated at deploy time and kept outside git (`target/` is ignored).
+- **Planned program id (not deployed yet):** `B77PPK8P67vhzbhMNpu4mEJZY2h8wqS6AcAHe7WQCZbF`. The source keeps the placeholder `BJiwpRFD…` until the deploy succeeds; the workflow runs `anchor keys sync` in the job, so the deployed binary carries the planned id.
+- **Deployer (upgrade authority, devnet only):** `7CUVgcDNNfbfFdfzH6GenbjQtXF8KUmefsbp1d2VgsDL`. A dedicated key: not the platform, landlord or agency key.
+- **Keys:** `scripts/anchor/make-deploy-keys.mjs` created `.keys/devnet-deployer.json` and `.keys/rental_escrow-program.json` (solana-keygen JSON arrays, mode 0600 where supported, gitignored by `/.keys/`). It prints only public keys and never overwrites an existing file. **Back up `.keys/` before deleting the worktree it lives in**: losing the deployer key loses the upgrade authority; losing the program key before the deploy means generating a new planned id.
+- **Funding:** done once on 2026-10-04, 4 devnet SOL ([tx](https://explorer.solana.com/tx/4Rj7npA8H8GC7J5SuHTTGFd4GPiCTPdEWhCxAqw54HisPHhi2Smj6jMXsJREUy9PFHxWcabuncV9QpXUjRWLhocR?cluster=devnet)); the platform wallet kept 0.988 SOL and is still the app fee payer (top it up to ≥ 1 SOL before a recording). `scripts/anchor/fund-deployer.mjs [SOL]` sends devnet SOL (default 4) from the platform wallet (`PLATFORM_SECRET_KEY` in `.env.local`) to the deployer. It refuses unless the RPC host names devnet and the genesis hash is devnet's (`EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG`). It prints the signature, the explorer link and both balances, never a secret.
+
+### Procedure (Mauro)
+
+Run from the repo folder that holds `.keys/` (bash / Git Bash). Steps 1 and 2 upload secret keys to GitHub, so they need Mauro's explicit go; no agent runs them.
 
 ```bash
-solana config set --url https://api.devnet.solana.com
-solana-keygen new -o ~/.config/solana/keyhold-devnet-deployer.json      # upgrade authority (never commit)
-solana airdrop 2 -k ~/.config/solana/keyhold-devnet-deployer.json        # repeat or use faucet.solana.com; see cost below
-solana-keygen new --force -o target/deploy/rental_escrow-keypair.json    # program id (never commit); --force because `anchor build` already generated one (or keep that one and skip this line)
-anchor keys sync                                                         # rewrites declare_id! and Anchor.toml [programs.*]
-anchor build
-ls -l target/deploy/rental_escrow.so                                     # deploy cost ≈ size_in_bytes * 6960 lamports (x2 while the buffer exists)
-anchor deploy --provider.cluster devnet --provider.wallet ~/.config/solana/keyhold-devnet-deployer.json   # also uploads the IDL
-solana program show <PROGRAM_ID>                                         # check the upgrade authority = deployer
+# 1. Repository secrets (JSON arrays of 64 bytes). Read from stdin, never printed.
+gh secret set DEVNET_DEPLOYER_KEYPAIR < .keys/devnet-deployer.json
+gh secret set DEVNET_PROGRAM_KEYPAIR  < .keys/rental_escrow-program.json
+# 2. Deploy (from main, after this branch is merged). expected_program_id guards against a wrong secret.
+gh workflow run deploy-devnet.yml --ref main -f expected_program_id=B77PPK8P67vhzbhMNpu4mEJZY2h8wqS6AcAHe7WQCZbF
+gh run watch "$(gh run list --workflow deploy-devnet.yml --limit 1 --json databaseId --jq '.[0].databaseId')"
 ```
 
-After deploy:
-- commit the new `declare_id!`, `Anchor.toml` and `target/idl/rental_escrow.json`;
+What the job does, in order:
+1. Installs the same pinned toolchain as `ci.yml` › `anchor-build` (Agave 4.1.2, Anchor 1.2.0, Rust 1.93.0) and reuses its caches.
+2. Writes both secrets to files with `umask 077` (deployer in `$RUNNER_TEMP`, program key at `target/deploy/rental_escrow-keypair.json`), never echoing them. Fails if a secret is missing or invalid, if the program key does not match `expected_program_id`, or if both secrets are the same key.
+3. `solana config set --url https://api.devnet.solana.com`. **Guard:** fails unless the configured RPC URL is exactly devnet's and the cluster's genesis hash is devnet's.
+4. `anchor keys sync` (rewrites `declare_id!` and `Anchor.toml` in the job only; checked by grep), then `anchor build`.
+5. Fails before spending anything if the deployer cannot cover the write buffer plus the program data account (plus 0.1 SOL).
+6. `anchor deploy --provider.cluster devnet --provider.wallet <tmp>` (also uploads the IDL). Then checks that the upgrade authority is the deployer.
+7. Prints only the program id, the explorer link and the deploy signature (also in the run summary).
+8. Uploads the artifact `rental_escrow-synced`: `lib.rs`, `Anchor.toml`, `target/idl/rental_escrow.json`, `target/types/rental_escrow.ts`, all with the real id. No keys.
+9. Always, even on failure: `shred -u` both key files.
+
+If the deploy fails midway, a write buffer may keep SOL locked: `solana program show --buffers -k .keys/devnet-deployer.json --url devnet`, then `solana program close --buffers -k .keys/devnet-deployer.json --url devnet` returns it. Re-running the workflow after a successful deploy performs an **upgrade** with the same key.
+
+### After deploy
+
+- Commit the files from the `rental_escrow-synced` artifact (`gh run download <run-id> -n rental_escrow-synced`): the new `declare_id!`, `Anchor.toml` and `target/idl/rental_escrow.json`;
 - set `PROGRAM_ID` in `.env.example` and README;
 - hand the IDL to solana-client-engineer;
 - for a frozen demo, optionally make it immutable later with `solana program set-upgrade-authority <PROGRAM_ID> --final` (irreversible).
 
-Cost: the CI build of `rental_escrow.so` is **267 624 bytes**. The program data account keeps ≈ 1.87 SOL, and the write buffer needs about the same temporarily (refunded). Fund the deployer with **≈ 4 SOL** of devnet SOL.
+Cost: the CI build of `rental_escrow.so` is **267 624 bytes**. Since Agave 1.18 a new program is sized to the exact `.so` (no doubling). The program data account keeps ≈ 1.87 SOL, and the write buffer needs about the same during the deploy (refunded to the deployer). With 4 SOL the margin is ≈ 0.25 SOL, which also covers the IDL upload and fees.
 
 ## Hand-offs
 

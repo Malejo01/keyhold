@@ -1,0 +1,215 @@
+name: Deploy rental_escrow (devnet)
+
+# DEVNET ONLY. Manual trigger only: never runs on push or pull_request. Procedure: docs/onchain.md ("Deploy").
+#   gh workflow run deploy-devnet.yml --ref main -f expected_program_id=<planned program id>
+# Secrets (JSON arrays of 64 bytes, solana-keygen format), created by scripts/anchor/make-deploy-keys.mjs:
+#   DEVNET_DEPLOYER_KEYPAIR  fee payer + program upgrade authority
+#   DEVNET_PROGRAM_KEYPAIR   program keypair = the stable program id
+# The keys are written to files with umask 077, never echoed, and shredded at the end (always).
+# Output: only the program id, the explorer link and the deploy signature. The synced sources and the IDL with the
+# real address are uploaded as an artifact so they can be committed after the deploy.
+on:
+  workflow_dispatch:
+    inputs:
+      expected_program_id:
+        description: "Program id that DEVNET_PROGRAM_KEYPAIR must produce (guards against a wrong secret)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-devnet
+  cancel-in-progress: false
+
+env:
+  DEVNET_URL: https://api.devnet.solana.com
+  DEVNET_GENESIS_HASH: EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      # Same pins as ci.yml › anchor-build (same cache keys, so its caches are reused).
+      SOLANA_VERSION: "4.1.2"
+      ANCHOR_VERSION: "1.2.0"
+      RUST_VERSION: "1.93.0"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Install Rust
+        run: |
+          rustup toolchain install "$RUST_VERSION" --profile minimal
+          rustup default "$RUST_VERSION"
+          rustc --version
+
+      - name: Cache Cargo and Anchor
+        id: cache-anchor
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/registry
+            ~/.cargo/git
+            ~/.avm
+          key: anchor-${{ runner.os }}-rust${{ env.RUST_VERSION }}-anchor${{ env.ANCHOR_VERSION }}
+
+      - name: Cache Solana toolchain
+        id: cache-solana
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.local/share/solana
+            ~/.cache/solana
+          key: solana-${{ runner.os }}-${{ env.SOLANA_VERSION }}
+
+      - name: Install Solana CLI (Agave)
+        if: steps.cache-solana.outputs.cache-hit != 'true'
+        run: curl -sSfL "https://release.anza.xyz/v${SOLANA_VERSION}/install" | sh
+
+      - name: Install Anchor CLI via avm
+        if: steps.cache-anchor.outputs.cache-hit != 'true'
+        run: |
+          cargo install --git https://github.com/otter-sec/anchor --tag "v${ANCHOR_VERSION}" avm --locked --force
+          avm install "${ANCHOR_VERSION}"
+
+      - name: Activate toolchain
+        run: |
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          echo "$HOME/.avm/bin" >> "$GITHUB_PATH"
+          export PATH="$HOME/.local/share/solana/install/active_release/bin:$HOME/.cargo/bin:$HOME/.avm/bin:$PATH"
+          avm use "${ANCHOR_VERSION}"
+          SOLANA_OUT="$(solana --version)"
+          ANCHOR_OUT="$(anchor --version 2>&1)"
+          echo "$SOLANA_OUT"
+          echo "$ANCHOR_OUT"
+          [[ "$SOLANA_OUT" == *"solana-cli ${SOLANA_VERSION} "* ]]
+          [[ "$ANCHOR_OUT" == *"anchor-cli ${ANCHOR_VERSION}"* ]]
+
+      - name: Load devnet keys (umask 077, never echoed)
+        env:
+          DEPLOYER_KEYPAIR: ${{ secrets.DEVNET_DEPLOYER_KEYPAIR }}
+          PROGRAM_KEYPAIR: ${{ secrets.DEVNET_PROGRAM_KEYPAIR }}
+          EXPECTED_PROGRAM_ID: ${{ inputs.expected_program_id }}
+        run: |
+          set -euo pipefail
+          umask 077
+          if [ -z "$DEPLOYER_KEYPAIR" ] || [ -z "$PROGRAM_KEYPAIR" ]; then
+            echo "::error::Secrets DEVNET_DEPLOYER_KEYPAIR and DEVNET_PROGRAM_KEYPAIR must both be set (docs/onchain.md › Deploy)."
+            exit 1
+          fi
+          KEYDIR="$RUNNER_TEMP/devnet-keys"
+          mkdir -p "$KEYDIR" target/deploy
+          printf '%s' "$DEPLOYER_KEYPAIR" > "$KEYDIR/deployer.json"
+          printf '%s' "$PROGRAM_KEYPAIR" > target/deploy/rental_escrow-keypair.json
+          DEPLOYER_PUBKEY="$(solana-keygen pubkey "$KEYDIR/deployer.json" 2>/dev/null)" \
+            || { echo "::error::DEVNET_DEPLOYER_KEYPAIR is not a valid keypair."; exit 1; }
+          PROGRAM_ID="$(solana-keygen pubkey target/deploy/rental_escrow-keypair.json 2>/dev/null)" \
+            || { echo "::error::DEVNET_PROGRAM_KEYPAIR is not a valid keypair."; exit 1; }
+          if [ "$PROGRAM_ID" != "$EXPECTED_PROGRAM_ID" ]; then
+            echo "::error::DEVNET_PROGRAM_KEYPAIR does not match expected_program_id. Nothing was deployed."
+            exit 1
+          fi
+          if [ "$PROGRAM_ID" = "$DEPLOYER_PUBKEY" ]; then
+            echo "::error::The program keypair and the deployer keypair must be different keys."
+            exit 1
+          fi
+          echo "DEPLOYER_WALLET=$KEYDIR/deployer.json" >> "$GITHUB_ENV"
+          echo "DEPLOYER_PUBKEY=$DEPLOYER_PUBKEY" >> "$GITHUB_ENV"
+          echo "PROGRAM_ID=$PROGRAM_ID" >> "$GITHUB_ENV"
+
+      - name: Configure and guard the cluster (devnet only)
+        run: |
+          set -euo pipefail
+          solana config set --url "$DEVNET_URL" --keypair "$DEPLOYER_WALLET" > /dev/null
+          RPC_URL="$(solana config get json_rpc_url | awk '{print $NF}')"
+          if [ "$RPC_URL" != "$DEVNET_URL" ]; then
+            echo "::error::Cluster URL is '$RPC_URL', not devnet. Refusing to deploy."
+            exit 1
+          fi
+          GENESIS="$(solana genesis-hash --url "$DEVNET_URL")"
+          if [ "$GENESIS" != "$DEVNET_GENESIS_HASH" ]; then
+            echo "::error::Genesis hash '$GENESIS' is not devnet's. Refusing to deploy."
+            exit 1
+          fi
+
+      - name: Sync the program id and build
+        run: |
+          set -euo pipefail
+          anchor keys sync --provider.cluster devnet --provider.wallet "$DEPLOYER_WALLET" > /dev/null
+          grep -q "declare_id!(\"${PROGRAM_ID}\")" programs/rental_escrow/src/lib.rs \
+            || { echo "::error::anchor keys sync did not write the program id into declare_id!."; exit 1; }
+          anchor build --provider.cluster devnet --provider.wallet "$DEPLOYER_WALLET"
+          ls -l target/deploy/rental_escrow.so
+
+      - name: Check the deployer balance
+        run: |
+          set -euo pipefail
+          SO_SIZE="$(stat -c %s target/deploy/rental_escrow.so)"
+          rent() { solana rent "$1" --lamports --url "$DEVNET_URL" | grep -oE '[0-9]+' | tail -n 1; }
+          # A write buffer (37-byte header) always; program data (45-byte header) + program account only on first deploy.
+          NEED=$(( $(rent $((SO_SIZE + 37))) + 100000000 ))
+          if ! solana program show "$PROGRAM_ID" --url "$DEVNET_URL" > /dev/null 2>&1; then
+            NEED=$(( NEED + $(rent $((SO_SIZE + 45))) + $(rent 36) ))
+          fi
+          HAVE="$(solana balance "$DEPLOYER_PUBKEY" --lamports --url "$DEVNET_URL" | grep -oE '^[0-9]+')"
+          if [ "$HAVE" -lt "$NEED" ]; then
+            echo "::error::Deployer has ${HAVE} lamports, needs about ${NEED}. Fund it (scripts/anchor/fund-deployer.mjs)."
+            exit 1
+          fi
+
+      - name: anchor deploy (devnet)
+        run: |
+          set -euo pipefail
+          LOG="$RUNNER_TEMP/deploy.log"
+          if ! anchor deploy --provider.cluster devnet --provider.wallet "$DEPLOYER_WALLET" > "$LOG" 2>&1; then
+            echo "::error::anchor deploy failed. Last lines of its output:"
+            tail -n 40 "$LOG"
+            echo "If a write buffer was left behind: solana program show --buffers -k <deployer> (docs/onchain.md › Deploy)."
+            exit 1
+          fi
+          SIG="$(grep -oE 'Signature: ?[1-9A-HJ-NP-Za-km-z]{64,88}' "$LOG" | head -n 1 | grep -oE '[1-9A-HJ-NP-Za-km-z]{64,88}' || true)"
+          # Post-deploy checks: the program exists and its upgrade authority is the deployer.
+          SHOW="$(solana program show "$PROGRAM_ID" --url "$DEVNET_URL")"
+          [[ "$SHOW" == *"Authority: ${DEPLOYER_PUBKEY}"* ]] \
+            || { echo "::error::Program upgrade authority is not the deployer."; exit 1; }
+          echo "Program id: ${PROGRAM_ID}"
+          echo "Explorer:   https://explorer.solana.com/address/${PROGRAM_ID}?cluster=devnet"
+          if [ -n "$SIG" ]; then
+            echo "Signature:  ${SIG}"
+            echo "Deploy tx:  https://explorer.solana.com/tx/${SIG}?cluster=devnet"
+          else
+            echo "Signature:  (not found in the deploy output; see the program's history in the explorer)"
+          fi
+          {
+            echo "### rental_escrow deployed to devnet"
+            echo "- Program id: \`${PROGRAM_ID}\`"
+            echo "- Explorer: https://explorer.solana.com/address/${PROGRAM_ID}?cluster=devnet"
+            [ -n "$SIG" ] && echo "- Deploy tx: https://explorer.solana.com/tx/${SIG}?cluster=devnet"
+            echo "- Next: commit the files of the \`rental_escrow-synced\` artifact (docs/onchain.md › After deploy)."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload synced sources and IDL (no keys)
+        uses: actions/upload-artifact@v7
+        with:
+          name: rental_escrow-synced
+          if-no-files-found: error
+          path: |
+            programs/rental_escrow/src/lib.rs
+            Anchor.toml
+            target/idl/rental_escrow.json
+            target/types/rental_escrow.ts
+
+      - name: Shred key files
+        if: always()
+        run: |
+          for f in "$RUNNER_TEMP/devnet-keys/deployer.json" target/deploy/rental_escrow-keypair.json; do
+            [ -f "$f" ] && shred -u -z "$f"
+          done
+          rm -rf "$RUNNER_TEMP/devnet-keys" "$HOME/.config/solana/cli/config.yml"
+          echo "Key files removed."

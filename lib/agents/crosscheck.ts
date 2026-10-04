@@ -3,8 +3,17 @@ import type { CrosscheckResult, PrequalResult, TenantId } from '../contracts';
 import { generateStructured } from '../ai';
 import { compareWithPrequal, findCrosscheckIssues, type CrosscheckExtraction } from '../rules/crosscheck';
 import type { RuleContext } from '../rules/prequal';
-import { CROSSCHECK_EXTRACTION_SYSTEM, PROMPT_VERSION, renderDocuments } from './prompts';
+import {
+  CROSSCHECK_EXTRACTION_SYSTEM,
+  CROSSCHECK_UPLOAD_SYSTEM,
+  PROMPT_VERSION,
+  UPLOAD_PROMPT_VERSION,
+  escapeForTag,
+  renderDocuments,
+  renderUploadedDocuments,
+} from './prompts';
 import type { SeedDocument } from './tenants';
+import { toAttachments, type UploadedDocument } from './uploads';
 
 const DocTypeSchema = z.enum(['dni', 'payslip', 'income_proof', 'guarantee']);
 
@@ -40,6 +49,35 @@ export async function runCrosscheck(
     input,
     schema: CrosscheckExtractionSchema,
     label: tenantId,
+  });
+  const issues = findCrosscheckIssues(extraction, ctx);
+  return { ...compareWithPrequal(prequal, issues), extraction };
+}
+
+export const CROSSCHECK_UPLOAD_AGENT = `crosscheck.extract.upload@${UPLOAD_PROMPT_VERSION}`;
+
+/**
+ * Same independent crosscheck for real uploads: the original files are attached to the call (multimodal), the
+ * prompt treats their content as untrusted data, and the verdict still comes from lib/rules on the extraction.
+ * Replay key: agent + sha256 of the file bytes + prequal's extraction (file names never enter the key).
+ */
+export async function runUploadCrosscheck(
+  tenantId: TenantId,
+  docs: readonly UploadedDocument[],
+  prequal: PrequalResult,
+  ctx: RuleContext,
+): Promise<CrosscheckResult & { extraction: CrosscheckExtraction }> {
+  // prequal's extraction is model output derived from untrusted files: escape it like any other untrusted value.
+  const input = `${renderUploadedDocuments(docs)}\n<prequal_output>\n${escapeForTag(JSON.stringify(prequal.extracted))}\n</prequal_output>`;
+  const { data: extraction } = await generateStructured({
+    agent: CROSSCHECK_UPLOAD_AGENT,
+    role: 'extraction',
+    system: CROSSCHECK_UPLOAD_SYSTEM,
+    input,
+    attachments: toAttachments(docs),
+    keyContext: prequal.extracted,
+    schema: CrosscheckExtractionSchema,
+    label: `${tenantId}-upload`,
   });
   const issues = findCrosscheckIssues(extraction, ctx);
   return { ...compareWithPrequal(prequal, issues), extraction };

@@ -1,0 +1,21 @@
+{
+  "key": "0fb2182c4c18392b6ea1dc7ad727ac35d2822b7b8a338074c113b4fb27c8c80c",
+  "agent": "prequal.extract.upload@f2-1",
+  "kind": "structured",
+  "label": "carla-upload",
+  "model": "gemini-3.5-flash-lite",
+  "output": {
+    "applicantName": "CARLA BEATRIZ DEMO INVENTADA",
+    "documentsPresent": [
+      "dni",
+      "payslip",
+      "income_proof",
+      "guarantee"
+    ],
+    "payslipIssueDate": "2026-09-29",
+    "monthlyIncomeUsdc": 2300
+  },
+  "provider": "gemini",
+  "source": "recorded",
+  "recordedAt": "2026-10-04T06:19:51.998Z"
+}

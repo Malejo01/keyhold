@@ -1,0 +1,38 @@
+{
+  "key": "6c55743e7a8c176023c2ed338a06eaf2c2052ef7de173e683e601eb5827984c0",
+  "agent": "crosscheck.extract.upload@f2-1",
+  "kind": "structured",
+  "label": "carla-upload",
+  "model": "gemini-3.5-flash-lite",
+  "output": {
+    "documents": [
+      {
+        "docType": "dni",
+        "holderName": "CARLA BEATRIZ DEMO INVENTADA",
+        "issueDate": "2022-01-10",
+        "monthlyIncomeUsdc": null
+      },
+      {
+        "docType": "payslip",
+        "holderName": "Camila Demo Inventada",
+        "issueDate": "2026-09-29",
+        "monthlyIncomeUsdc": 2300
+      },
+      {
+        "docType": "income_proof",
+        "holderName": "Carla Beatriz Demo Inventada",
+        "issueDate": "2026-09-24",
+        "monthlyIncomeUsdc": 2300
+      },
+      {
+        "docType": "guarantee",
+        "holderName": "Carla Demo Inventada",
+        "issueDate": "2026-09-26",
+        "monthlyIncomeUsdc": null
+      }
+    ]
+  },
+  "provider": "gemini",
+  "source": "recorded",
+  "recordedAt": "2026-10-04T06:20:11.896Z"
+}

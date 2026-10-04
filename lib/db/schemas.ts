@@ -8,6 +8,7 @@ import type {
   PaymentResult,
   SessionState,
   SignedSession,
+  UploadedDocsAttestation,
   VerifyRequest,
   LeaseDraft,
   ChatTurn,
@@ -59,12 +60,19 @@ const chatTurnSchema: z.ZodType<ChatTurn> = z.looseObject({
   text: z.string().max(50_000),
 });
 
+const uploadedDocsSchema: z.ZodType<UploadedDocsAttestation> = z.looseObject({
+  status: z.enum(['APPROVED', 'NEEDS_INFO', 'REJECTED']),
+  propertyId: z.string().min(1).max(128),
+  filesDigest: z.string().regex(/^[0-9a-f]{64}$/),
+});
+
 const sessionStateSchema: z.ZodType<SessionState> = z.looseObject({
   sessionId: z.string().min(1).max(128),
   stage: stageSchema,
   tenantId: tenantIdSchema.optional(),
   selectedPropertyId: z.string().max(128).optional(),
   lease: leaseDraftSchema.optional(),
+  uploadedDocs: uploadedDocsSchema.optional(),
   payments: z.array(paymentResultSchema).max(100),
   history: z.array(chatTurnSchema).max(500),
   version: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER).optional(),
@@ -92,3 +100,16 @@ export const verifyRequestSchema: z.ZodType<VerifyRequest> = z.object({
   // Base58 Solana signature: 64 bytes -> 87-88 chars.
   signature: z.string().regex(/^[1-9A-HJ-NP-Za-km-z]{64,100}$/, 'Invalid transaction signature'),
 });
+
+/**
+ * POST /api/upload is multipart/form-data: `session` (JSON string of a SignedSession) + one or more `files`.
+ * The files are validated by lib/agents/uploads (magic bytes, size), this only shapes the text field.
+ */
+export const uploadSessionFieldSchema = z.string().max(512 * 1024).transform((raw, ctx) => {
+  try {
+    return JSON.parse(raw) as unknown;
+  } catch {
+    ctx.addIssue({ code: 'custom', message: 'session is not valid JSON' });
+    return z.NEVER;
+  }
+}).pipe(signedSessionSchema);

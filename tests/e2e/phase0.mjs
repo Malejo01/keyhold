@@ -1,12 +1,15 @@
 // Phase 0 end-to-end gate (F0-09). Plain Node 24, no dependencies.
 // Usage: node tests/e2e/phase0.mjs            (BASE_URL defaults to the public deploy)
 //        BASE_URL=http://localhost:3000 node tests/e2e/phase0.mjs
+//        BASE_URL=<protected preview> E2E_COOKIE="_vercel_jwt=<value>" node tests/e2e/phase0.mjs
 // Exits 0 when every check passes, 1 otherwise. Prints one line per check plus the tx signatures produced.
 // Note: Ana's run sends two REAL devnet token transfers (deposit + rent) signed server-side with demo keys.
 // F1 (deposit-first): expects one deposit card after the contract, 409 on rent before the deposit, then one rent card.
 
 const BASE_URL = (process.env.BASE_URL ?? 'https://keyhold-app.vercel.app').replace(/\/$/, '');
 const RPC_URL = process.env.RPC_URL ?? 'https://api.devnet.solana.com';
+// Optional Cookie header for protected previews (e.g. E2E_COOKIE="_vercel_jwt=..."). Sent only to BASE_URL, never logged.
+const E2E_COOKIE = process.env.E2E_COOKIE?.trim() || '';
 const MEMO_RE = /^lease:v1:[A-Za-z0-9_-]+:(deposit|rent:\d+):[0-9a-f]{64}$/;
 const MESSAGES = [
   '2-bedroom near Tres Cerritos, under 500 USDC, pets ok',
@@ -30,8 +33,9 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function post(path, body, attempt = 0) {
   const res = await fetch(`${BASE_URL}${path}`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', ...(E2E_COOKIE ? { cookie: E2E_COOKIE } : {}) },
     body: JSON.stringify(body),
+    redirect: 'manual',
   });
   if (res.status === 429 && attempt < 3) {
     const wait = Number(res.headers.get('retry-after') ?? 30);
@@ -201,7 +205,7 @@ async function checkOnChain(r, label) {
 }
 
 const started = Date.now();
-console.log(`Phase 0 e2e against ${BASE_URL}`);
+console.log(`Phase 0 e2e against ${BASE_URL}${E2E_COOKIE ? ' (with cookie)' : ''}`);
 try {
   const ana = await runAna();
   await runBlocked('bruno', 'expired_payslip', 'prequal');

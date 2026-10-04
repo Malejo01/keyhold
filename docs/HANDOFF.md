@@ -105,6 +105,13 @@ Not blocking, to close in F2:
 - **Not renamed:** the GitHub repo (`Malejo01/keyhold`), the Vercel project (`keyhold-app`) and its domain (`keyhold-app.vercel.app`).
 - **Known name conflicts, to be weighed by the team before confirming:** `alquilia.io`, `alquilia.eu`, and an app called "Alquilia" from Salta on the Google Play Store.
 
+## Design branch `f1-design` (Sun 04/10, ~01:15 ART)
+
+- Preview: https://keyhold-app-git-f1-design-lizarraga-mauros-projects.vercel.app (Vercel auth; a 23 h share link was created for headless tests and is not stored in the repo). `main` is untouched until Mauro approves the merge.
+- qa verdict `docs/reviews/phase-1-design.md`: GO for recording on this branch after the Lease-agent hash display fix, merge, production deploy, one e2e run on production and one practice take.
+- Script and brief for the product team: `docs/submission/demo-script.md`, `docs/submission/recording-brief.md`. Before/after screenshots: `docs/reviews/ux/`.
+- F1-07 (bilingual ES/EN) starts after this merge, on its own branch, because it touches the same files.
+
 ## Next 5 steps
 
 1. Product team (Ani and teammates): record the demo (≤ 3 min, English) with `docs/submission/demo-script.md`, on the public URL (recorded answers). Mauro only does code.

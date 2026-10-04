@@ -55,7 +55,8 @@ Nothing started. Tasks F1-01 to F1-06 are in `PLAN.md` §2.
 | `REPLAY` | no | yes (`1`) | Production serves recordings until further notice from Mauro |
 | `SESSION_SECRET` | yes | yes | Different value in each place |
 | `PLATFORM_SECRET_KEY`, `LANDLORD_SECRET_KEY`, `TENANT_ANA_SECRET_KEY`, `TENANT_BRUNO_SECRET_KEY`, `TENANT_CARLA_SECRET_KEY` | yes | yes | Devnet demo keypairs |
-| `AGENCY_SECRET_KEY` | yes | no | Not used until the 2-of-3 release |
+| `AGENCY_SECRET_KEY` | yes | no | Signs the simulated 2-of-3 deposit release |
+| `DEMO_AGENCY_PIN` | yes | no | Server-only PIN that unlocks "Release deposit"; empty = release disabled (503). Set per environment, never commit |
 | `PAYMENT_MINT` | yes | yes | |
 | `SOLANA_RPC_URL`, `SOLANA_CLUSTER`, `ESCROW_MODE` | yes | yes | devnet, `custodial` |
 | `NEXT_PUBLIC_EXPLORER_URL`, `NEXT_PUBLIC_SOLANA_CLUSTER` | yes | yes | |

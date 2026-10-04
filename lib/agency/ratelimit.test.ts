@@ -18,3 +18,14 @@ describe("createLimiter", () => {
     expect(l.check("ip-49", 100)).toBeGreaterThan(0);
   });
 });
+
+describe("createLimiter.peek", () => {
+  it("reports without recording a hit", () => {
+    const l = createLimiter({ windowMs: 60_000, max: 1 });
+    expect(l.peek("a", 0)).toBe(0);
+    expect(l.peek("a", 1)).toBe(0);
+    expect(l.check("a", 2)).toBe(0);
+    expect(l.peek("a", 3)).toBeGreaterThan(0);
+    expect(l.peek("a", 60_003)).toBe(0);
+  });
+});

@@ -5,12 +5,19 @@
 export interface Limiter {
   /** 0 when allowed (and the hit is recorded), otherwise the seconds to wait. */
   check(key: string, now?: number): number;
+  /** Like check but read-only: 0 when a hit would be allowed, otherwise the seconds to wait. Records nothing. */
+  peek(key: string, now?: number): number;
 }
 
 export function createLimiter(opts: { windowMs: number; max: number; maxKeys?: number }): Limiter {
   const hits = new Map<string, number[]>();
   const maxKeys = opts.maxKeys ?? 2_000;
   return {
+    peek(key, now = Date.now()) {
+      const recent = (hits.get(key) ?? []).filter((t) => now - t < opts.windowMs);
+      if (recent.length < opts.max) return 0;
+      return Math.max(1, Math.ceil((opts.windowMs - (now - recent[0])) / 1000));
+    },
     check(key, now = Date.now()) {
       const recent = (hits.get(key) ?? []).filter((t) => now - t < opts.windowMs);
       if (recent.length >= opts.max) {

@@ -60,6 +60,7 @@ function ReleaseForm({
   const deposit = lease.deposit?.amount ?? "0";
   const [tenantText, setTenantText] = useState("0");
   const [reason, setReason] = useState("");
+  const [pin, setPin] = useState("");
   const [approver, setApprover] = useState<"tenant" | "landlord">("tenant");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<{ message: string; explorerUrl?: string } | null>(null);
@@ -67,7 +68,7 @@ function ReleaseForm({
   const tenantBase = usdcToBaseUnits(tenantText);
   const landlordBase = landlordShare(deposit, tenantBase);
   const splitOk = tenantBase !== null && landlordBase !== null;
-  const valid = splitOk && reason.trim().length >= 3;
+  const valid = splitOk && reason.trim().length >= 3 && pin.length > 0;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -78,11 +79,13 @@ function ReleaseForm({
       const res = await fetch("/api/agency/release", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ leaseId: lease.leaseId, toTenant: tenantBase, toLandlord: landlordBase, reason: reason.trim(), approver }),
+        body: JSON.stringify({ leaseId: lease.leaseId, toTenant: tenantBase, toLandlord: landlordBase, reason: reason.trim(), approver, pin }),
       });
       const json = (await res.json().catch(() => null)) as { release?: ReleaseOk; error?: string; explorerUrl?: string } | null;
       if (!res.ok || !json?.release) {
-        setError({ message: json?.error ?? L.releaseFailed(res.status), explorerUrl: json?.explorerUrl });
+        const known = res.status === 401 ? L.pinWrong : res.status === 429 ? L.pinTooMany : res.status === 503 ? L.pinDisabled : null;
+        setError({ message: known ?? json?.error ?? L.releaseFailed(res.status), explorerUrl: known ? undefined : json?.explorerUrl });
+        if (res.status === 401) setPin("");
         return;
       }
       onDone(json.release);
@@ -150,11 +153,29 @@ function ReleaseForm({
           <option value="landlord">{L.landlord}</option>
         </select>
       </div>
+      <div>
+        <label htmlFor={`${uid}-p`} className="text-xs font-semibold text-muted">
+          {L.pinLabel}
+        </label>
+        <input
+          id={`${uid}-p`}
+          type="password"
+          inputMode="numeric"
+          autoComplete="off"
+          maxLength={64}
+          value={pin}
+          onChange={(e) => setPin(e.target.value)}
+          aria-invalid={error !== null && (error.message === L.pinWrong || error.message === L.pinTooMany)}
+          aria-describedby={`${uid}-pinhint`}
+          className={fieldClass}
+        />
+        <p id={`${uid}-pinhint`} className="mt-1 text-xs text-muted">{L.pinHint}</p>
+      </div>
       <p className="rounded-md bg-warning-soft p-2 text-xs text-warning">
         {L.simulatedNote}
       </p>
       {error && (
-        <p role="alert" className="flex items-start gap-2 text-sm font-semibold text-danger">
+        <p role="alert" aria-live="assertive" className="flex items-start gap-2 text-sm font-semibold text-danger">
           <AlertIcon className="mt-0.5 size-4 shrink-0" />
           <span>
             {error.message}

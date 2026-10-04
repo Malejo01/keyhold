@@ -3,7 +3,7 @@
   "agent": "crosscheck.extract@f0-1",
   "kind": "structured",
   "label": "ana",
-  "model": "claude-haiku-4-5-20251001",
+  "model": "gemini-3.8-flash",
   "output": {
     "documents": [
       {
@@ -32,6 +32,7 @@
       }
     ]
   },
-  "source": "hand-authored",
-  "recordedAt": "2026-10-04T00:50:56.743Z"
+  "provider": "gemini",
+  "source": "recorded",
+  "recordedAt": "2026-10-04T01:31:55.310Z"
 }

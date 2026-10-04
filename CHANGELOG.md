@@ -15,6 +15,9 @@ Work before the tag `v0-hackathon-start` or imported via `chore(import)` commits
 - feat(agents): orchestrator stage machine, listings, prequal + independent crosscheck with deterministic rules, lease template + sha256, simulated Ana/Bruno/Carla documents, provider wrapper with REPLAY/RECORD; evals 6/6 in replay with hand-authored recordings, live run pending API key (ai-agents-engineer, F0-04).
 - feat(ui): tenant demo screen: chat with persona switcher, animated lease timeline, property, prequal, contract (Verify), payment and receipt cards, neutral light/dark tokens (ui-motion-engineer, F0-05).
 - fix(api): `/api/lease` re-evaluates the tenant against the selected property rent (lead, F0-08).
+- feat(solana): devnet setup executed (tUSDC mint, tenant funding) and sample deposit + rent transactions with Memo recorded in `docs/submission/tx-links.md` (lead, F0-03b).
+- feat(ai): Gemini (`gemini-3.8-flash`, `@google/genai`) is the default provider via `AI_PROVIDER`; retry with backoff on 429/503, recording fallback when a live call fails, recordings re-recorded with real Gemini responses; live and replay evals pass 3/3 (ai-agents-engineer, F0-11). AD-09 revised.
+- chore(deploy): Vercel project linked to the repo; production at https://tuki-rentals.vercel.app (lead, F0-08).
 - Known issue: `pnpm test` (vitest) cannot start on the dev machine (Windows Application Control blocks the rolldown native binding); unit tests were checked with ad-hoc tsx scripts only.
 
 ## Week 2 — 2026-10-05 → 2026-10-12

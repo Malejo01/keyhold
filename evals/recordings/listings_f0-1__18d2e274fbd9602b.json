@@ -2,17 +2,13 @@
   "key": "18d2e274fbd9602ba34097ee032c6254b0ec3afdd9b9727a5e116e17481b9200",
   "agent": "listings@f0-1",
   "kind": "chat_step",
-  "model": "claude-sonnet-5-5",
+  "model": "gemini-3.8-flash",
   "output": {
     "stopReason": "tool_use",
     "content": [
       {
-        "type": "text",
-        "text": "Let me check the catalog."
-      },
-      {
         "type": "tool_use",
-        "id": "toolu_hand_authored_01",
+        "id": "call_2095483",
         "name": "search_properties",
         "input": {
           "bedrooms": 6
@@ -20,6 +16,7 @@
       }
     ]
   },
-  "source": "hand-authored",
-  "recordedAt": "2026-10-04T00:50:56.746Z"
+  "provider": "gemini",
+  "source": "recorded",
+  "recordedAt": "2026-10-04T01:32:02.411Z"
 }

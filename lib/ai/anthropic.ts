@@ -1,12 +1,9 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { AiBlock, AiMessage, AiProvider, ChatStepCall, ChatStepResult, StopReason, StructuredCall } from './types';
 
-export class AiRefusalError extends Error {
-  constructor(message = 'The model declined to answer.') {
-    super(message);
-    this.name = 'AiRefusalError';
-  }
-}
+import { AiRefusalError } from './errors';
+
+export { AiRefusalError };
 
 function toParamBlocks(blocks: AiBlock[]): Anthropic.ContentBlockParam[] {
   return blocks.map((b): Anthropic.ContentBlockParam => {
@@ -61,7 +58,7 @@ export class AnthropicProvider implements AiProvider {
   }
 
   private sdk(): Anthropic {
-    this.client ??= new Anthropic({ maxRetries: 2, timeout: 60_000 });
+    this.client ??= new Anthropic({ maxRetries: 0, timeout: 60_000 }) // lib/ai/retry.ts handles 429/5xx;
     return this.client;
   }
 

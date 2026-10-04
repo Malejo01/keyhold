@@ -3,7 +3,7 @@
   "agent": "prequal.extract@f0-1",
   "kind": "structured",
   "label": "bruno",
-  "model": "claude-haiku-4-5-20251001",
+  "model": "gemini-3.8-flash",
   "output": {
     "applicantName": "BRUNO EJEMPLO SIMULADO",
     "documentsPresent": [
@@ -15,6 +15,7 @@
     "payslipIssueDate": "2026-06-05",
     "monthlyIncomeUsdc": 2700
   },
-  "source": "hand-authored",
-  "recordedAt": "2026-10-04T00:50:56.744Z"
+  "provider": "gemini",
+  "source": "recorded",
+  "recordedAt": "2026-10-04T01:31:56.740Z"
 }

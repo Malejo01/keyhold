@@ -3,7 +3,7 @@
   "agent": "prequal.extract@f0-1",
   "kind": "structured",
   "label": "ana",
-  "model": "claude-haiku-4-5-20251001",
+  "model": "gemini-3.8-flash",
   "output": {
     "applicantName": "ANA LUCIA TESTA FICTICIA",
     "documentsPresent": [
@@ -15,6 +15,7 @@
     "payslipIssueDate": "2026-09-30",
     "monthlyIncomeUsdc": 2450
   },
-  "source": "hand-authored",
-  "recordedAt": "2026-10-04T00:50:56.741Z"
+  "provider": "gemini",
+  "source": "recorded",
+  "recordedAt": "2026-10-04T01:31:53.743Z"
 }

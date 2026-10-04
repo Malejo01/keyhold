@@ -66,6 +66,8 @@ export interface Recording {
   kind: 'structured' | 'chat_step';
   /** Free label for humans, e.g. the tenant id. */
   label?: string;
+  /** Provider that produced it ('gemini', 'anthropic', 'hand-authored'). Not part of the replay key. */
+  provider?: string;
   model: string;
   /** 'recorded' = real model response; 'hand-authored' = written by hand in the exact shape of one. */
   source: 'recorded' | 'hand-authored';

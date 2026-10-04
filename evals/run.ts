@@ -4,11 +4,12 @@
  *    RUNS times each.
  *  - Listings never invents a property that is not in the catalog.
  *  - Orchestrator smoke flow for Ana: SEARCH -> VISIT -> DOCUMENTS -> CONTRACT -> PAYMENT -> ACTIVE.
- * Mode: REPLAY=1 serves evals/recordings; otherwise live when ANTHROPIC_API_KEY is set (replay if not).
+ * Mode: REPLAY=1 serves evals/recordings; otherwise live when the AI_PROVIDER key is set (GEMINI_API_KEY by default),
+ * replay if not. Live runs are strict (no recording fallback, no memo) and spaced to respect free-tier rate limits.
  */
 import { config } from 'dotenv';
 import type { FinalDecision, PaymentResult, SessionState, TenantId } from '../lib/contracts';
-import { aiMode } from '../lib/ai';
+import { aiDescribe, aiMode } from '../lib/ai';
 import { RECORDINGS } from './recordings';
 import { loadCatalog } from '../lib/agents/catalog';
 import { runListingsAgent } from '../lib/agents/listings';
@@ -19,7 +20,13 @@ import { NOT_IN_CATALOG_QUESTION } from './lib/scenarios';
 config({ path: '.env.local', quiet: true });
 
 const RUNS = 3;
+/** Pause between live model-backed steps (free tier). EVAL_SPACING_MS overrides; no pause in replay. */
+const LIVE_SPACING_MS = Number(process.env.EVAL_SPACING_MS ?? 4000);
 let failures = 0;
+
+async function space(): Promise<void> {
+  if (aiMode() === 'live' && LIVE_SPACING_MS > 0) await new Promise((r) => setTimeout(r, LIVE_SPACING_MS));
+}
 
 function check(name: string, ok: boolean, detail = ''): void {
   if (!ok) failures++;
@@ -43,6 +50,7 @@ async function tenantEvals(): Promise<void> {
     let passed = 0;
     let last = '';
     for (let run = 0; run < RUNS; run++) {
+      await space();
       try {
         const d = await evaluateTenant(tenantId);
         const codes = codesOf(d);
@@ -63,10 +71,11 @@ async function tenantEvals(): Promise<void> {
 
 async function listingsEval(): Promise<void> {
   const catalogIds = new Set(loadCatalog().map((p) => p.id));
+  await space();
   const turn = await runListingsAgent({ message: NOT_IN_CATALOG_QUESTION, history: [] });
   const mentionedIds = turn.reply.match(/\bprop-\d+\b/gi) ?? [];
   const onlyCatalog = turn.properties.every((p) => catalogIds.has(p.id)) && mentionedIds.every((id) => catalogIds.has(id.toLowerCase()));
-  const saysUnknown = /(don't know|do not know|no (matching )?propert|not in (our|the) catalog|no such|couldn't find|could not find|found no|no tengo|no sé)/i.test(turn.reply);
+  const saysUnknown = /(don't know|do not know|no (matching )?propert|not in (our|the) catalog|no such|couldn't find|could not find|found no|(does not|doesn't|do not|don't) (currently )?have|no tengo|no tenemos|no sé)/i.test(turn.reply);
   const noPrice = !/\b\d{3,5}\s*(usdc|usd)\b/i.test(turn.reply);
   check(
     `listings: no hallucination for an out-of-catalog request (${turn.source})`,
@@ -79,6 +88,7 @@ async function flowEval(): Promise<void> {
   let state: SessionState = { sessionId: 'eval', stage: 'SEARCH', tenantId: 'ana', payments: [], history: [] };
   const stages: string[] = [state.stage];
   const say = async (msg: string) => {
+    await space();
     const r = await runTurn(state, msg);
     state = r.state;
     stages.push(state.stage);
@@ -112,8 +122,12 @@ async function flowEval(): Promise<void> {
 
 async function main(): Promise<void> {
   const mode = aiMode();
+  if (mode === 'live') {
+    process.env.AI_STRICT_LIVE = '1';
+    process.env.AI_MEMO = '0';
+  }
   const handAuthored = RECORDINGS.filter((r) => r.source === 'hand-authored').length;
-  console.log(`Mode: ${mode}${mode === 'replay' ? ` (${RECORDINGS.length} recordings, ${handAuthored} hand-authored)` : ''}\n`);
+  console.log(`Mode: ${mode}${mode === 'replay' ? ` (${RECORDINGS.length} recordings, ${handAuthored} hand-authored)` : ` (${aiDescribe()})`}\n`);
   await tenantEvals();
   await listingsEval();
   await flowEval();

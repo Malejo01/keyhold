@@ -1,4 +1,5 @@
 import type { ChatResponse } from '@/lib/contracts';
+import { aiMode } from '@/lib/ai';
 import { runTurn } from '@/lib/agents/orchestrator';
 import { chatRequestSchema } from '@/lib/db/schemas';
 import { newSession, signSession, verifySession } from '@/lib/db/session';
@@ -9,8 +10,11 @@ export const runtime = 'nodejs';
 // Cost guard: simple in-memory sliding-window rate limit per IP.
 // Best effort only: on serverless every instance has its own memory, so the effective limit is
 // per warm instance and resets on cold start. It is meant to stop a runaway loop, not an attacker.
+// Live AI costs money: 30 messages per 5 min per IP. Replay mode (REPLAY=1, no key, or daily cap
+// reached; see aiMode() in lib/ai) costs nothing, so recording sessions get 120 per 5 min.
 const WINDOW_MS = 5 * 60 * 1000;
-const MAX_REQUESTS = 30;
+const MAX_REQUESTS_LIVE = 30;
+const MAX_REQUESTS_REPLAY = 120;
 const hits = new Map<string, number[]>();
 
 function clientIp(request: Request): string {
@@ -22,7 +26,8 @@ function clientIp(request: Request): string {
 /** Returns seconds to wait when over the limit, or 0 when the request is allowed. */
 function checkRateLimit(ip: string, now: number): number {
   const recent = (hits.get(ip) ?? []).filter((t) => now - t < WINDOW_MS);
-  if (recent.length >= MAX_REQUESTS) {
+  const max = aiMode() === 'replay' ? MAX_REQUESTS_REPLAY : MAX_REQUESTS_LIVE;
+  if (recent.length >= max) {
     hits.set(ip, recent);
     return Math.max(1, Math.ceil((WINDOW_MS - (now - recent[0])) / 1000));
   }

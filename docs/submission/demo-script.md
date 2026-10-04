@@ -10,7 +10,7 @@ Target length 2:55, hard stop 3:00. The pitch (`pitch-script.md`, 2:00) covers t
 - [ ] Reload the page so the session is fresh. Check the banner "Demo · Solana devnet · simulated data" is visible. It must stay visible the whole video.
 - [ ] Persona switcher (top right) shows Ana, Bruno, Carla. Chips above the input show: Find a place, Book a visit, Upload my documents, Generate the contract, Pay the deposit, Pay my first rent.
 - [ ] Have a second tab ready in the same window with a devnet explorer page for a recent Keyhold deposit payment (take the link from a receipt of a practice run, not from old notes). It is a backup if the explorer loads slowly. Do not show it unless needed.
-- [ ] Rate limit: the app allows 30 chat messages per 5 minutes per IP. A full take uses about 10. If a "too many requests" message appears, wait 5 minutes and start again.
+- [ ] Rate limit: production (recorded answers) allows 120 chat messages per 5 minutes per IP; with live AI the limit is 30. A full take uses about 10 messages, so several takes in a row are fine. If a "too many requests" message ever appears, wait 5 minutes and start again.
 - [ ] Do one practice run first. Then reload and record.
 - [ ] Record screen and microphone. English only. No real person's data or real documents appear anywhere; everything is simulated.
 

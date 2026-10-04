@@ -1,19 +1,63 @@
 # AlquilIA
 
-> "AlquilIA" (alquilar + IA) is a provisional working name, formerly "Keyhold"; the final brand is still to be decided. The repo and production URLs still use "keyhold".
+> "AlquilIA" (alquilar + IA) is a provisional working name, formerly "Keyhold"; the final brand is still to be decided. The repo (`Malejo01/keyhold`) and the production URL (`keyhold-app.vercel.app`) still use "keyhold".
 
-AI leasing back-office for real-estate agencies in Argentina's interior. Agents pre-qualify tenants and draft contracts; deposit and rent are paid on Solana with the contract hash in every payment. The trust-minimised escrow is in progress and not built yet; today it is custodial.
+**AI leasing back-office for real-estate agencies in Argentina's interior; Solana makes the deposit and payment record trustless and portable.**
+
+That sentence is the direction. This build delivers the first half (AI back-office) and a *recorded*, not yet *trustless*, payment trail: the escrow is **custodial today** and the Anchor program that would make it trustless is **not built yet**. See [Status](#status-as-of-2026-10-04) and [Custodial escrow](#custodial-escrow-on-devnet-stated-plainly).
 
 Built for the Colosseum Crypto World's Fair hackathon, Superteam Argentina track. Team based in Salta, Argentina.
 
-- Live demo: https://keyhold-app.vercel.app
+- Live demo: https://keyhold-app.vercel.app (devnet, simulated data, recorded AI answers)
 - Demo video (max 3 min): TODO(Ani) add the link after recording.
-- Devnet transaction links: see [`docs/submission/tx-links.md`](docs/submission/tx-links.md).
-- Demo script: [`docs/submission/demo-script.md`](docs/submission/demo-script.md).
+- Pitch video (max 2 min): TODO(Ani) add the link after recording.
+- Repository: https://github.com/Malejo01/keyhold (MIT)
+- Real devnet transactions: [`docs/submission/tx-links.md`](docs/submission/tx-links.md)
+- Architecture detail: [`docs/architecture.md`](docs/architecture.md)
+- Demo script: [`docs/submission/demo-script.md`](docs/submission/demo-script.md)
 
-## Status in one paragraph
+## Contents
 
-This is a hackathon build, version 0. It runs end to end on Solana **devnet only**, with fake properties, fake people and fake documents. The deposit escrow is **custodial** at this point: the deposit goes to a platform custody wallet and the server signs every transaction with demo keypairs. An Anchor program with 2-of-3 release (tenant, landlord, agency) is **planned for this week and is not built yet**. See [Current status](#current-status-custodial-escrow-on-devnet) below.
+1. [Status](#status-as-of-2026-10-04)
+2. [The problem](#the-problem)
+3. [What it does: the demo flow](#what-it-does-the-demo-flow)
+4. [Architecture](#architecture)
+5. [Product agents: what each extracts and what the code decides](#product-agents-what-each-extracts-and-what-the-code-decides)
+6. [What Solana is used for, and why](#what-solana-is-used-for-and-why)
+7. [Custodial escrow on devnet, stated plainly](#custodial-escrow-on-devnet-stated-plainly)
+8. [Security considerations](#security-considerations)
+9. [What is simulated](#what-is-simulated)
+10. [How AlquilIA differs from similar projects](#how-alquilia-differs-from-similar-projects)
+11. [Questions we expect](#questions-we-expect)
+12. [Roadmap](#roadmap)
+13. [Run it](#run-it)
+14. [What has been tested](#what-has-been-tested)
+15. [Disclosures](#disclosures)
+16. [Team](#team)
+17. [Repository layout](#repository-layout)
+
+## Status (as of 2026-10-04)
+
+This is a hackathon build, version 0. It runs end to end on Solana **devnet only**, with fake properties, fake people and fake documents.
+
+| Piece | State |
+|---|---|
+| Chat with a stage machine (search, visit, documents, contract, payment, active lease) | Built |
+| Listings agent answering only from a 10-property catalogue | Built |
+| Pre-qualification and independent cross-check agents, with deterministic rules deciding | Built (three simulated tenants) |
+| Lease template, sha256 of the contract text, public Verify against the on-chain Memo | Built |
+| Deposit and rent as real SPL token transfers on devnet, each with a Memo carrying the contract hash | Built |
+| On-time discount computed from the confirmed transaction `blockTime` | Built (rent quote still uses server time; see [Security](#security-considerations)) |
+| Replayable recordings of the AI answers (`REPLAY=1`) | Built; production serves recordings |
+| Escrow | **Custodial** (platform wallet, server signs with demo keys) |
+| Anchor program `rental_escrow` with PDA vault and 2-of-3 release | **Not built** |
+| Solana Pay QR payable from Phantom | **Not built** |
+| Real document upload and extraction | **Not built** (the "upload" step loads simulated documents for the chosen demo tenant) |
+| Agency panel (review queue, deposit release) | **Not built** |
+| Database (Neon) | **Not built** (the signed session lives in the browser) |
+| Peso on-ramp, USDC as settlement layer | **Not built** (roadmap) |
+| Spanish UI with ES/EN switch | **Not built** (the UI is English; the agents already answer in the user's language) |
+| Users, pilots, letters of intent, revenue | **None.** See [Questions we expect](#questions-we-expect) |
 
 ## The problem
 
@@ -23,59 +67,118 @@ In Salta, and in most of Argentina's interior, a rental is still handled by hand
 - The security deposit is held by whoever is in the middle. When there is a dispute about returning it, the tenant has little proof of what was agreed or paid.
 - The payment history of a good tenant stays in the agency's files and is not portable.
 
-Search portals already exist and AI search assistants are becoming common, so AlquilIA does not compete there. AlquilIA's effort goes into the back-office steps where agencies spend manual time: pre-qualification, cross-checking, contract, deposit and payment record.
+Search portals already exist and AI search assistants are becoming common, so AlquilIA does not compete there. The effort goes into the back-office steps where agencies spend manual time: pre-qualification, cross-checking, contract, deposit and payment record.
 
-Note on currency: rents in Salta are mostly priced in pesos. This build settles in USDC (a devnet test token). The next step after the hackathon is to let tenants pay in pesos through an on-ramp and settle in USDC. That is roadmap, not built. See [Roadmap](#roadmap-for-the-week).
+Currency note: rents in Salta are mostly priced in pesos. This build settles in USDC (a devnet test token). The step after the hackathon is to let tenants pay in pesos through an on-ramp and settle in USDC (AD-07). That is roadmap, not built.
 
-## How it works
+## What it does: the demo flow
 
-The tenant-facing front door is a chat on the left and a lease timeline on the right. The same pipeline is meant to be operated by an agency (an agency panel is on the roadmap).
+The tenant-facing front door is a chat on the left, with a lease timeline and an "Agent activity" panel on the right. The same pipeline is meant to be operated by an agency; the agency panel is on the roadmap.
 
-### Product agents
+1. **Try the demo.** The landing page carries the strip "Demo · Solana devnet · simulated data". A persona switcher selects one of three simulated tenants.
+2. **Find and visit.** The tenant asks for "2-bedroom near Tres Cerritos, under 500 USDC, pets ok". The listings agent searches the catalogue and returns property cards. Booking a visit uses a fixed simulated slot.
+3. **Documents.** The tenant says they are uploading their documents. The server loads the simulated documents of that persona. Two agents read them (below) and rules decide.
+   - **Ana** is approved.
+   - **Bruno** is stopped: his payslip is 120 days old, over the 90-day rule (`NEEDS_INFO`, `expired_payslip`).
+   - **Carla** passes the first agent, then the independent cross-check finds that the name on her payslip differs from the name on her ID and stops her (`NEEDS_INFO`, `name_mismatch`). The UI shows the compared values side by side.
+4. **Contract.** For an approved tenant, a lease is built from a template and its sha256 fingerprint is shown. Verify stays locked until the deposit is paid.
+5. **Deposit.** A real SPL token transfer on devnet into the platform custody wallet, with a Memo carrying the contract hash. No discount applies to a deposit.
+6. **Verify.** The app recomputes the sha256 of the contract text and compares it with the hash read back from the on-chain Memo.
+7. **First rent.** The price shows the list price crossed out, then 3% off for paying in USDC and 2% off for paying on time (420.00 becomes 399.00 USDC in the demo). The rent goes straight to the landlord wallet, with the same kind of Memo. Whether the payment was on time is recomputed from the confirmed transaction's `blockTime`.
+8. **Receipt and explorer.** Each receipt links to the devnet explorer, where the token transfer and the Memo can be inspected. The timeline reaches "Active lease". Move-out and the 2-of-3 deposit release are not built; asking for them returns a message saying so.
 
-Not to be confused with the dev agents that build this repo (`.claude/agents/`). The product agents live in `lib/agents/` and run inside the app.
+Order is enforced on the server: rent before a confirmed deposit returns 409 "Pay the deposit first."
 
-| Agent | What it does |
-|---|---|
-| Orchestrator | A stage machine: `SEARCH`, `VISIT`, `DOCUMENTS`, `CONTRACT`, `PAYMENT`, `ACTIVE`, `MOVE_OUT`. Each stage exposes only its own tools to the model. |
-| Listings | Searches and reads properties from the catalogue (`seed/properties.json`, 10 properties in Salta). It answers only from catalogue data. |
-| Prequal | The model extracts fields from the tenant's documents into strict JSON (validated with zod). Deterministic rules then decide: `APPROVED`, `NEEDS_INFO` or `REJECTED`. |
-| Crosscheck | A second, independent pass with a separate prompt. It extracts again from the original documents and the rules compare. If it disagrees with prequal, the case becomes `NEEDS_INFO`. |
-| Lease | Builds a contract from a template, computes its sha256, and prepares the payment (deposit, rent). It emits a payment intent; it does not touch Solana libraries or keys. |
+## Architecture
 
-A visits agent with fixed slots is planned and is not part of this build.
+```mermaid
+flowchart LR
+  subgraph Browser
+    UI["Chat, lease timeline, agent activity<br/>holds the HMAC-signed session blob"]
+  end
 
-### Principle: the model extracts, the code decides
+  subgraph Next["Next.js 16 route handlers (Node runtime, Vercel)"]
+    CHAT["POST /api/chat"]
+    LEASE["POST /api/lease"]
+    PAY["POST /api/pay"]
+    VERIFY["POST /api/verify"]
+    SESS["lib/db/session<br/>HMAC-SHA256 sign and verify"]
+  end
 
-The language model never approves or rejects anybody and never computes a price. It turns documents into JSON. Everything that decides something lives in `lib/rules/`:
+  subgraph Agents["lib/agents (product agents)"]
+    ORCH["Orchestrator<br/>stage machine, intent in code"]
+    LIST["Listings agent<br/>catalogue tools only"]
+    PREQ["Prequal agent<br/>extracts fields"]
+    XCHK["Crosscheck agent<br/>independent extraction"]
+    LAG["Lease agent<br/>template, sha256, PaymentIntent"]
+  end
 
-- payslip older than 90 days is flagged;
-- the name on the ID and on the payslip must match;
-- rent must be at most 35% of income;
-- the status (`APPROVED` / `NEEDS_INFO` / `REJECTED`);
-- discounts and on-time status.
+  AI["lib/ai<br/>Gemini via @google/genai<br/>or REPLAY recordings"]
+  RULES["lib/rules<br/>decisions: status, 90 days,<br/>35% of income, name match, pricing"]
+  SOL["lib/solana<br/>custodial SPL transferChecked + Memo,<br/>blockTime, hash, Memo read-back"]
+  DEV[("Solana devnet<br/>tUSDC mint, custody wallet,<br/>landlord wallet, Memo program")]
 
-This makes the demo cases reproducible and keeps decisions testable without a model.
+  UI --> CHAT & LEASE & PAY & VERIFY
+  CHAT & LEASE & PAY --> SESS
+  CHAT --> ORCH
+  ORCH --> LIST
+  ORCH --> PREQ --> XCHK
+  LEASE --> PREQ
+  LEASE --> LAG
+  ORCH --> LAG
+  LIST --> AI
+  PREQ --> AI
+  XCHK --> AI
+  PREQ --> RULES
+  XCHK --> RULES
+  PAY --> LAG --> SOL
+  PAY --> RULES
+  VERIFY --> SOL
+  SOL --> DEV
+```
 
-### The three demo tenants
+How to read it:
 
-All data is simulated. A persona switcher in the UI selects one of them.
+- **The browser is not trusted.** It keeps the session and resends it, but `lib/db/session` signs it with HMAC-SHA256 and rejects any edit. Approvals are recomputed on the server (`/api/lease` re-runs pre-qualification and cross-check and returns 409 unless the result is `APPROVED`). Payment amounts, payer, month and discounts come from the lease inside the signed session, never from the request body.
+- **Agents never touch keys.** The Lease agent emits a typed `PaymentIntent` (see `lib/contracts.ts`). Only `lib/solana` builds, signs and confirms transactions.
+- **The model sits behind `lib/ai`.** It has two jobs: free-form questions about the catalogue (with tools that can only read the catalogue) and extracting fields from documents into zod-validated JSON. It never returns a verdict.
+- **Replay.** With `REPLAY=1`, with no API key, or after `AI_DAILY_CALL_CAP` live calls in a UTC day, `lib/ai` serves recordings from `evals/recordings`. They are keyed by agent id and user input, so a rename or a prompt wording change does not invalidate them. If a live call fails after retries, the recording for the same input is served when one exists. Production runs with `REPLAY=1`; the decisions are made by `lib/rules` in either mode.
+- **Verify is public.** `/api/verify` takes a contract text and a transaction signature and compares sha256 of the text with the hash in the transaction's Memo. It needs no session.
 
-| Tenant | Expected outcome | Why |
+More detail, including the planned on-chain design, is in [`docs/architecture.md`](docs/architecture.md).
+
+## Product agents: what each extracts and what the code decides
+
+Not to be confused with the dev agents that build this repo (`.claude/agents/`). The product agents live in `lib/agents/` and run inside the app. The rule behind all of them: **the model extracts, the code decides** (AD-01).
+
+| Agent | What the model does | What code decides (`lib/rules`, orchestrator) |
 |---|---|---|
-| Ana | Approved | Documents are complete, consistent and current. |
-| Bruno | Stopped (`NEEDS_INFO`, `expired_payslip`) | His payslip is older than 90 days. Prequal flags it. |
-| Carla | Stopped by the crosscheck (`NEEDS_INFO`, `name_mismatch`) | Prequal approves her; the independent crosscheck finds a different name on the ID and on the payslip and overrides it. |
+| Orchestrator | Nothing. It is a stage machine (`SEARCH`, `VISIT`, `DOCUMENTS`, `CONTRACT`, `PAYMENT`, `ACTIVE`, `MOVE_OUT`). Intent detection is regex in code. | Every stage transition, which payment card is shown (deposit first, then the next unpaid month), and the 409s. |
+| Listings | Calls two catalogue tools (`search_properties`, `get_property`) and phrases a reply in the user's language. If the catalogue has no match it must say so. | Which properties appear as cards: only objects returned by the tools, never model text. A deterministic fallback answers if the model or the recording is unavailable. |
+| Prequal | Extracts applicant name, documents present, payslip issue date and monthly income from the documents into strict JSON (zod). | Completeness of the four documents, payslip at most 90 days old, rent at most 35% of income. Status: income ratio exceeded gives `REJECTED`, any other issue gives `NEEDS_INFO`, none gives `APPROVED`. |
+| Crosscheck | A second, independent extraction with its own prompt: holder name, issue date and income per document. It sees prequal's extraction but not its verdict. | Runs the same rules on its own extraction plus the name match between the ID and every other document. Any finding that prequal did not report is a discrepancy and forces `NEEDS_INFO`. |
+| Lease | Nothing. | Template text, sha256, due date, deposit and rent amounts, the `PaymentIntent`. |
 
-The evals in `evals/` check these three outcomes, live and in replay mode.
+The name-match rule is deterministic code that runs on the crosscheck agent's per-document extraction. That is why Carla is approved by prequal and caught by the cross-check, and why no model decides either outcome. The `Issue.evidence` field lists the values a rule compared so the UI can show them side by side; the decision never reads it.
+
+Models: Google Gemini through `@google/genai`, `gemini-3.5-flash-lite` for both orchestration and extraction (AD-09). An Anthropic provider exists in `lib/ai` as an optional alternative and is not used by the product or the demo.
 
 ## What Solana is used for, and why
 
 Solana is not used to decide anything about the tenant. It is used for the money and the record:
 
-1. **Deposit custody.** The deposit is moved as an SPL token transfer into a custody account. Today this is a platform wallet (custodial). The plan is a program-owned vault (see status below).
-2. **USDC-denominated payment with discounts computed from confirmed time.** Rent and deposit are paid in the demo token. The payment screen shows the list price crossed out and the discounted price (one discount for paying in USDC, one for paying on time). Whether a payment is on time is computed from the `blockTime` of the **confirmed transaction**, never from a client button or a client clock. The amounts use integer math: `list * (10000 - discountBps) / 10000`.
-3. **Payment record.** Every payment carries a Memo instruction in the same transaction. The tenant or anyone else can recompute the contract hash and compare it with the one on-chain (the Verify button).
+1. **SPL token transfers for deposit and rent.** `transferChecked` of the 6-decimal test token, with the platform wallet as fee payer. The deposit goes to the custody wallet; rent goes to the landlord wallet.
+2. **A Memo in the same transaction.** Format below. It binds each payment to a lease id and to the sha256 of the exact contract text. Anyone can recompute the hash from the contract and compare it with the chain (the Verify button, or `POST /api/verify`).
+3. **`blockTime` as the clock.** Whether a rent payment is on time is computed from the confirmed transaction's `blockTime` compared with the due date, never from a client button or clock. Amounts use integer math: `list * (10000 - discountBps) / 10000`.
+4. **Explorer as the audit surface.** Each receipt links to the devnet explorer.
+
+Why Solana for this: fees are low enough that every rent payment can carry its own record, confirmation is fast enough for a checkout screen, and the Memo and SPL Token programs are enough for a verifiable trail without a custom program. The part that needs a custom program, trustless holding and release of the deposit, is the Anchor work below.
+
+Planned, not built:
+
+- **Anchor `rental_escrow`** with a PDA vault, `Lease` and `PaymentRecord` accounts, and `release_deposit` that needs 2 of 3 signatures (tenant, landlord, agency as arbiter). The program's `Clock` then replaces server time in every discount decision.
+- **Solana Pay QR** payable from Phantom on devnet, with `reference` polling, so the tenant signs instead of a server key.
+- **A portable payment record** read from `PaymentRecord` accounts, which is what could later reduce a deposit. Not scheduled for the hackathon (AD-13).
 
 ### Memo convention
 
@@ -84,29 +187,103 @@ lease:v1:<leaseId>:deposit:<sha256hex>
 lease:v1:<leaseId>:rent:<monthIndex>:<sha256hex>
 ```
 
-- `leaseId` is a random opaque id. It is never a name, ID number or address.
+- `leaseId` is a random opaque id. It is never a name, ID number or address. `buildMemo` rejects anything outside an id and hash allow-list.
 - `sha256hex` is the hash of the final contract text.
 - Only hashes, amounts, timestamps and public keys go on-chain. Contract text and documents stay off-chain.
+- Transactions sent on 2026-10-03 used the older prefix `tuki:lease:`. They stay valid and the Verify code reads both prefixes.
 
-## Current status: custodial escrow on devnet
-
-Stated plainly, so nobody has to guess:
+## Custodial escrow on devnet, stated plainly
 
 - **Escrow mode today is `ESCROW_MODE=custodial`.** The deposit is transferred to a **platform custody wallet** on devnet. This is not trustless escrow. Whoever controls the platform keypair controls those funds.
-- **Transactions are signed server-side** with demo keypairs generated by `pnpm setup:devnet` and held in environment variables. The platform wallet is also the fee payer. The tenant is not signing in a wallet in this build.
-- **Not built yet:** the Anchor program `rental_escrow` with a PDA vault and `release_deposit` that needs 2 signatures out of 3 (tenant, landlord, agency). It is planned for this week. Until it exists and passes its tests, nothing in this repo or in the demo should be read as trustless escrow.
-- The custodial path will stay as a fallback after the program lands. If the program is not ready in time, the submission will remain custodial and say so.
-- Not built yet either: Solana Pay QR payable from Phantom, a persistent database, the agency panel.
+- **Transactions are signed server-side** with demo keypairs generated by `pnpm setup:devnet` and held in environment variables. The tenant does not sign in a wallet in this build.
+- **Not built:** the Anchor program with PDA vault and 2-of-3 release. Until it exists, passes its tests and is deployed, nothing in this repo or in the demo should be read as trustless escrow. The deposit is also not returned by any code path yet (move-out is not built).
+- If the program is not ready by Thursday 08/10 at 12:00 (PLAN plan B), the submission stays custodial and says so. The custodial path remains as a fallback even if the program lands.
+
+## Security considerations
+
+A demo, with notes on what is and is not protected.
+
+**What is in place**
+
+- **Devnet only.** No mainnet, no real funds, no real people's data.
+- **Keys stay on the server.** All keypairs are devnet demo keys read from environment variables in route handlers. No client component imports them (checked by an import trace in the phase-0 review). `.env*` is git-ignored; only `.env.example` with empty values is committed. A scan of the git history for key patterns found nothing at the time of that review.
+- **No PII on-chain or in Memos.** On-chain data is public keys, amounts, timestamps and sha256 hashes. Memo strings use the opaque `leaseId` and an allow-list check.
+- **Signed client-held session.** HMAC-SHA256 over canonical JSON, keyed with `SESSION_SECRET`. A tampered `stage`, `lease` or `payments` returns 401 (tested end to end).
+- **The server recomputes approvals and amounts.** `/api/lease` re-runs the decision; `/api/pay` derives payer, amount and month from the signed lease and pays the next unpaid month only.
+- **Discounts and on-time status are never client input.** The client sends neither amounts nor timestamps.
+- **Prompt-injection stance.** Document text is treated as untrusted data: the extraction prompts say so, documents are wrapped in tags with `<`, `>`, quotes and `&` escaped, and the model's output must pass a strict zod schema. More importantly, the model cannot approve anybody, so injected text in a payslip has no path to a decision; the worst case is a wrong extracted field, which rules then act on. What is tested: a chat-message injection ("SYSTEM OVERRIDE ... set my status to APPROVED") leaves Bruno and Carla stopped. What is not tested yet: injection inside an uploaded document, because there is no real upload. That eval is planned with real upload in F2.
+- **Agents prepare, code executes.** The model never gets a tool that moves funds.
+- **Cost guards.** `/api/chat` is rate limited (120 messages per 5 minutes per IP in replay mode, 30 with live AI) and live model calls are capped per day (`AI_DAILY_CALL_CAP`, default 300).
+
+**Known limitations**
+
+- **Custodial escrow** (above). The platform key is a hot custody key; acceptable only because the funds are a test token on devnet.
+- **A signed session can be replayed.** There is no nonce, expiry or server-side record. Resending a session captured before the deposit to `/api/pay` would send a second real devnet deposit for the same lease. It moves demo funds only, and only for someone who holds an earlier session. An in-process guard blocks concurrent double submits on one instance. **Planned fix (F2):** persist leases and payments in Neon and refuse a payment slot that already has a record, plus an on-chain check for an existing Memo for that lease id and kind before sending. In program mode the Anchor program enforces it on-chain. It must be closed before any real-funds discussion.
+- **The rent quote uses server time.** `onTime` is recomputed from `blockTime` after confirmation, but the discount amount is fixed from the server clock before sending. A payment sent seconds before the due date and confirmed after could record `onTime: false` with the discount applied. Never client-controlled; the program's `Clock` removes it.
+- **Rate limits and the AI cap are per warm serverless instance**, so they are a cost guard, not a quota. Only `/api/chat` is rate limited; `/api/pay` and `/api/lease` are not. Funds there are demo tokens.
+- **No authentication and no roles** in v0. No `server-only` package: server modules are guarded by comments and one runtime check.
+- **Nothing here has been audited.** The program has not been written, and dependencies are not audited.
+- **Unit tests could not be run on the author's machine** (see [What has been tested](#what-has-been-tested)).
 
 ## What is simulated
 
 - **Devnet only.** No mainnet, no real funds.
 - **Own test token `tUSDC`** (6 decimals), minted by `pnpm setup:devnet`. The UI labels it "USDC (devnet test token)". It is not Circle's USDC.
-- **Fake properties** (10 listings in Salta zones, 250 to 700 in demo-token prices), **fake people** (Ana, Bruno, Carla, a landlord and an agency) and **fake documents** (`seed/docs/`). No real person's data is used anywhere.
-- Discount percentages and the due date are demo configuration. For the demo the first due date is set to "tomorrow" so that an immediate payment counts as on time.
+- **Fake properties** (10 listings in Salta zones, priced 250 to 700 in demo-token units), **fake people** (Ana, Bruno, Carla, a landlord and an agency) and **fake documents** (`seed/docs/`). Property pictures are generated SVG illustrations, not photos.
+- **The "upload" is simulated.** Choosing "Upload my documents" loads the seeded documents of the selected persona. No file is uploaded or parsed.
+- **Visits** use one fixed simulated slot.
+- **Tenant wallets are server-held demo keys**, funded by the setup script. The tenant does not sign.
+- **The contract is a template** marked "DEMO CONTRACT WITH SIMULATED DATA", not a legal document and not legal advice.
+- **Discount percentages, lease length (12 months) and the due date are demo configuration.** The first due date is set to "tomorrow" so an immediate payment counts as on time.
+- **AI answers on the public URL are recordings** (`REPLAY=1`) of real Gemini responses for the demo cases. Live Gemini was checked locally with `pnpm evals`.
 - A banner in the UI reads "Demo · Solana devnet · simulated data".
 
-## Run it locally
+## How AlquilIA differs from similar projects
+
+Based on the public descriptions we read (TODO(Ani): re-check before submitting; we have not run these products):
+
+- **Fiador.sol** (Superteam Brazil hackathon): a stablecoin deposit escrow with yield and reputation seals that lower future deposits, reported with 21 Anchor instructions and 66 tests. It is **ahead of AlquilIA on the on-chain side**: it has a program and tests; AlquilIA does not yet. AlquilIA starts earlier in the process, with the agency back-office (pre-qualification, an independent cross-check, contract) before any money moves, and plans a 2-of-3 release in which the agency is the arbiter.
+- **RentLock** (United States): rent and deposit escrow in Solana PDAs, with a waitlist. Same observation: it is on-chain where AlquilIA is custodial today. AlquilIA is built for agencies in Argentina's interior and puts document checks first.
+- **Other tenant-screening and rental products in Argentina** (for example a tenant-history service in other provinces) exist; none was found in Salta in our market notes (`docs/02`, section 5.2). That is a reading of public pages, not a study.
+
+The differentiators below are *plans* until the program exists: the 2-of-3 release with the agency as arbiter, and a payment record that follows the tenant. What exists today is the cross-check agent and the rule-based decisions.
+
+## Questions we expect
+
+- **"Rents in Salta are in pesos. Who pays in USDC?"** We have no evidence yet on how many tenants or landlords would. Market notes in `docs/02` also show USDT is more used than USDC among Argentine stablecoin buyers (Bitso, 2025: USDT 57%, USDC 14%), so USDC is a settlement choice for the design, not a market claim. The roadmap is to accept pesos through an on-ramp and settle in USDC (AD-07). This build builds no peso rails. Validation questions about this are in `docs/submission/gtm.md`.
+- **"What about regulation?"** We have no legal advice and make no legal claims. The design is meant to be regime-agnostic: the contract stays off-chain, only its hash goes on-chain, and USDC is a payment method. Press reports say Congress may vote on the DNU 70/2023 on 15/10; we do not treat any rule as settled. The product is intended as software for registered agencies, which stay the intermediary (our market notes say Salta's Ley 7629 requires a registered broker to intermediate; not confirmed with a lawyer), not as an intermediary itself. If the escrow counted as custody, rules for virtual-asset service providers might apply; that is not assessed. TODO(Ani): optional short legal consult; record any outcome in `docs/validation/evidence.md` before citing it.
+- **"Who is the customer?"** Small real-estate agencies, starting in Salta Capital. Hypothesis, untested: they would pay per lease for faster, more consistent tenant checks. Pricing models are listed in `docs/submission/gtm.md` as hypotheses.
+- **"What is your traction?"** None is claimed. No users, pilots, letters of intent, interviews or revenue are recorded; `docs/validation/evidence.md` has no entries. The plan is 5 agency interviews, 5 landlord interviews, a 30-answer tenant survey and one letter of intent or pilot as the target, each logged with date and notes before it is cited anywhere. TODO(Ani): replace this paragraph with real, recorded entries only once they exist.
+
+## Roadmap
+
+Planned, not done. Dates are targets from `PLAN.md`.
+
+**Hackathon week (to 12/10)**
+
+1. Persistence on Neon Postgres with Drizzle (AD-11b), replacing the signed client-held session, and closing the replay limitation above.
+2. Real document upload, extraction, and a prompt-injection eval on uploaded text.
+3. **Anchor escrow program** `rental_escrow` with a PDA vault, `Lease` and `PaymentRecord` accounts, and `release_deposit` needing 2 of 3 signatures. With tests, a devnet deployment and a documented account table (`docs/onchain.md`, not written yet). Plan B: if it is not ready by Thursday 08/10 at 12:00, the build stays custodial and says so.
+4. **Solana Pay QR** payable with Phantom on devnet, with `reference` polling.
+5. **Agency panel**, minimal: the `NEEDS_INFO` queue and a deposit release action.
+6. Bilingual UI with an ES/EN switch, Spanish by default for users (AD-15); judge-facing videos stay in English.
+7. Market validation with Salta agencies, landlords and tenants, logged in `docs/validation/evidence.md`.
+
+**After the hackathon**
+
+8. **Pay in pesos through an on-ramp and settle in USDC.** Provider to be evaluated; no peso rails exist today.
+9. Move to mainnet only after a legal review and an audit of the program.
+10. Deposit reduction from an on-time payment streak (AD-13) and further agency features, if validation supports them.
+
+Cut for the hackathon: embedded wallet (Phantom via Solana Pay only), compressed-NFT badge (AD-14).
+
+## Tools
+
+- **Blockchain:** Solana (devnet), SPL Token, Memo program, `@solana/web3.js` 1.x, `@solana/spl-token`.
+- **AI model in the product:** Google Gemini (`gemini-3.5-flash-lite`) through `@google/genai`, behind the provider wrapper in `lib/ai/`.
+- **App:** Next.js 16 (App Router), TypeScript, Tailwind CSS 4, Framer Motion, zod. Hosted on Vercel.
+
+## Run it
 
 Prerequisites: Node 20 or newer, and pnpm. This project uses pnpm only.
 
@@ -117,8 +294,8 @@ cp .env.example .env.local
 
 Edit `.env.local`:
 
-- `GEMINI_API_KEY`: your own Google Gemini key (only needed for live model calls; without it the app serves recorded responses). `AI_PROVIDER=anthropic` with `ANTHROPIC_API_KEY` is an optional alternative.
-- `SESSION_SECRET`: a random string of 32 or more characters. For example `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`.
+- `GEMINI_API_KEY`: your own Google Gemini key. It is only needed for live model calls; without it the app serves recorded responses. `AI_PROVIDER=anthropic` with `ANTHROPIC_API_KEY` is an optional alternative.
+- `SESSION_SECRET`: a random string of 32 or more characters, for example `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`.
 - Leave `ESCROW_MODE=custodial`, `SOLANA_CLUSTER=devnet` and the devnet RPC URL as they are.
 
 Set up devnet:
@@ -127,96 +304,69 @@ Set up devnet:
 pnpm setup:devnet
 ```
 
-The script generates demo keypairs and prints the **platform wallet address**. If its balance is zero it stops. Fund that address with devnet SOL at https://faucet.solana.com, then run `pnpm setup:devnet` again. The second run is idempotent: it creates the `tUSDC` mint, the token accounts and funds the three demo tenants, and writes the mint and keys for you to put in `.env.local` (`PAYMENT_MINT`, `*_SECRET_KEY`). Those secret keys are demo keys; never commit them.
+The script generates demo keypairs and prints the **platform wallet address**. If its balance is zero it stops. Fund that address with devnet SOL at https://faucet.solana.com, then run `pnpm setup:devnet` again. The second run is idempotent: it creates the `tUSDC` mint and token accounts, tops the three demo tenants up to a target balance, and prints the mint and keys to put in `.env.local` (`PAYMENT_MINT`, `*_SECRET_KEY`). These are demo keys; never commit them.
 
 Then:
 
 ```bash
-pnpm dev        # run the app at http://localhost:3000
-pnpm test       # unit tests (vitest): discount cases, hashing, rules
-pnpm evals      # the Ana / Bruno / Carla eval
+pnpm dev                          # app at http://localhost:3000
+pnpm test                         # unit tests (vitest): discount cases, hashing, rules, session
+pnpm evals                        # Ana / Bruno / Carla and the other evals
+REPLAY=1 pnpm evals               # same, served from recordings, no model calls
+pnpm exec tsc --noEmit            # type check
+pnpm lint
+pnpm build
+BASE_URL=http://localhost:3000 node tests/e2e/phase0.mjs   # API end to end; sends real devnet payments
 ```
 
-**Replay mode.** `REPLAY=1` serves recorded model responses for the three demo tenants so the demo does not call the API. Set `REPLAY=1` in `.env.local` (or in the shell, for example `REPLAY=1 pnpm dev` or `REPLAY=1 pnpm evals`) to use it. Replay exists as a fallback for recording the demo if the API fails; it is not a different product behaviour, since the decisions are made by `lib/rules/` either way.
+`tests/e2e/phase0.mjs` also reads `E2E_COOKIE` for Vercel previews behind protection.
 
-## Security considerations
+**Replay mode.** `REPLAY=1` serves recorded model responses so the demo does not call the API (for example `REPLAY=1 pnpm dev`). It exists as a fallback for recording and for the public URL; it is not a different product behaviour, since decisions are made by `lib/rules/` either way.
 
-This is a demo, and these notes say what is and is not protected.
+## What has been tested
 
-- **Server-side demo keys.** All keypairs are devnet demo keys read from environment variables on the server. They are never sent to the browser and are not in git (`.env*` is ignored; only `.env.example`, with empty values, is committed). Treat the platform key as a hot custody key: it is acceptable only because the funds are a test token on devnet.
-- **No PII on-chain or in memos.** On-chain data is limited to public keys, amounts, timestamps and sha256 hashes. Memo strings use an opaque random `leaseId`.
-- **Signed client-held session.** Until the database lands, the client keeps the session state and resends it. The server signs it with HMAC-SHA256 (`SESSION_SECRET`) and rejects a bad signature. The client is never the source of truth for an approval: the server recomputes prequal and crosscheck before creating a lease (`POST /api/lease` returns 409 unless the tenant is `APPROVED`), and payment amounts are derived on the server from the lease in the signed session.
-- **Uploaded document text is untrusted data.** The extraction prompt treats document content as data, not instructions, and the model's output is only a zod-validated JSON. Decisions stay in `lib/rules/`, so an injected instruction in a payslip cannot approve a tenant. A prompt-injection eval is planned for this week (it is not in v0).
-- **Discounts are never computed from client input.** The client sends neither amounts nor timestamps. Discounts and on-time status come from the lease on the server and from the confirmed transaction's `blockTime`.
-- **Agents prepare, code executes.** Product agents emit a payment intent. Only `lib/solana/` builds, signs and confirms transactions.
-- **Known limitations of v0:** the escrow is custodial (see above); sessions are not persisted; there is no authentication or role model; the program has not been written, so nothing has been audited. TODO(Mauro): re-read this section after the QA gate (`docs/reviews/phase-0.md`) and update it with what QA found.
+As recorded in `docs/reviews/` and `CHANGELOG.md`; re-run before relying on any of it.
 
-## How AlquilIA differs from similar projects
-
-To our reading of their public descriptions (TODO(Ani): re-check before submitting; we have not tested these products):
-
-- **Fiador.sol** (Superteam Brazil hackathon): a stablecoin deposit escrow with yield and reputation seals that lower future deposits. AlquilIA's focus is the agency back-office (pre-qualification, cross-check, contract) and a planned 2-of-3 release with the agency as arbiter.
-- **RentLock** (United States): rent and deposit escrow in Solana PDAs. AlquilIA is built for Argentine interior agencies and puts the document checks first.
-
-Both comparisons describe the plan for AlquilIA's escrow. The 2-of-3 release is not built yet.
-
-## Questions we expect
-
-- **"Rents in Salta are in pesos. Who pays in USDC?"** Fair question. We have no evidence yet on how many tenants or landlords would. This build settles in USDC; the roadmap is to accept pesos through an on-ramp and settle in USDC. Validation is described below.
-- **"What about regulation?"** We have not received legal advice and do not make legal claims here. The design is meant to be regime-agnostic: the contract stays off-chain, only its hash goes on-chain, and USDC is a payment method. The product is intended as software for agencies that stay the intermediary, not as an intermediary itself. TODO(Ani): optional short legal consult; record any outcome in `docs/validation/evidence.md` before citing it.
-- **Validation and traction.** None is claimed. Nothing is recorded in `docs/validation/evidence.md` yet. The plan is outreach to real-estate agencies in Salta, landlords and tenants/students, with a letter of intent or pilot as the target. TODO(Ani): replace this paragraph with real, recorded entries only (interviews held, dates, what was said) once they exist.
-
-## Roadmap for the week
-
-Planned, not done:
-
-1. **Anchor escrow program** `rental_escrow` with a PDA vault, `Lease` and `PaymentRecord` accounts, and `release_deposit` that needs 2 of 3 signatures (tenant, landlord, agency). With tests, devnet deployment and a documented account table. If it is not ready by Thursday 08/10 at 12:00 the build stays custodial and says so.
-2. **Solana Pay QR** payable with Phantom on devnet, with `reference` polling.
-3. **Agency panel**, minimal: the `NEEDS_INFO` queue and a deposit release action.
-4. **Persistence** on Neon Postgres (Drizzle), replacing the signed client-held session.
-5. Real document upload extraction and a prompt-injection eval.
-6. After the hackathon: pay in pesos through an on-ramp and settle in USDC.
-
-Cut for the hackathon: embedded wallet, deposit reduction from payment streak, compressed-NFT badge.
-
-## Tools
-
-- **Blockchain:** Solana (devnet), SPL Token, Memo program.
-- **AI model in the product:** Google Gemini (Flash), behind a provider wrapper in `lib/ai/`.
-- **App:** Next.js (App Router), TypeScript, Tailwind CSS, Framer Motion, zod. Hosted on Vercel.
+- **Evals:** Ana approved, Bruno `NEEDS_INFO` (`expired_payslip`), Carla `NEEDS_INFO` via the cross-check (`name_mismatch`), 3/3 with live `gemini-3.5-flash-lite` on 2026-10-03; all 7 evals pass in replay mode (including "deposit before rent").
+- **API end to end** (`tests/e2e/phase0.mjs`): 59/59 checks on production after deploy `c1f2ac0` and on the design-branch preview, including tamper tests (401), chat-message injection, a real deposit and rent on devnet with memo checks, Verify true and false, and the second-deposit 409.
+- **Browser run** (headless Chrome, real routes, 1280 px light and 375 px dark): Ana full flow, Bruno and Carla stops, 0 console errors and no horizontal overflow.
+- **Type check and lint:** `tsc --noEmit` and ESLint clean at the last review.
+- **Not verified:** the vitest unit tests (`lib/rules`, `lib/db/session`, `lib/solana/hash`) could not start on the author's Windows machine because Application Control blocks vitest's native binding. They exist and were only checked with ad-hoc scripts. A Linux CI job is being added on a separate branch; until it is merged and green, treat unit test status as unverified.
 
 ## Disclosures
 
 Written for the Superteam Earn "Progress & Disclosures" component.
 
-- **Starting point:** tag `v0-hackathon-start` in https://github.com/Malejo01/keyhold. Work before the hackathon window is not claimed.
-- **Pre-existing code imported so far: none.** Any future import will be made in its own commit with the message `chore(import): <module> from <repo>@<sha> (pre-existing)` and will be listed here with that commit.
-- **AI-assisted coding:** the code was co-written with Claude Code (AI-assisted). The architecture, prompts and rules were written by the team. The product itself uses Google Gemini at runtime (the model extracts fields from documents and answers catalog questions; it never decides an approval).
-- **Third-party open-source components:** Next.js, React, Tailwind CSS, Framer Motion, zod, @solana/web3.js, @solana/spl-token, Google Gen AI SDK (`@google/genai`), Anthropic SDK (optional provider), plus the dev tools in `package.json` (TypeScript, ESLint, Vitest, tsx, dotenv).
+- **Starting point:** tag `v0-hackathon-start` in https://github.com/Malejo01/keyhold, created on 2026-10-03. Work before the hackathon window is not claimed. `CHANGELOG.md` has one section per day.
+- **Pre-existing code imported: none.** Nothing was copied from the team's earlier projects. The pattern (a model extracts, a deterministic filter decides, a human reviews) is the same one used in an earlier project by Mauro, Qué Pinta Salta; it is an idea reused, not code. Any future import will be made in its own commit with the message `chore(import): <module> from <repo>@<sha> (pre-existing)` and listed here.
+- **AI-assisted coding:** most of the implementation was written with **Claude Code** (Anthropic's AI coding assistant), working from the team's specs in `docs/` and `CLAUDE.md`. The team sets the architecture decisions (`docs/03-architecture-decisions.md`), the rules and the intent of the prompts, and directs the work. TODO(Mauro): confirm this wording.
+- **AI in the product:** Google Gemini (`gemini-3.5-flash-lite`) at runtime. The model extracts fields from documents and answers catalogue questions; it never decides an approval or a price. Production serves recorded answers.
+- **Third-party open-source components:** Next.js, React, Tailwind CSS, Framer Motion, zod, `@solana/web3.js`, `@solana/spl-token`, Google Gen AI SDK (`@google/genai`), Anthropic SDK (optional provider, unused by the demo), and the dev tools in `package.json` (TypeScript, ESLint, Vitest, tsx, dotenv). Services: Vercel (hosting), Solana devnet RPC.
 - **Funding:** none.
 - **License:** MIT (see [`LICENSE`](LICENSE)).
-- **Changelog:** `CHANGELOG.md`, one section per day.
 
 ## Team
 
 Based in Salta, Argentina.
 
-- **Mauro** (tech lead). TODO(Mauro): one or two factual lines on your background and links (GitHub, X). Do not add anything not verifiable.
-- **Ani** (product, pitch, validation). TODO(Ani): one or two factual lines on your background and links.
+- **Mauro Alejandro Lizarraga**, tech lead. TODO(Mauro): one or two factual lines on your background and links (GitHub, X). Do not add anything not verifiable.
+- **Ani** (surname: TODO(Ani)), product, pitch and validation. TODO(Ani): one or two factual lines on your background and links.
+- Design partner: TODO(Ani) name and role, or delete this line.
 
 ## Repository layout
 
 ```
-app/                 Next.js App Router: chat UI and API routes (chat, lease, pay, verify)
-components/          UI components (chat, lease timeline, cards)
-lib/agents/          Product agents: orchestrator, listings, prequal, crosscheck, lease
-lib/rules/           Deterministic rules: prequal, names, pricing
-lib/ai/              Model provider wrapper
-lib/solana/          Devnet connection, SPL transfer + Memo, hashing, explorer links, verify
+app/                 Next.js App Router: landing, chat page and API routes (chat, lease, pay, verify)
+components/          UI: chat, lease timeline, agent activity, cards (property, prequal, contract, payment, receipt)
+lib/agents/          Product agents: orchestrator, listings, prequal, crosscheck, lease, prompts, seed tenants
+lib/rules/           Deterministic rules: prequal, crosscheck, names, pricing
+lib/ai/              Model provider wrapper: Gemini, optional Anthropic, replay, retry
+lib/solana/          Devnet connection, keys, SPL transfer + Memo, payment, hashing, explorer links, verify
+lib/db/              HMAC-signed session, request schemas, HTTP helpers (no database yet)
+lib/config/brand.ts  The product name, in one place
 seed/                Properties, tenants and simulated documents
-scripts/             setup-devnet.ts
-evals/               The Ana / Bruno / Carla eval
-docs/                Rules, architecture decisions, submission texts
+scripts/             setup-devnet.ts, record-demo-txs.ts
+evals/               The evals and the recorded model responses used by REPLAY=1
+tests/e2e/           API end-to-end script (real devnet payments)
+docs/                Rules, architecture decisions, architecture, reviews, submission texts, validation log
 ```
-
-Some of these paths are still being written during phase 0. TODO(Mauro): re-check this tree against the repo before submitting.

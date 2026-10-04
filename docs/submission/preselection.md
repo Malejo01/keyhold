@@ -1,7 +1,7 @@
 # Pre-selection form answers (superteam.ar/colosseum/preseleccion)
 
 Deadline: Sun 04/10, before 16:00 ART (internal target: before 15:30). Fields are in the order listed in `docs/02-hackathon-rules-market-judges.md` §1.1.
-Character counts were done by hand, counting spaces and punctuation, with a single space between sentences and a single line break counted as 1 character. Paste each answer into the form and re-check the counter the form shows; if it disagrees, trust the form and trim.
+Character counts were first done by hand and then re-checked on 2026-10-04 with exact-length regex probes (code points, spaces and punctuation included, line endings excluded), with a single space between sentences and a single line break counted as 1 character. Paste each answer into the form and re-check the counter the form shows; if it disagrees, trust the form and trim.
 Status of the product at the time of writing: devnet only, simulated data, escrow is **custodial** (platform wallet, server signs with demo keys), Anchor program with 2-of-3 release in progress and not built.
 
 ## 1. Name, email, Telegram, city and province
@@ -31,7 +31,7 @@ Count: **121** of 140. (Based on the positioning line, but without "trustless", 
 AlquilIA is an AI leasing back-office for real-estate agencies in Argentina's interior. Small agencies in Salta check each tenant's ID, payslip and guarantee by hand, and the security deposit sits with whoever is in the middle. AlquilIA's agents read the documents and a second, independent agent re-checks them. The model only extracts fields; deterministic code decides approval. The lease is hashed (sha256), and the deposit and rent are paid as SPL token transfers on Solana devnet, each with a Memo carrying the contract hash. Only hashes, amounts, timestamps and public keys go on-chain; no personal data. What is real today: a working app at keyhold-app.vercel.app with three simulated tenants (one approved, one stopped for an old payslip, one stopped by the cross-check for a name mismatch) and real devnet transactions. What is not: the escrow is custodial today (a platform wallet on devnet, signed by the server with demo keys). An Anchor program with 2-of-3 release between tenant, landlord and agency is in progress, not built. Rents in Salta are in pesos; the roadmap is a peso on-ramp with USDC as the settlement layer. All data and the tUSDC token are simulated.
 ```
 
-Count: **1,179** (nine sentences of 87, 139, 84, 68, 149, 79, 217, 211 and 137 characters plus 8 spaces; the name "AlquilIA" is one character longer than "Keyhold"). Inside 50 to 2000.
+Count: **1,179** (re-checked by regex probe on 2026-10-04). Inside 50 to 2000.
 
 ## 5. Blockchains and tools
 
@@ -101,7 +101,7 @@ Regulation: no legal advice yet. The design is regime-agnostic: the contract sta
 Similar projects: Fiador.sol (deposit escrow with yield and reputation) and RentLock (rent escrow in Solana PDAs). AlquilIA starts from the agency back-office, with document checks before any money moves; its planned 2-of-3 release is not built yet. Comparison based on public descriptions; we have not tested them.
 ```
 
-Count: **1,673** characters (eight paragraphs of 93, 69, 101, 109, 372, 336, 271 and 315 characters, plus 7 line breaks counted as 1 each; paragraphs 2 to 4 are separate lines in the block above). If the form counts a line break as 2, it is 1,680. Under 2000.
+Count: **1,673** characters (eight paragraphs of 93, 69, 101, 108, 373, 336, 271 and 315 characters, re-checked by regex probe on 2026-10-04; plus 7 line breaks counted as 1 each; paragraphs 2 to 4 are separate lines in the block above). If the form counts a line break as 2, it is 1,680. Under 2000.
 
 Open items for the market teammate: replace the plan with real, recorded contacts only after they are logged in `docs/validation/evidence.md` (the file does not exist yet at the time of writing). The mining, remote-worker and student segments come from the market notes in docs/02 §5.3 and are hypotheses.
 

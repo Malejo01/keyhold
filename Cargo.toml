@@ -1,0 +1,19 @@
+# Cargo workspace for the Anchor program (programs/rental_escrow). The Next.js app ignores this file.
+[workspace]
+members = ["programs/*"]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+rust-version = "1.89.0"
+
+[profile.release]
+# Required: every arithmetic overflow aborts the transaction instead of wrapping (qa C-05, X-04).
+overflow-checks = true
+lto = "fat"
+codegen-units = 1
+
+[profile.release.build-override]
+opt-level = 3
+incremental = false
+codegen-units = 1

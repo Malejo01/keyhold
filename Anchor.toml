@@ -1,0 +1,36 @@
+# Anchor 1.2.0 workspace (Agave 4.1.2). Built and tested only in CI (`anchor-build` job):
+#   anchor test --validator legacy
+# The provider cluster MUST stay "localnet": with any other cluster `anchor test` deploys to it.
+# Devnet deploy is a manual step documented in docs/onchain.md ("Deploy"); it is never run by CI.
+
+[toolchain]
+anchor_version = "1.2.0"
+solana_version = "4.1.2"
+package_manager = "pnpm"
+
+[features]
+resolution = true
+skip-lint = false
+
+[programs.localnet]
+rental_escrow = "BJiwpRFDpNoURJFKiuetaF4D2hw19JSkqbuVjUWuTLVb"
+
+[programs.devnet]
+rental_escrow = "BJiwpRFDpNoURJFKiuetaF4D2hw19JSkqbuVjUWuTLVb"
+
+[provider]
+cluster = "localnet"
+wallet = "~/.config/solana/id.json"
+
+[scripts]
+# 0) print the .so size and the IDL (for the deploy cost and the committed IDL), 1) pure math unit tests (shared vectors with lib/rules/pricing.ts), 2) integration tests on the local validator.
+test = "ls -l target/deploy/rental_escrow.so && echo ===IDL-BEGIN=== && cat target/idl/rental_escrow.json && echo ===IDL-END=== && cargo test --manifest-path programs/rental_escrow/Cargo.toml --lib && pnpm exec tsx --test --test-concurrency=1 tests/anchor/rental_escrow.ts"
+
+[test]
+startup_wait = 20000
+
+# The pinned payment mint (devnet tUSDC address) is preloaded on the local validator with a
+# localnet-only mint authority derived in tests/anchor/rental_escrow.ts. See docs/onchain.md.
+[[test.validator.account]]
+address = "GiCyZLFrkhKd3X4CpFGe4sMHB2kiPob5ToH8FtjYou7X"
+filename = "tests/anchor/fixtures/tusdc-mint.json"

@@ -2,11 +2,12 @@
 
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useState } from "react";
-import type { PaymentKind, PriceQuoteDto } from "@/lib/contracts";
+import type { PayResponse, PaymentKind, PriceQuoteDto, SignedSession } from "@/lib/contracts";
 import { checkDraw, confirmRing, loop, priceRise, spin, swap } from "@/lib/motion/presets";
 import { CountUp } from "../CountUp";
 import { formatBps, formatUsdc } from "../format";
 import { Badge, Button, CardShell, AlertIcon, ClockIcon, ShieldIcon, cx } from "../ui";
+import { SOLANA_PAY_ENABLED, SolanaPayQr } from "./SolanaPayQr";
 
 type PayStatus = "idle" | "processing" | "confirmed" | "error";
 
@@ -34,6 +35,8 @@ export function PaymentCard({
   alreadyPaid,
   depositSecured,
   onPay,
+  getSession,
+  onPaid,
 }: {
   kind: PaymentKind;
   quote: PriceQuoteDto;
@@ -42,6 +45,9 @@ export function PaymentCard({
   depositSecured: boolean;
   /** Resolves when the server confirmed the payment; rejects with a readable message otherwise. */
   onPay: (kind: PaymentKind) => Promise<void>;
+  /** Solana Pay QR (NEXT_PUBLIC_SOLANA_PAY=1): current signed session, and the handler for a QR-confirmed payment. */
+  getSession?: () => SignedSession | undefined;
+  onPaid?: (res: PayResponse) => void;
 }) {
   const [status, setStatus] = useState<PayStatus>(alreadyPaid ? "confirmed" : "idle");
   const [error, setError] = useState<string | null>(null);
@@ -189,6 +195,16 @@ export function PaymentCard({
                   ? "Try again"
                   : `${copy.action} · ${formatUsdc(quote.amountBaseUnits)} USDC`}
               </Button>
+              {SOLANA_PAY_ENABLED && !locked && getSession && onPaid && (
+                <SolanaPayQr
+                  kind={kind}
+                  getSession={getSession}
+                  onConfirmed={(res) => {
+                    onPaid(res);
+                    setStatus("confirmed");
+                  }}
+                />
+              )}
               {locked && (
                 <p id={`pay-hint-${kind}`} className="text-xs text-muted">
                   Available after the deposit is paid.

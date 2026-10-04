@@ -79,7 +79,7 @@ function pricingOf(intent: PaymentIntent) {
  *  - deposit: tenant -> platform custody token account, full list amount.
  *  - rent:    tenant -> landlord, amount quoted by computePrice with server time and method 'usdc'.
  */
-export async function preparePayment(intent: PaymentIntent): Promise<PreparedPayment> {
+export async function preparePayment(intent: PaymentIntent, options: { reference?: PublicKey } = {}): Promise<PreparedPayment> {
   if (!DECIMAL_RE.test(intent.listAmountBaseUnits)) throw new Error("Invalid listAmountBaseUnits.");
   const memo = buildMemo(intent);
   const pricing = pricingOf(intent);
@@ -102,7 +102,13 @@ export async function preparePayment(intent: PaymentIntent): Promise<PreparedPay
   const owner = tenantKeypair(intent.payer);
   if ((await tokenBalance(owner.publicKey)) < amount) throw new InsufficientFundsError();
 
-  const transfer = await buildSignedTransfer({ owner, destination, amountBaseUnits: amount, memo });
+  const transfer = await buildSignedTransfer({
+    owner,
+    destination,
+    amountBaseUnits: amount,
+    memo,
+    reference: options.reference,
+  });
   return {
     kind: intent.kind,
     signature: transfer.signature,

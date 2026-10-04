@@ -34,6 +34,25 @@ export const platformKeypair = () => loadKeypair("platform");
 export const landlordKeypair = () => loadKeypair("landlord");
 export const tenantKeypair = (tenant: TenantId) => loadKeypair(tenant);
 
+/**
+ * Public keys of every key the SERVER can sign with on its own authority: platform (custody + fee payer), landlord and
+ * agency. None of them may ever be accepted as the paying wallet or token authority of a Solana Pay payment: the
+ * server's own signature must never be enough to move custody or landlord funds. Unset optional keys are skipped.
+ * The demo tenant keys (ana, bruno, carla) are deliberately NOT in this list: they stand in for the tenant's own
+ * wallet (the e2e script and the custodial button sign with them) and hold only the tenant's own test tokens.
+ */
+export function serverHeldPublicKeys(): PublicKey[] {
+  const keys: PublicKey[] = [];
+  for (const name of ["platform", "landlord", "agency"] as const) {
+    if (!process.env[ENV_BY_KEY[name]]) {
+      if (name === "agency") continue;
+      throw new Error(`${ENV_BY_KEY[name]} is not set. Run \`pnpm setup:devnet\`.`);
+    }
+    keys.push(loadKeypair(name).publicKey);
+  }
+  return keys;
+}
+
 /** tUSDC mint address, written to PAYMENT_MINT by scripts/setup-devnet.ts. */
 export function getPaymentMint(): PublicKey {
   const raw = process.env.PAYMENT_MINT?.trim();

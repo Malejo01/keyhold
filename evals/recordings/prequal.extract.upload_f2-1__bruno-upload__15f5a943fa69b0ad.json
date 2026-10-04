@@ -1,0 +1,21 @@
+{
+  "key": "15f5a943fa69b0adfb0c78d28ef30f03658bfd8f057707df6942f7c5fd745127",
+  "agent": "prequal.extract.upload@f2-1",
+  "kind": "structured",
+  "label": "bruno-upload",
+  "model": "gemini-3.5-flash-lite",
+  "output": {
+    "applicantName": "BRUNO EJEMPLO SIMULADO",
+    "documentsPresent": [
+      "dni",
+      "payslip",
+      "income_proof",
+      "guarantee"
+    ],
+    "payslipIssueDate": "2026-06-05",
+    "monthlyIncomeUsdc": 2700
+  },
+  "provider": "gemini",
+  "source": "recorded",
+  "recordedAt": "2026-10-04T06:19:47.125Z"
+}

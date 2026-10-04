@@ -12,6 +12,7 @@ import { LeaseTimeline, LeaseTimelineCompact } from "./LeaseTimeline";
 import { APP_NAME } from "@/lib/config/brand";
 import { Logo } from "./Logo";
 import { PersonaSwitcher } from "./PersonaSwitcher";
+import { UploadDocuments } from "./UploadDocuments";
 import { PERSONAS, SUGGESTED_PROMPTS, type ChatMessage, type PersistedDemo } from "./types";
 import { AlertIcon, SendIcon, cx } from "./ui";
 
@@ -177,6 +178,34 @@ export function ChatShell({ useFixtures }: { useFixtures: boolean }) {
       }
     },
     [api, append, applySession, pending, resetStaleSession],
+  );
+
+  /** Real files for the DOCUMENTS stage: same turn lifecycle as `send`, via /api/upload. */
+  const uploadFiles = useCallback(
+    async (files: File[]) => {
+      const current = sessionRef.current;
+      if (files.length === 0 || pending || !current) return;
+      const epoch = epochRef.current;
+      append({ role: "user", text: `Uploaded: ${files.map((f) => f.name).join(", ")}` });
+      setPending(true);
+      try {
+        const res = await api.upload({ files, session: current });
+        if (epoch !== epochRef.current) return;
+        applySession(res.session);
+        setStage(res.stage);
+        append({ role: "assistant", text: res.reply, cards: res.cards });
+      } catch (err) {
+        if (epoch !== epochRef.current) return;
+        append({
+          role: "assistant",
+          error: true,
+          text: err instanceof Error ? err.message : "Something went wrong. Please try again.",
+        });
+      } finally {
+        if (epoch === epochRef.current) setPending(false);
+      }
+    },
+    [api, append, applySession, pending],
   );
 
   const changePersona = useCallback((id: TenantId) => {
@@ -374,6 +403,7 @@ export function ChatShell({ useFixtures }: { useFixtures: boolean }) {
           {/* Composer */}
           <div className="border-t border-border bg-background px-gutter pb-3 pt-3">
             <div className="mx-auto w-full max-w-3xl">
+              {stage === "DOCUMENTS" && session && <UploadDocuments busy={pending} onSubmit={(f) => void uploadFiles(f)} />}
               <motion.ul
                 variants={stagger}
                 initial="hidden"

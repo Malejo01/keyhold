@@ -9,6 +9,12 @@ export const REQUIRED_DOCUMENTS: readonly DocType[] = ['dni', 'payslip', 'income
 export const MAX_PAYSLIP_AGE_DAYS = 90;
 /** Rent must be at most 35% of monthly income. */
 export const MAX_RENT_TO_INCOME = 0.35;
+/**
+ * Sanity bound on an extracted monthly income. A figure above it is treated as unverifiable, never as an approval:
+ * it is the deterministic backstop for a document that tries to inflate the income the model reads from it
+ * (prompt injection inside an uploaded file).
+ */
+export const MAX_PLAUSIBLE_MONTHLY_INCOME_USDC = 25_000;
 
 export interface RuleContext {
   /** Monthly rent being applied for, in USDC. */
@@ -76,6 +82,13 @@ export function checkPayslipAge(issueDate: string | null, asOf: string): Issue[]
 export function checkRentToIncome(monthlyIncomeUsdc: number | null, rentUsdc: number, incomeDocType: DocType = 'payslip'): Issue[] {
   if (monthlyIncomeUsdc === null || !(monthlyIncomeUsdc > 0)) {
     return [{ code: 'missing_document', docType: 'income_proof', message: 'Monthly income could not be read from the documents.' }];
+  }
+  if (monthlyIncomeUsdc > MAX_PLAUSIBLE_MONTHLY_INCOME_USDC) {
+    return [{
+      code: 'missing_document',
+      docType: 'income_proof',
+      message: `The monthly income read from the documents (${monthlyIncomeUsdc} USDC) is implausible and could not be verified automatically.`,
+    }];
   }
   const ratio = rentUsdc / monthlyIncomeUsdc;
   if (ratio > MAX_RENT_TO_INCOME) {

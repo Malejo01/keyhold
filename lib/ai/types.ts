@@ -24,10 +24,21 @@ export interface ToolDefinition {
   inputSchema: Record<string, unknown>;
 }
 
+/** A binary file (image or PDF) sent inline with a structured call. Never persisted; lives in memory for the request. */
+export interface AiAttachment {
+  mimeType: 'image/png' | 'image/jpeg' | 'image/webp' | 'application/pdf';
+  /** Raw bytes. Providers base64-encode them. */
+  data: Uint8Array;
+  /** sha256 hex of `data`; identifies the file in replay keys. */
+  sha256: string;
+}
+
 export interface StructuredCall {
   model: string;
   system: string;
   user: string;
+  /** Files the model should read together with `user`. Untrusted content: the prompt must say so. */
+  attachments?: AiAttachment[];
   /** JSON Schema the response must follow. */
   jsonSchema: Record<string, unknown>;
   maxTokens: number;

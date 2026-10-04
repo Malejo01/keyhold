@@ -49,6 +49,18 @@ function effortFor(model: string): Anthropic.OutputConfig | undefined {
   return undefined;
 }
 
+/** Files first (image/document blocks), then the instruction text that refers to them in order. */
+function userContent(call: StructuredCall): string | Anthropic.ContentBlockParam[] {
+  if (!call.attachments?.length) return call.user;
+  const files = call.attachments.map((a): Anthropic.ContentBlockParam => {
+    const data = Buffer.from(a.data).toString('base64');
+    return a.mimeType === 'application/pdf'
+      ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data } }
+      : { type: 'image', source: { type: 'base64', media_type: a.mimeType, data } };
+  });
+  return [...files, { type: 'text', text: call.user }];
+}
+
 export class AnthropicProvider implements AiProvider {
   readonly name = 'anthropic';
   private client: Anthropic | null = null;
@@ -67,7 +79,7 @@ export class AnthropicProvider implements AiProvider {
       model: call.model,
       max_tokens: call.maxTokens,
       system: call.system,
-      messages: [{ role: 'user', content: call.user }],
+      messages: [{ role: 'user', content: userContent(call) }],
       output_config: { ...effortFor(call.model), format: { type: 'json_schema', schema: call.jsonSchema } },
     });
     if (res.stop_reason === 'refusal') throw new AiRefusalError();

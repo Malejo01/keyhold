@@ -1,0 +1,38 @@
+{
+  "key": "69221a028297bdf00a734c1c885136dc23deac275b384ae4566dc126adf017d6",
+  "agent": "crosscheck.extract.upload@f2-1",
+  "kind": "structured",
+  "label": "ana-upload",
+  "model": "gemini-3.5-flash-lite",
+  "output": {
+    "documents": [
+      {
+        "docType": "dni",
+        "holderName": "ANA LUCIA TESTA FICTICIA",
+        "issueDate": "2021-07-01",
+        "monthlyIncomeUsdc": null
+      },
+      {
+        "docType": "payslip",
+        "holderName": "Ana Lucia Testa Ficticia",
+        "issueDate": "2026-09-30",
+        "monthlyIncomeUsdc": 2450
+      },
+      {
+        "docType": "income_proof",
+        "holderName": "Ana Testa Ficticia",
+        "issueDate": "2026-09-25",
+        "monthlyIncomeUsdc": 2450
+      },
+      {
+        "docType": "guarantee",
+        "holderName": "Ana Lucia Testa Ficticia",
+        "issueDate": "2026-09-28",
+        "monthlyIncomeUsdc": null
+      }
+    ]
+  },
+  "provider": "gemini",
+  "source": "recorded",
+  "recordedAt": "2026-10-04T06:20:04.941Z"
+}

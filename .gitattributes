@@ -1,0 +1,2 @@
+# Sample upload fixtures are hashed (replay keys): never let line-ending conversion touch their bytes.
+seed/docs/samples/** binary

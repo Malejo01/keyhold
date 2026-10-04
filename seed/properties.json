@@ -1,0 +1,92 @@
+[
+  {
+    "id": "prop-01",
+    "title": "Bright 2-bedroom apartment near Tres Cerritos park",
+    "zone": "Tres Cerritos",
+    "priceUsdc": 420,
+    "bedrooms": 2,
+    "petsAllowed": true,
+    "description": "Second-floor apartment with a balcony, open kitchen and two bedrooms with built-in wardrobes. Pets welcome. A short walk from the park, cafes and bus lines to downtown. Simulated listing for demo purposes."
+  },
+  {
+    "id": "prop-02",
+    "title": "Pet-friendly 2-bedroom duplex in Tres Cerritos",
+    "zone": "Tres Cerritos",
+    "priceUsdc": 480,
+    "bedrooms": 2,
+    "petsAllowed": true,
+    "description": "Two-level duplex with a small private patio, ideal for a dog or cat. Two bedrooms, one and a half baths and a covered parking spot. Quiet residential block. Simulated listing for demo purposes."
+  },
+  {
+    "id": "prop-03",
+    "title": "Cozy studio-style 1-bedroom in Centro",
+    "zone": "Centro",
+    "priceUsdc": 300,
+    "bedrooms": 1,
+    "petsAllowed": false,
+    "description": "Compact one-bedroom a few blocks from the main square. Fully tiled, with air conditioning and a laundry corner. No pets allowed. Great for a single professional or student. Simulated listing for demo purposes."
+  },
+  {
+    "id": "prop-04",
+    "title": "Spacious 3-bedroom house in Grand Bourg",
+    "zone": "Grand Bourg",
+    "priceUsdc": 690,
+    "bedrooms": 3,
+    "petsAllowed": true,
+    "description": "Detached house with three bedrooms, a large living room, a grill area and a fenced garden. Pets are welcome. Close to schools and supermarkets. Simulated listing for demo purposes."
+  },
+  {
+    "id": "prop-05",
+    "title": "Quiet 2-bedroom apartment in San Lorenzo Chico",
+    "zone": "San Lorenzo Chico",
+    "priceUsdc": 560,
+    "bedrooms": 2,
+    "petsAllowed": true,
+    "description": "Ground-floor apartment surrounded by greenery, with two bedrooms, a shared garden and mountain views. Small pets accepted. Easy access to the San Lorenzo road. Simulated listing for demo purposes."
+  },
+  {
+    "id": "prop-06",
+    "title": "Modern 1-bedroom loft in Macrocentro",
+    "zone": "Macrocentro",
+    "priceUsdc": 380,
+    "bedrooms": 1,
+    "petsAllowed": false,
+    "description": "Open-plan loft with high ceilings, a modern kitchen and a work-from-home nook. Building with elevator and shared rooftop. No pets. Walking distance to shops and restaurants. Simulated listing for demo purposes."
+  },
+  {
+    "id": "prop-07",
+    "title": "Family 3-bedroom home in Barrio Tribuno",
+    "zone": "Barrio Tribuno",
+    "priceUsdc": 520,
+    "bedrooms": 3,
+    "petsAllowed": false,
+    "description": "Single-level home with three bedrooms, two baths, a covered garage and a small yard. Calm neighbourhood close to local schools and a health center. No pets. Simulated listing for demo purposes."
+  },
+  {
+    "id": "prop-08",
+    "title": "2-bedroom apartment with city views in Portezuelo",
+    "zone": "Portezuelo",
+    "priceUsdc": 650,
+    "bedrooms": 2,
+    "petsAllowed": true,
+    "description": "Top-floor apartment with panoramic views, two bedrooms, a large terrace and a shared pool. Pets welcome with a small deposit. Gated complex with 24-hour security. Simulated listing for demo purposes."
+  },
+  {
+    "id": "prop-09",
+    "title": "Affordable 2-bedroom apartment in Limache",
+    "zone": "Limache",
+    "priceUsdc": 310,
+    "bedrooms": 2,
+    "petsAllowed": false,
+    "description": "Simple, well-kept two-bedroom apartment with a separate kitchen and a laundry area. Good bus connections to downtown. No pets allowed. Simulated listing for demo purposes."
+  },
+  {
+    "id": "prop-10",
+    "title": "Pet-friendly 1-bedroom near Balcarce and Villa San Lorenzo",
+    "zone": "Balcarce",
+    "priceUsdc": 270,
+    "bedrooms": 1,
+    "petsAllowed": true,
+    "description": "Ground-floor one-bedroom with a small yard, close to the Balcarce area and the road to Villa San Lorenzo. Cats and small dogs are welcome. Furnished kitchen. Simulated listing for demo purposes."
+  }
+]

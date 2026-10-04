@@ -10,12 +10,12 @@ Status of the product at the time of writing: devnet only, simulated data, escro
 |---|---|
 | Name | TODO(Ani) or TODO(Mauro): whoever submits the form, full name |
 | Email | TODO(Ani) or TODO(Mauro) |
-| Telegram | TODO(Ani) or TODO(Mauro): handle. The Google Form also asks whether the Telegram name was changed to "Name Surname \| Keyhold" and for the X link: TODO(Ani) |
+| Telegram | TODO(Ani) or TODO(Mauro): handle. The Google Form also asks whether the Telegram name was changed to "Name Surname \| AlquilIA" and for the X link: TODO(Ani) |
 | City and province | Salta, Salta |
 
 ## 2. Project name
 
-`Keyhold` (working name; the final brand is not defined). Count: 7.
+`AlquilIA` (alquilar + IA; provisional working name, formerly Keyhold; the final brand is not decided). Count of the name: 8. If the form has room, write "AlquilIA (provisional name)".
 
 ## 3. One-liner (limit 140 characters)
 
@@ -28,10 +28,10 @@ Count: **121** of 140. (Based on the positioning line, but without "trustless", 
 ## 4. Description (limit 50 to 2000 characters)
 
 ```
-Keyhold is an AI leasing back-office for real-estate agencies in Argentina's interior. Small agencies in Salta check each tenant's ID, payslip and guarantee by hand, and the security deposit sits with whoever is in the middle. Keyhold's agents read the documents and a second, independent agent re-checks them. The model only extracts fields; deterministic code decides approval. The lease is hashed (sha256), and the deposit and rent are paid as SPL token transfers on Solana devnet, each with a Memo carrying the contract hash. Only hashes, amounts, timestamps and public keys go on-chain; no personal data. What is real today: a working app at keyhold-app.vercel.app with three simulated tenants (one approved, one stopped for an old payslip, one stopped by the cross-check for a name mismatch) and real devnet transactions. What is not: the escrow is custodial today (a platform wallet on devnet, signed by the server with demo keys). An Anchor program with 2-of-3 release between tenant, landlord and agency is in progress, not built. Rents in Salta are in pesos; the roadmap is a peso on-ramp with USDC as the settlement layer. All data and the tUSDC token are simulated.
+AlquilIA is an AI leasing back-office for real-estate agencies in Argentina's interior. Small agencies in Salta check each tenant's ID, payslip and guarantee by hand, and the security deposit sits with whoever is in the middle. AlquilIA's agents read the documents and a second, independent agent re-checks them. The model only extracts fields; deterministic code decides approval. The lease is hashed (sha256), and the deposit and rent are paid as SPL token transfers on Solana devnet, each with a Memo carrying the contract hash. Only hashes, amounts, timestamps and public keys go on-chain; no personal data. What is real today: a working app at keyhold-app.vercel.app with three simulated tenants (one approved, one stopped for an old payslip, one stopped by the cross-check for a name mismatch) and real devnet transactions. What is not: the escrow is custodial today (a platform wallet on devnet, signed by the server with demo keys). An Anchor program with 2-of-3 release between tenant, landlord and agency is in progress, not built. Rents in Salta are in pesos; the roadmap is a peso on-ramp with USDC as the settlement layer. All data and the tUSDC token are simulated.
 ```
 
-Count: **1,177** (nine sentences of 86, 139, 83, 68, 149, 79, 217, 211 and 137 characters plus 8 spaces). Inside 50 to 2000.
+Count: **1,179** (nine sentences of 87, 139, 84, 68, 149, 79, 217, 211 and 137 characters plus 8 spaces; the name "AlquilIA" is one character longer than "Keyhold"). Inside 50 to 2000.
 
 ## 5. Blockchains and tools
 
@@ -91,17 +91,17 @@ Notes:
 Align with `docs/submission/gtm.md` (written in parallel by the market teammate): if that file has a final text, replace this draft with it, keeping the "no traction" statement and the count under 2000. This draft is a plan, not traction.
 
 ```
-No traction yet: Keyhold has no users, pilots, letters of intent or revenue. This is a plan.
+No traction yet: AlquilIA has no users, pilots, letters of intent or revenue. This is a plan.
 Buyer: small real-estate agencies in Salta that run lettings by hand.
 Hypothesis, not yet tested: they would pay a fee per lease for faster, more consistent tenant checks.
-Keyhold is software for agencies, which stay the registered intermediary; it is not an intermediary itself.
+AlquilIA is software for agencies, which stay the registered intermediary; it is not an intermediary itself.
 Validation plan for the coming week: interview 5 real-estate agencies in Salta (time spent on tenant checks, deposit disputes, willingness to pay), 5 direct landlords, and survey 30 tenants or students (was the deposit returned; do they hold stablecoins). Target: one letter of intent or pilot. Each conversation is logged with date and notes in the repo before we cite it.
 Currency: rents in Salta are in pesos. USDC is the settlement layer in this build; the roadmap is a peso on-ramp so tenants pay in pesos and the agency receives USDC or pesos. Early adopters we would test first: mining professionals, remote workers paid abroad, and students supported from abroad. We do not yet know how many hold USDC.
 Regulation: no legal advice yet. The design is regime-agnostic: the contract stays off-chain, only its hash goes on-chain, and USDC is a payment method. Rental rules in Argentina may change, and the product does not depend on one regime. A short legal consult is planned.
-Similar projects: Fiador.sol (deposit escrow with yield and reputation) and RentLock (rent escrow in Solana PDAs). Keyhold starts from the agency back-office, with document checks before any money moves; its planned 2-of-3 release is not built yet. Comparison based on public descriptions; we have not tested them.
+Similar projects: Fiador.sol (deposit escrow with yield and reputation) and RentLock (rent escrow in Solana PDAs). AlquilIA starts from the agency back-office, with document checks before any money moves; its planned 2-of-3 release is not built yet. Comparison based on public descriptions; we have not tested them.
 ```
 
-Count: **1,670** characters (eight paragraphs of 92, 69, 101, 108, 372, 336, 271 and 314 characters, plus 7 line breaks counted as 1 each; paragraphs 2 to 4 are separate lines in the block above). If the form counts a line break as 2, it is 1,677. Under 2000.
+Count: **1,673** characters (eight paragraphs of 93, 69, 101, 109, 372, 336, 271 and 315 characters, plus 7 line breaks counted as 1 each; paragraphs 2 to 4 are separate lines in the block above). If the form counts a line break as 2, it is 1,680. Under 2000.
 
 Open items for the market teammate: replace the plan with real, recorded contacts only after they are logged in `docs/validation/evidence.md` (the file does not exist yet at the time of writing). The mining, remote-worker and student segments come from the market notes in docs/02 §5.3 and are hypotheses.
 

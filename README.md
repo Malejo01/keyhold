@@ -1,6 +1,6 @@
-# Keyhold
+# AlquilIA
 
-> "Keyhold" is a working name; the final brand is still to be defined.
+> "AlquilIA" (alquilar + IA) is a provisional working name, formerly "Keyhold"; the final brand is still to be decided. The repo and production URLs still use "keyhold".
 
 AI leasing back-office for real-estate agencies in Argentina's interior. Agents pre-qualify tenants and draft contracts; deposit and rent are paid on Solana with the contract hash in every payment. The trust-minimised escrow is in progress and not built yet; today it is custodial.
 
@@ -23,7 +23,7 @@ In Salta, and in most of Argentina's interior, a rental is still handled by hand
 - The security deposit is held by whoever is in the middle. When there is a dispute about returning it, the tenant has little proof of what was agreed or paid.
 - The payment history of a good tenant stays in the agency's files and is not portable.
 
-Search portals already exist and AI search assistants are becoming common, so Keyhold does not compete there. Keyhold's effort goes into the back-office steps where agencies spend manual time: pre-qualification, cross-checking, contract, deposit and payment record.
+Search portals already exist and AI search assistants are becoming common, so AlquilIA does not compete there. AlquilIA's effort goes into the back-office steps where agencies spend manual time: pre-qualification, cross-checking, contract, deposit and payment record.
 
 Note on currency: rents in Salta are mostly priced in pesos. This build settles in USDC (a devnet test token). The next step after the hackathon is to let tenants pay in pesos through an on-ramp and settle in USDC. That is roadmap, not built. See [Roadmap](#roadmap-for-the-week).
 
@@ -151,14 +151,14 @@ This is a demo, and these notes say what is and is not protected.
 - **Agents prepare, code executes.** Product agents emit a payment intent. Only `lib/solana/` builds, signs and confirms transactions.
 - **Known limitations of v0:** the escrow is custodial (see above); sessions are not persisted; there is no authentication or role model; the program has not been written, so nothing has been audited. TODO(Mauro): re-read this section after the QA gate (`docs/reviews/phase-0.md`) and update it with what QA found.
 
-## How Keyhold differs from similar projects
+## How AlquilIA differs from similar projects
 
 To our reading of their public descriptions (TODO(Ani): re-check before submitting; we have not tested these products):
 
-- **Fiador.sol** (Superteam Brazil hackathon): a stablecoin deposit escrow with yield and reputation seals that lower future deposits. Keyhold's focus is the agency back-office (pre-qualification, cross-check, contract) and a planned 2-of-3 release with the agency as arbiter.
-- **RentLock** (United States): rent and deposit escrow in Solana PDAs. Keyhold is built for Argentine interior agencies and puts the document checks first.
+- **Fiador.sol** (Superteam Brazil hackathon): a stablecoin deposit escrow with yield and reputation seals that lower future deposits. AlquilIA's focus is the agency back-office (pre-qualification, cross-check, contract) and a planned 2-of-3 release with the agency as arbiter.
+- **RentLock** (United States): rent and deposit escrow in Solana PDAs. AlquilIA is built for Argentine interior agencies and puts the document checks first.
 
-Both comparisons describe the plan for Keyhold's escrow. The 2-of-3 release is not built yet.
+Both comparisons describe the plan for AlquilIA's escrow. The 2-of-3 release is not built yet.
 
 ## Questions we expect
 

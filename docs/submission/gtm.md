@@ -1,11 +1,11 @@
-# Keyhold: go-to-market and validation (draft, 2026-10-03)
+# AlquilIA: go-to-market and validation (draft, 2026-10-03)
 
 Status: **plan only.** As of this writing there are **no users, no pilots, no LOIs, no interviews held and no partnerships**. Nothing in this document is a result. Anything citable will be logged in `docs/validation/evidence.md` and only then referenced elsewhere. Items marked **[Assumption]** or **[Hypothesis]** are untested.
 
 ## 1. Buyer and wedge
 
-- **Buyer / operator (AD-05):** licensed real-estate agencies, starting in Salta Capital. The agency runs Keyhold and, in the planned escrow design (AD-04), acts as arbiter: deposit release needs 2 of 3 signatures (tenant, landlord, agency).
-- **Why agencies and not a marketplace:** intermediation in Salta requires a registered broker (CUCIS, Ley 7629). Keyhold is positioned as software for registered agencies, not as an intermediary. **[Assumption: to be confirmed by a short legal consult.]**
+- **Buyer / operator (AD-05):** licensed real-estate agencies, starting in Salta Capital. The agency runs AlquilIA and, in the planned escrow design (AD-04), acts as arbiter: deposit release needs 2 of 3 signatures (tenant, landlord, agency).
+- **Why agencies and not a marketplace:** intermediation in Salta requires a registered broker (CUCIS, Ley 7629). AlquilIA is positioned as software for registered agencies, not as an intermediary. **[Assumption: to be confirmed by a short legal consult.]**
 - **Wedge:** the pre-qualification and cross-check back-office. The tenant-facing chat is the front door. The pre-qualifier extracts fields, deterministic rules decide, and an independent cross-check agent sends disagreements to the agency review queue. **[Assumption: agencies still do this document review by hand. This is what the interviews must confirm or refute.]**
 - **Not the wedge:** search and visit scheduling. Other products already offer it, so we treat it as a commodity.
 

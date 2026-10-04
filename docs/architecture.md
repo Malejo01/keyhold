@@ -1,6 +1,6 @@
 # Architecture
 
-State at 2026-10-04: custodial escrow on Solana devnet, simulated data. Sections marked **Planned** are not built. Decisions that shaped this are in `docs/03-architecture-decisions.md` (AD-01 to AD-15); the shared types are in `lib/contracts.ts`.
+State at 2026-10-04: custodial escrow on Solana devnet, simulated data. Sections marked **Not on `main`** describe work that is either built on a branch (not merged, not deployed) or only planned; each says which. Decisions that shaped this are in `docs/03-architecture-decisions.md` (AD-01 to AD-15); the shared types are in `lib/contracts.ts`.
 
 ## 1. Components
 
@@ -130,14 +130,15 @@ Production runs in replay mode. Recordings are bundled through a generated stati
 
 ## 6. Custody model today
 
-`ESCROW_MODE=custodial`. The deposit goes from the tenant's demo token account to the platform custody wallet; rent goes to the landlord wallet; the platform wallet pays all fees. The server holds every keypair in environment variables. This is not trustless; see the README section "Custodial escrow on devnet, stated plainly".
+Custodial by construction. (`ESCROW_MODE=custodial` in `.env.example` is a placeholder; no code on `main` reads it.) The deposit goes from the tenant's demo token account to the platform custody wallet; rent goes to the landlord wallet; the platform wallet pays all fees. The server holds every keypair in environment variables. This is not trustless; see the README section "Custodial escrow on devnet, stated plainly".
 
-## 7. Planned: Anchor escrow (not built)
+## 7. Not on `main`: Anchor escrow (built and CI-tested on a branch, not deployed)
 
-Design intent from `PLAN.md` and AD-03/AD-04. The account and instruction table is still to be approved and written up in `docs/onchain.md`, so everything below is a plan.
+The program `rental_escrow` lives on branch `f3-anchor` with 69 of 69 integration tests and 6 of 6 cargo tests passing in CI there, an IDL and its own `docs/onchain.md`; the QA re-gate of the program code is GO. It is not merged into `main`, not deployed (the program id in the branch is a placeholder with no account on devnet) and not called by the app. The account and instruction table on that branch is authoritative; the intent below comes from `PLAN.md` and AD-03/AD-04.
 
-- **Accounts:** `Lease` (tenant, landlord, agency pubkeys; mint; amounts; contract hash; due date; state) and `PaymentRecord` (lease, month, amount, `blockTime` from `Clock`, on-time flag). A PDA-owned vault token account holds the deposit.
-- **Instructions:** `create_lease`, `deposit_escrow`, `pay_rent` and `release_deposit`, which needs 2 signatures out of tenant, landlord and agency (the agency is the arbiter in disputes).
-- **Why:** removes the platform key from custody, makes the on-time decision from the program's `Clock` instead of a server-side quote, and enforces one payment per slot on-chain, which closes the session-replay limitation.
-- **Fallback:** the custodial path stays behind `ESCROW_MODE`. If the program or its tests are not ready by Thursday 08/10 at 12:00, the submission stays custodial.
-- **Also planned:** Solana Pay transaction request with a QR so the tenant signs from Phantom, and a Neon Postgres store (Drizzle) replacing the signed client-held session (AD-11b).
+- **Accounts (design intent):** `Lease` (tenant, landlord, agency pubkeys; mint; amounts; contract hash; due date; state) and `PaymentRecord` (lease, month, amount, `blockTime` from `Clock`, on-time flag). A PDA-owned vault token account holds the deposit.
+- **Instructions:** the branch implements `vote_release` (a 2-of-3 vote among tenant, landlord and agency, the agency being the arbiter in disputes) and `cancel_lease`, among others; the earlier design note named `release_deposit`, which the branch does not use. See the IDL and `docs/onchain.md` there for the full list.
+- **Release rule and custody:** with the demo server holding the landlord and agency keys, the escrow is custodial in substance; the program enforces 2-of-3 release and, without the tenant's vote, only after the full term or 10+ days of overdue rent.
+- **Why:** it would remove the platform key from custody, make the on-time decision from the program's `Clock` instead of a server-side quote, and enforce one payment per slot on-chain, which would close the session-replay limitation. None of this is true of the deployed demo.
+- **Fallback:** custodial is the only path on `main`. There is no switch: `ESCROW_MODE` in `.env.example` is a placeholder that no code reads. If the program is not merged and deployed by Thursday 08/10 at 12:00, the submission stays custodial.
+- **Also on branches, not on `main`:** Solana Pay transaction request with a QR so the tenant signs from Phantom (behind a feature flag); persistence with a fallback when no database is configured (Drizzle, AD-11b; Neon is not provisioned) to replace the signed client-held session; an agency panel; real document upload; an ES/EN UI; and a Linux CI workflow, green on its branch.

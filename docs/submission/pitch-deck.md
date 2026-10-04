@@ -64,18 +64,18 @@ The deck serves three uses: the 2:00 pitch video (the slides marked "2:00 video"
 ### 5. Why Solana
 
 - **Message:** every payment carries the contract hash, so what was agreed can be checked by anyone; the trustless part is next.
-- **On the slide:** three bullets. "Deposit and rent as SPL token transfers." "Contract hash in the Memo of every payment." "No personal data on-chain." Footer line in plain text: "Today: custodial escrow, devnet. Anchor 2-of-3 release: in progress, not built."
+- **On the slide:** three bullets. "Deposit and rent as SPL token transfers." "Contract hash in the Memo of every payment." "No personal data on-chain." Footer line in plain text: "Today: custodial escrow, devnet. Anchor 2-of-3 release: tested on a branch, not deployed."
 - **Visual:** a devnet explorer page for a demo deposit with the Memo line `lease:v1:<leaseId>:deposit:<sha256>` highlighted. Take a fresh transaction from a practice run, or use one from `docs/submission/tx-links.md`. The page holds no personal data, so nothing needs blurring.
-- **Speaker note (2:00 video, 0:43 to 1:10, from the script):** "Why Solana: it can make the deposit and payment record trustless and portable. Every payment already carries the contract hash, so anyone can verify what was agreed. And the record can follow the tenant, not stay in an agency's files. Today the escrow is custodial, on devnet. The Anchor program with two-of-three release is in progress, not built."
+- **Speaker note (2:00 video, 0:43 to 1:10, from the script):** "Why Solana: it can make the deposit and payment record trustless and portable. Every payment already carries the contract hash, so anyone can verify what was agreed. And the record can follow the tenant, not stay in an agency's files. Today the escrow is custodial, on devnet. The Anchor program with two-of-three release is tested on a branch, not deployed."
 - **Do not say:** "secured", "trustless escrow" as a present fact, or that the tenant holds the keys. The server signs with demo keys.
 
 ### 6. What works today
 
-- **Message:** a vertical slice that runs end to end with real devnet transactions, and a clear list of what is not built.
-- **On the slide:** two columns. Built: chat and stage machine; listings agent; pre-qualification and cross-check with rules; contract hash and Verify; deposit and rent on devnet with Memo; recorded AI answers; evals and an end-to-end test. Not built: Anchor escrow, Solana Pay QR, agency panel, database, real document upload, peso rails.
+- **Message:** a vertical slice that runs end to end with real devnet transactions, and a clear list of what is not in the deployed demo.
+- **On the slide:** two columns. Built: chat and stage machine; listings agent; pre-qualification and cross-check with rules; contract hash and Verify; deposit and rent on devnet with Memo; recorded AI answers; evals and an end-to-end test. Not in the deployed demo: peso rails; and, on branches and not merged, the Anchor escrow (CI-tested, not deployed), Solana Pay QR, agency panel, persistence, real document upload, ES/EN UI.
 - **Numbers allowed:** 3 simulated tenants; 10 catalogue properties; 2 real devnet transactions per full flow (deposit and rent); API end-to-end 59 of 59 checks (`docs/reviews/`); evals 3 of 3 live and 7 of 7 in replay. Re-check them against the repo before presenting.
 - **Visual:** a three-image strip: deposit receipt, Verify match, rent receipt with the on-time badge (`docs/reviews/ux/after/ana-1280-06-deposit-receipt.png`, `ana-1280-08-rent-receipt.png`).
-- **Speaker note (Demo Day, about 25 seconds):** "This is running today on devnet: three simulated tenants, real transactions, a public Verify. On the right is what we have not built, and we say so."
+- **Speaker note (Demo Day, about 25 seconds):** "This is running today on devnet: three simulated tenants, real transactions, a public Verify. On the right is what is not in the demo, and we say so."
 
 ### 7. Why now, and the honest points
 
@@ -89,9 +89,9 @@ The deck serves three uses: the 2:00 pitch video (the slides marked "2:00 video"
 ### 8. Similar projects
 
 - **Message:** others are further along on-chain; we start from the agency back-office.
-- **On the slide:** a small table, three rows. Fiador.sol: stablecoin deposit escrow with yield and reputation seals; on-chain program and tests. RentLock: rent and deposit escrow in PDAs; waitlist. AlquilIA: agency back-office first (cross-check agent, rules); 2-of-3 release with the agency as arbiter is planned. Source line: "Public descriptions; we have not run these products."
+- **On the slide:** a small table, three rows. Fiador.sol: stablecoin deposit escrow with yield and reputation seals; on-chain program and tests. RentLock: rent and deposit escrow in PDAs; waitlist. AlquilIA: agency back-office first (cross-check agent, rules); 2-of-3 release with the agency as arbiter is built on a branch, not deployed. Source line: "Public descriptions; we have not run these products."
 - **Visual:** the table only. A "ahead of us on-chain" tag on the first two rows is welcome: it is true and it builds trust.
-- **Speaker note (Demo Day and Q&A only):** "Fiador.sol and RentLock have on-chain programs today and we do not. We start earlier in the process, with the agency's document checks, and plan a two-of-three release where the agency is the arbiter. That part is a plan."
+- **Speaker note (Demo Day and Q&A only):** "Fiador.sol and RentLock have on-chain programs today and we do not. We start earlier in the process, with the agency's document checks, and our two-of-three release, where the agency is the arbiter, is tested on a branch and not deployed."
 - **Before using:** TODO(Ani) re-read the Fiador.sol and RentLock pages and fix the wording if they have changed.
 
 ### 9. Who pays, and how we will find out
@@ -105,8 +105,8 @@ The deck serves three uses: the 2:00 pitch video (the slides marked "2:00 video"
 ### 10. Roadmap, team and ask
 
 - **Message:** what we build next, who we are, and what we ask for.
-- **On the slide:** three columns. Roadmap: Anchor escrow with 2-of-3 release; Solana Pay QR; agency panel; Neon persistence; ES/EN UI; later, pesos on-ramp and USDC settlement. Team: names and "Salta, Argentina", photos only if the people agree. Ask: "Feedback and mentorship on the Anchor escrow" and "Introductions to agencies", plus the URL and the repo.
-- **Visual:** a horizontal timeline with 08/10 12:00 marked "plan B: stay custodial if the program is not ready".
+- **On the slide:** three columns. Roadmap: merge and deploy the Anchor escrow with 2-of-3 release (built on a branch); Solana Pay QR, agency panel, persistence, ES/EN UI (each on a branch, not merged); later, pesos on-ramp and USDC settlement. Team: names and "Salta, Argentina", photos only if the people agree. Ask: "Feedback and mentorship on the Anchor escrow" and "Introductions to agencies", plus the URL and the repo.
+- **Visual:** a horizontal timeline with 08/10 12:00 marked "plan B: stay custodial if the program is not merged and deployed".
 - **Speaker note (2:00 video, 1:34 to 1:56, from the script):** "We are from Salta. Mauro leads engineering; I lead product and validation." Then: "We have no users yet; this week we start with Salta agencies. We are asking for mentorship on the Anchor escrow, and introductions to agencies. This is AlquilIA."
 - **Keep word for word:** "We have no users yet."
 - **TODO(Ani):** decide who speaks and who appears; add a background line for Mauro or yourself only if it can be backed by a link (see the team field in `preselection.md`), and cut words elsewhere to stay under 2:00.

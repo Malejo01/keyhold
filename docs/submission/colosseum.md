@@ -1,13 +1,13 @@
 # Colosseum submission draft (Crypto World's Fair, Superteam Argentina track)
 
 Deadline: Mon 12/10, 23:59 PT is 13/10 03:59 ART, but the submission is **mandatory on 12/10** together with Superteam Earn (docs/02 §1). Internal freeze: Sun 11/10, 20:00. Target: submit before 18:00 ART on Mon 12/10.
-Draft written Sun 04/10/2026. Status of the product at the time of writing: devnet only, simulated data, escrow **custodial**, Anchor program **not built**. Refresh at the freeze.
+Draft written Sun 04/10/2026. Status of the product at the time of writing: devnet only, simulated data, escrow **custodial**, Anchor program **not on `main`: built and CI-tested on a branch, not deployed**. Refresh at the freeze.
 
 ## Assumptions (read first)
 
 - `docs/02-hackathon-rules-market-judges.md` lists the pre-selection form fields (§1.1) but **not** the field list of the Colosseum (Arena) project form. The fields below are an assumption based on the pre-selection form and the task brief: name, one-liner, description, tools, team, go-to-market, plus links and the project's country. If the Arena form has other fields (for example separate problem, solution or "challenges" boxes), reuse the matching paragraph of the description and the "Why Solana" and "Business model" answers; nothing needs to be invented.
 - Limits on the Arena form are unknown. The one-liner is kept under 140 characters and every long answer under 2,000, the pre-selection limits.
-- Counts are Unicode code points with spaces and punctuation, measured with exact-length regex probes on 2026-10-04. Trust the form's own counter if it disagrees.
+- Counts are Unicode code points with spaces and punctuation, measured with exact-length regex probes on 2026-10-04 and re-checked by QA with node. The description and "Why Solana" were edited afterwards (branch status and the "trustless" wording); their new counts (1,828 and 1,036) were computed by hand and need a recount by the lead. Trust the form's own counter if it disagrees.
 - Every team member needs an Arena account with country **Argentina**, and the project location must be Argentina (docs/02 §1). Whether one member or all must be registered is unconfirmed; ask Nico Fernandez on Telegram (t.me/NicoFernandez17).
 - The product name is **AlquilIA**, provisional; the repo and URL still say "keyhold".
 
@@ -23,18 +23,18 @@ Draft written Sun 04/10/2026. Status of the product at the time of writing: devn
 AI leasing back-office for agencies in Argentina's interior; deposits and rent recorded on Solana with the contract hash.
 ```
 
-121 characters. It avoids "trustless" because the escrow is custodial today. If the Anchor escrow ships and passes its tests, the positioning line can be used: "AI leasing back-office for real-estate agencies in Argentina's interior; Solana makes the deposit and payment record trustless and portable." That line is exactly 140 characters, so it fits the limit with no room to spare.
+121 characters. It avoids "trustless" because the escrow is custodial today. If the Anchor escrow is merged, deployed and used by the demo (it already passes its tests on a branch), the positioning line can be used: "AI leasing back-office for real-estate agencies in Argentina's interior; Solana makes the deposit and payment record trustless and portable." That line is exactly 140 characters, so it fits the limit with no room to spare.
 
-### Description (1,694 characters)
-
-```
-AlquilIA is an AI leasing back-office for real-estate agencies in Argentina's interior; Solana makes the deposit and payment record trustless and portable. Today only the first half and a recorded payment trail are built, and the escrow is custodial. In Salta a small agency checks each tenant's ID, payslip and guarantee by hand, and the deposit sits with whoever is in the middle. In AlquilIA a chat agent finds listings from a catalogue. Then one agent extracts fields from the tenant's documents, a second independent agent extracts them again with its own prompt, and plain code decides: payslip at most 90 days old, names matching the ID, rent at most 35% of income. The model never approves anybody. For an approved tenant the app builds a contract from a template, hashes it with sha256, and moves the deposit and the first rent as SPL token transfers on Solana devnet. Each transaction carries a Memo with the lease id and the contract hash, so anyone can verify what was agreed. The on-time discount is computed from the confirmed transaction's blockTime. Only hashes, amounts, timestamps and public keys go on-chain. Built: the full flow for three simulated tenants (one approved, one stopped for an old payslip, one stopped by the cross-check for a name mismatch), real devnet transactions, a public Verify, a replay mode for recorded AI answers, evals and an end-to-end test. Not built: the Anchor escrow with 2-of-3 release, Solana Pay, the agency panel, a database, real document upload and peso rails. Rents in Salta are in pesos, so the plan is a peso on-ramp with USDC as the settlement layer. No users, pilots or revenue exist yet. All data and the tUSDC token are simulated.
-```
-
-### Why Solana (953 characters)
+### Description (1,828 characters, hand count; recount by lead)
 
 ```
-AlquilIA uses Solana for the money and the record, not for deciding anything about the tenant. Deposit and rent are SPL token transfers, and each carries a Memo in the same transaction with the lease id and the sha256 of the exact contract text. Fees are low enough for every rent payment to carry its own record, and confirmation is fast enough for a checkout screen. The on-time status comes from the confirmed blockTime, not from a client clock. A public Verify recomputes the hash from the contract and compares it with the chain. That is what exists today. What does not exist yet is the part that makes it trustless: an Anchor program with a PDA vault and a 2-of-3 release between tenant, landlord and agency, where the program's Clock replaces the server's time. Until it is built and tested, the escrow is a platform wallet on devnet and the demo says so. Solana Pay with a Phantom QR is planned so that the tenant signs instead of a server key.
+AlquilIA is an AI leasing back-office for real-estate agencies in Argentina's interior; the aim is for Solana to make the deposit and payment record trustless and portable. In the deployed demo, only the first half and a recorded payment trail are built, and the escrow is custodial. In Salta a small agency checks each tenant's ID, payslip and guarantee by hand, and the deposit sits with whoever is in the middle. In AlquilIA a chat agent finds listings from a catalogue. Then one agent extracts fields from the tenant's documents, a second independent agent extracts them again with its own prompt, and plain code decides: payslip at most 90 days old, names matching the ID, rent at most 35% of income. The model never approves anybody. For an approved tenant the app builds a contract from a template, hashes it with sha256, and moves the deposit and the first rent as SPL token transfers on Solana devnet. Each transaction carries a Memo with the lease id and the contract hash, so anyone can verify what was agreed. The on-time discount is computed from the confirmed transaction's blockTime. Only hashes, amounts, timestamps and public keys go on-chain. Built: the full flow for three simulated tenants (one approved, one stopped for an old payslip, one stopped by the cross-check for a name mismatch), real devnet transactions, a public Verify, a replay mode for recorded AI answers, evals and an end-to-end test. Not in the deployed demo: peso rails, and work that sits on unmerged branches: the Anchor escrow with 2-of-3 release (CI-tested, not deployed), Solana Pay behind a flag, an agency panel, persistence, real document upload and an ES/EN UI. Rents in Salta are in pesos, so the plan is a peso on-ramp with USDC as the settlement layer. No users, pilots or revenue exist yet. All data and the tUSDC token are simulated.
+```
+
+### Why Solana (1,036 characters, hand count; recount by lead)
+
+```
+AlquilIA uses Solana for the money and the record, not for deciding anything about the tenant. Deposit and rent are SPL token transfers, and each carries a Memo in the same transaction with the lease id and the sha256 of the exact contract text. Fees are low enough for every rent payment to carry its own record, and confirmation is fast enough for a checkout screen. The on-time status comes from the confirmed blockTime, not from a client clock. A public Verify recomputes the hash from the contract and compares it with the chain. That is what exists today. What is not live yet is the part that makes it trustless: an Anchor program with a PDA vault and a 2-of-3 release between tenant, landlord and agency, where the program's Clock replaces the server's time. That program is built and CI-tested on a branch, but it is not merged or deployed, so the escrow in the demo is a platform wallet on devnet and the demo says so. Solana Pay with a Phantom QR, behind a flag on a branch, would let the tenant sign instead of a server key.
 ```
 
 ### Business model and go-to-market (1,279 characters)
@@ -51,7 +51,7 @@ If the Arena form has a separate GTM box with the 2,000 limit, the pre-selection
 Solana (devnet), SPL Token, Memo program, @solana/web3.js, Google Gemini (Flash-Lite), Next.js, TypeScript, Tailwind CSS, Vercel
 ```
 
-Claude Code is declared as the AI coding assistant in the README Disclosures and the Earn submission, not as a product tool. Solana Pay and Anchor are not listed until they are built.
+Claude Code is declared as the AI coding assistant in the README Disclosures and the Earn submission, not as a product tool. Solana Pay and Anchor are not listed until they are merged and deployed.
 
 ### Team
 
@@ -86,15 +86,15 @@ Superteam Argentina track. Project location: Argentina (Salta, Salta). Prize pay
 | On-time status from confirmed `blockTime` | Yes | The rent quote still uses server time; `onTime` is recomputed from `blockTime` |
 | Recorded AI answers (`REPLAY=1`) | Yes | Production serves recordings of real Gemini responses |
 | Evals and API end-to-end test | Yes | Evals 3/3 live and 7/7 in replay; e2e 59/59 (docs/reviews) |
-| Unit tests (vitest) | Written, not verified | Could not run on the author's machine; Linux CI being added on a separate branch |
-| Escrow | Custodial | Platform wallet, server signs with demo keys |
-| Anchor `rental_escrow`, PDA vault, 2-of-3 release | No | Planned this week; plan B is to freeze custodial on Thu 08/10 at 12:00 |
-| Solana Pay QR with Phantom | No | Planned |
-| Agency panel | No | Minimal version planned |
-| Database (Neon) and fix for session replay | No | Planned; the replay limitation is documented |
-| Real document upload and extraction | No | "Upload" loads simulated documents |
+| Unit tests (vitest) | Written, not verified on `main` | Could not run on the author's machine; a Linux CI workflow is green on a branch, not on `main` |
+| Escrow | Custodial | Platform wallet, server signs with demo keys. `ESCROW_MODE` in `.env.example` is a placeholder no code reads |
+| Anchor `rental_escrow`, PDA vault, 2-of-3 release | Not on `main` | Built and CI-tested on branch `f3-anchor` (69 of 69 integration tests, 6 of 6 cargo tests; QA re-gate GO). Not deployed, not used by the demo. Plan B: freeze custodial on Thu 08/10 at 12:00 if it is not merged and deployed |
+| Solana Pay QR with Phantom | On a branch | Behind a feature flag; not on `main` |
+| Agency panel | On a branch | Not on `main` |
+| Persistence and fix for session replay | On a branch | Falls back when no database is configured; Neon is not provisioned; the replay limitation is open on the deployed demo and documented |
+| Real document upload and extraction | On a branch | On `main`, "Upload" loads simulated documents |
 | Peso on-ramp, USDC settlement | No | Roadmap (AD-07) |
-| Bilingual UI (ES/EN) | No | AD-15; agents already reply in the user's language |
+| Bilingual UI (ES/EN) | On a branch | Not on `main`; agents already reply in the user's language |
 | Users, pilots, letters of intent, revenue | None | `docs/validation/evidence.md` is empty |
 
 ## Self-assessment against the official criteria
@@ -103,11 +103,11 @@ Criteria from docs/02 §6.1 (Colosseum rules, no published weights). The answers
 
 | Criterion | Where we stand today | What would raise it |
 |---|---|---|
-| Functionality | A working vertical slice with real devnet transactions and a deterministic decision layer; escrow is custodial | The Anchor program with tests (four discount cases, duplicate payment, amounts that do not add up, wrong signer) |
+| Functionality | A working vertical slice with real devnet transactions and a deterministic decision layer; escrow is custodial | Merge and deploy the Anchor program, which already has an integration suite on a branch, and have the demo call it |
 | Potential impact | Salta alone is small; the claim is the interior of Argentina, untested. Argentina's stablecoin adoption is high (docs/02 cites Chainalysis, 2026) but USDT is used more than USDC (Bitso, 2025) | Real agency interviews; a peso on-ramp |
-| Novelty | An independent cross-check agent with code-decided rules is working. The 2-of-3 release with the agency as arbiter is a plan. Fiador.sol and RentLock are further along on-chain | Ship the program; the payment record that reduces a deposit (AD-13, out of scope this week) |
+| Novelty | An independent cross-check agent with code-decided rules is working. The 2-of-3 release with the agency as arbiter is built and CI-tested on a branch, not deployed. Fiador.sol and RentLock are further along on-chain | Deploy the program and use it in the demo; the payment record that reduces a deposit (AD-13, out of scope this week) |
 | UX with blockchain | The word "blockchain" does not appear in the tenant UI; payment is one button. But the server signs, so the tenant does not hold keys | Solana Pay QR with Phantom |
-| Open source and composability | MIT license; composes with the SPL Token and Memo programs | Public repo; Anchor IDL and documented accounts (`docs/onchain.md`) |
+| Open source and composability | MIT license; composes with the SPL Token and Memo programs | Public repo; merge the Anchor IDL and `docs/onchain.md` that already exist on the branch |
 | Business plan | B2B for agencies; pricing and demand untested | Interviews, a letter of intent or pilot, a first price test |
 
 ## Before submitting

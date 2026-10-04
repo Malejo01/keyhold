@@ -11,7 +11,7 @@ Product name: AlquilIA (provisional; formerly Keyhold). Full script with timings
 - **Ana only:** button "Generate the contract", then click the button **"Pay deposit · 420.00 USDC"** on the "Security deposit" card. Do **not** click the chip "Pay the deposit": it only shows the same card again. Then "Verify", then chip "Pay my first rent", then "Pay rent · 399.00 USDC", then "View on Solana Explorer" on the deposit receipt.
 - **While it says "Confirming your payment…"** do not click or type anything until the receipt appears (about 4 seconds).
 - **Rate limit:** 120 chat messages per 5 minutes per IP on production. A take uses about 10. If "too many requests" appears, wait 5 minutes.
-- **Say:** "The model never approves anybody: it extracts, and code decides." and the honest note: the escrow is custodial today (platform wallet on devnet, demo keys) and the Anchor program with two-of-three release is in progress, not built. Say the AI answers in this take are recorded.
+- **Say:** "The model never approves anybody: it extracts, and code decides." and the honest note: the escrow is custodial today (platform wallet on devnet, demo keys) and the Anchor program with two-of-three release is tested on a branch, not deployed. Say the AI answers in this take are recorded.
 - **Do not show:** env files, a terminal, the Vercel dashboard, wallet secret keys, `tx-links.md`, the `?fixtures=1` mode, bookmarks, your Chrome profile name.
 - **Do not say:** anything about users, pilots, revenue or partnerships (none exist); that the escrow is trustless; anything about what the law allows; that the AI is live; that the property images are photos.
 

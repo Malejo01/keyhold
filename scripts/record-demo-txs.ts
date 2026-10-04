@@ -33,8 +33,8 @@ async function main() {
     listAmountBaseUnits: (BigInt(400) * TOKEN).toString(),
     contractHash,
     dueTs: now + 5 * 24 * 3600,
-    discountUsdcBps: 500,
-    discountOntimeBps: 300,
+    discountUsdcBps: 300,
+    discountOntimeBps: 200,
   };
 
   console.log(`Lease ${leaseId}, contract hash ${contractHash}`);

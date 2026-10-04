@@ -154,11 +154,14 @@ The release design that survived is **vote slots** (qa objection 2). The R-tests
 | D-01 … D-06 | written | D-06 asserts serialized size < 1232 with a reference and a 64-hex memo, and finds the tx by the reference. |
 | P-01 … P-11 | written | P-07: the outsider cannot co-sign (it is not an account of the instruction); the owner check rejects it. |
 | P-12 | written, **changed** | The overflow is rejected at `create_lease` (the last month's due date must fit in i64), so it can never reach `pay_rent`. `cargo test` covers `due_ts` overflow directly. |
-| R-01 … R-20 | written | R-05: no error, no payout (the slot is overwritten with the same value). R-07: no role argument in the IDL. R-09: `AccountNotInitialized` (vault closed) or `LeaseNotActive`. R-17: without the idempotent ATA create the vote fails (`AccountNotInitialized`); with it, the payout succeeds. R-20: allowed and documented (objection 10 rebutted). |
+| P-13 | written (B4 B1) | The landlord moves its ATA's owner before the due date; the ATA fails `ConstraintTokenOwner`, and the tenant pays on time into a fresh token account the landlord owns (`on_time = true`, streak 1). |
+| R-01 … R-20 | written | R-05: no error, no payout (the slot is overwritten with the same value). R-07: no role argument in the IDL. R-09: `AccountNotInitialized` (vault closed). R-11: at the end of the term (with the objection 10 gate, L+A need a fully paid or overdue lease). R-13: `ConstraintTokenOwner`. R-17: without the idempotent ATA create the vote fails (`AccountNotInitialized`); with it, the payout succeeds. **R-20 changed after the B4 review:** L+A without T is rejected with `ReleaseNeedsTenant` while the tenant is current (before due, and late within the grace period); T's vote then releases. R-08 L+A and R-19 use a lease overdue past the grace period. |
+| R-21, R-22 | written (B4 B1) | R-21: the tenant moves its ATA's owner, L+A release into a fresh token account the tenant owns; mirror for the landlord with T+A. R-22: the landlord's wallet is assigned to another program; T+A release and the vault rent still reaches it. |
+| R-23 | written (objection 10) | Month 0 overdue past the grace period: L+A release. A lease whose overdue month 0 is paid late: L+A rejected again (`ReleaseNeedsTenant`). |
 | X-01 | written | deposit, pay and vote. **TODO:** `cancel_lease` with a fake token program (same `Program<Token>` type, low risk). |
 | X-02 | written (system program) | The associated-token program is not an account of `create_lease` (the program never creates ATAs), so that half is N/A. |
 | X-03 | written | A `PaymentRecord` as `Lease` → discriminator mismatch; a token account as `Lease` → wrong owner. **TODO:** a byte-identical `Lease` owned by another program needs a fixture account. |
-| X-04 | written (in the TS suite, not a separate CI grep step) | |
+| X-04 | written (in the TS suite, not a separate CI grep step) | After B4: exactly one `UncheckedAccount` (`VoteRelease.landlord`, with a `/// CHECK` and `address = lease.landlord`) and no `associated_token::` constraint. |
 | X-05, X-06 | written | |
 | H-01, H-02, H-03 | written | H-03 only covers memos the program tests send (D-06). The app's memos are sol-client's. |
 | H-04 | **TODO (hand-off)** | Salting is off-chain: ai-agents (`lib/agents/lease.ts`) and sol-client (`lib/solana/hash.ts`). |

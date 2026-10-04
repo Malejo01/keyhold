@@ -162,3 +162,32 @@
 1. Apply the B1 fix and add R-21, R-22 and P-13. Push and get CI green.
 2. Pin R-09 to `AccountNotInitialized` (optional, 1 line).
 3. Ping qa for a re-review. Only B1 is in scope; the re-review diff should be small.
+
+## Fixes (sol-program)
+
+Owner: solana-program-engineer. Branch `f3-anchor`. Nothing deployed; CI only.
+
+**B1 (blocking): fixed.**
+- Proof on the old code: commit `4dab390` adds R-21, R-22 and P-13 without touching the program. CI run [37182143370](https://github.com/Malejo01/keyhold/actions/runs/37182143370) (re-run after a concurrency cancel): `tests 68 / pass 65 / fail 3`, exactly those three.
+  - R-21: `tenant_token … ConstraintAssociated` (the fresh account the tenant owns is not its ATA, and the moved ATA fails `ConstraintTokenOwner`).
+  - R-22: `landlord … AccountNotSystemOwned` (3011).
+  - P-13: `landlord_token … ConstraintAssociated`.
+- Fix, commit `f7cd286` (`programs/rental_escrow/src/lib.rs`):
+  - `PayRent.landlord_token`, `VoteRelease.tenant_token` / `landlord_token`, `CancelLease.landlord_token`: `#[account(mut, token::mint = mint, token::authority = lease.<party>)]`. No `associated_token::` constraint is left.
+  - `VoteRelease.landlord`: `UncheckedAccount` with `/// CHECK` and `#[account(mut, address = lease.landlord)]`; the lease keeps `has_one = landlord`, so R-16 still fails with `ConstraintHasOne`.
+  - X-04 now asserts exactly one `UncheckedAccount`, that it is `VoteRelease.landlord` with the CHECK comment and the `address` constraint, that `has_one = landlord` stays, and that there is no `associated_token::`.
+- Tests: R-21 (both mirrors: tenant moves its ATA → L+A release into a fresh tenant-owned account at the end of the term; landlord moves its ATA → T+A release into a fresh landlord-owned account), R-22 (landlord wallet `SystemProgram.assign`ed to another owner; T+A release; the vault rent reaches it), P-13 (landlord moves its ATA before due; on-time payment into a fresh landlord-owned account, `on_time = true`, streak 1). Each also asserts that the moved ATA fails `ConstraintTokenOwner`.
+- Pinned assertions: R-13 → `ConstraintTokenOwner` only; R-09 → `AccountNotInitialized` only; `ConstraintAssociated` removed from P-08/P-09/P-10/R-14 (impossible now).
+- Result: CI run [37182264057](https://github.com/Malejo01/keyhold/actions/runs/37182264057) on `f7cd286`, all six jobs green; `tests 69 / pass 69 / fail 0`; `cargo test` 6 passed. Compute units: `{"CreateLease":30679,"DepositEscrow":11959,"PayRent":22801,"VoteRelease":19682,"CancelLease":13749}`.
+
+**Non-blocking 1 (objection 10): implemented.**
+- `vote_release`: when a match completes and the tenant's slot does not hold the same terms, `math::release_without_tenant_allowed` must hold: `months_paid >= term_months`, or `Clock > due(months_paid) + RELEASE_GRACE_SECONDS` (864 000 s = 10 days, `#[constant]`, in the IDL). Otherwise `ReleaseNeedsTenant`, and the whole tx reverts. An unrepresentable deadline counts as never overdue.
+- `cargo test r20_r23_release_without_tenant_gate`: before due, `now == due`, `now == due + grace` (blocked), `+1` (allowed), the reference moving to the next month after a payment, full term, i64 overflow.
+- Integration: R-20 is inverted (L+A blocked before due and when late within the grace, separately and atomically; state unchanged; then T's vote releases the same terms). R-23: overdue past the grace → L+A release; an overdue month 0 paid late → L+A blocked again. R-08 L+A, R-08 atomic and R-19 use a lease overdue past the grace; R-11 runs at the end of a 1-month term.
+- The custody disclosure sentence in `docs/onchain.md` now says "without the tenant, only after the lease is fully paid or the tenant is more than 10 days late". submission-writer should use the new version.
+
+**Non-blocking 5 (deploy step): fixed.** `docs/onchain.md` uses `solana-keygen new --force -o target/deploy/rental_escrow-keypair.json` and notes that the keypair `anchor build` generated can be kept instead. The "refuse program mode while `PROGRAM_ID` is the placeholder" rule is in the sol-client hand-off row.
+
+**Not changed:** non-blocking 2 (stale votes; documented as a known limit), 3 (other multi-name assertions and "unchanged" checks), 4 (README, submission-writer), 6 (period rule, ai-agents), 7 (orphan lease rate limit, sol-client), 8 (upgrade authority in README). Docs updated: `docs/onchain.md` (instruction table, client recipient rule, tenant veto, errors, security notes, known limits, measured CI, deploy) and the status table in `docs/debates/anchor-accounts/qa-tests.md`. The IDL in `target/idl/rental_escrow.json` was regenerated from the CI build.
+
+Ready for qa re-review (B1 scope plus the objection 10 gate).

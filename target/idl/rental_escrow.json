@@ -91,94 +91,7 @@
         },
         {
           "name": "landlord_token",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "account",
-                "path": "lease.landlord",
-                "account": "Lease"
-              },
-              {
-                "kind": "const",
-                "value": [
-                  6,
-                  221,
-                  246,
-                  225,
-                  215,
-                  101,
-                  161,
-                  147,
-                  217,
-                  203,
-                  225,
-                  70,
-                  206,
-                  235,
-                  121,
-                  172,
-                  28,
-                  180,
-                  133,
-                  237,
-                  95,
-                  91,
-                  55,
-                  145,
-                  58,
-                  140,
-                  245,
-                  133,
-                  126,
-                  255,
-                  0,
-                  169
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "mint"
-              }
-            ],
-            "program": {
-              "kind": "const",
-              "value": [
-                140,
-                151,
-                37,
-                143,
-                78,
-                36,
-                137,
-                241,
-                187,
-                61,
-                16,
-                41,
-                20,
-                142,
-                13,
-                131,
-                11,
-                90,
-                19,
-                153,
-                218,
-                255,
-                16,
-                132,
-                4,
-                142,
-                123,
-                216,
-                219,
-                233,
-                248,
-                89
-              ]
-            }
-          }
+          "writable": true
         },
         {
           "name": "token_program",
@@ -447,94 +360,12 @@
         },
         {
           "name": "landlord_token",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "account",
-                "path": "lease.landlord",
-                "account": "Lease"
-              },
-              {
-                "kind": "const",
-                "value": [
-                  6,
-                  221,
-                  246,
-                  225,
-                  215,
-                  101,
-                  161,
-                  147,
-                  217,
-                  203,
-                  225,
-                  70,
-                  206,
-                  235,
-                  121,
-                  172,
-                  28,
-                  180,
-                  133,
-                  237,
-                  95,
-                  91,
-                  55,
-                  145,
-                  58,
-                  140,
-                  245,
-                  133,
-                  126,
-                  255,
-                  0,
-                  169
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "mint"
-              }
-            ],
-            "program": {
-              "kind": "const",
-              "value": [
-                140,
-                151,
-                37,
-                143,
-                78,
-                36,
-                137,
-                241,
-                187,
-                61,
-                16,
-                41,
-                20,
-                142,
-                13,
-                131,
-                11,
-                90,
-                19,
-                153,
-                218,
-                255,
-                16,
-                132,
-                4,
-                142,
-                123,
-                216,
-                219,
-                233,
-                248,
-                89
-              ]
-            }
-          }
+          "docs": [
+            "Any token account of the pinned mint whose current owner is the landlord, not only its ATA:",
+            "classic SPL Token lets the landlord move its ATA's owner, which must not block an on-time",
+            "payment (qa B4 review, B1; test P-13)."
+          ],
+          "writable": true
         },
         {
           "name": "payment_record",
@@ -589,7 +420,9 @@
       "docs": [
         "One party (role resolved from the signer, never from an argument) records its vote for the",
         "release terms. Each role owns one slot and can only overwrite its own. When two slots hold",
-        "the same terms hash, the vault pays the split, sweeps any excess to the landlord and closes."
+        "the same terms hash, the vault pays the split, sweeps any excess to the landlord and closes.",
+        "A release the tenant did not vote for also needs the full term paid or the tenant overdue",
+        "past `RELEASE_GRACE_SECONDS` (`ReleaseNeedsTenant`)."
       ],
       "discriminator": [
         158,
@@ -664,190 +497,26 @@
         },
         {
           "name": "tenant_token",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "account",
-                "path": "lease.tenant",
-                "account": "Lease"
-              },
-              {
-                "kind": "const",
-                "value": [
-                  6,
-                  221,
-                  246,
-                  225,
-                  215,
-                  101,
-                  161,
-                  147,
-                  217,
-                  203,
-                  225,
-                  70,
-                  206,
-                  235,
-                  121,
-                  172,
-                  28,
-                  180,
-                  133,
-                  237,
-                  95,
-                  91,
-                  55,
-                  145,
-                  58,
-                  140,
-                  245,
-                  133,
-                  126,
-                  255,
-                  0,
-                  169
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "mint"
-              }
-            ],
-            "program": {
-              "kind": "const",
-              "value": [
-                140,
-                151,
-                37,
-                143,
-                78,
-                36,
-                137,
-                241,
-                187,
-                61,
-                16,
-                41,
-                20,
-                142,
-                13,
-                131,
-                11,
-                90,
-                19,
-                153,
-                218,
-                255,
-                16,
-                132,
-                4,
-                142,
-                123,
-                216,
-                219,
-                233,
-                248,
-                89
-              ]
-            }
-          }
+          "docs": [
+            "Any token account of the pinned mint whose current owner is the tenant (B1: an ATA's owner",
+            "can be moved, so pinning the ATA would let one party block every release; test R-21)."
+          ],
+          "writable": true
         },
         {
           "name": "landlord_token",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "account",
-                "path": "lease.landlord",
-                "account": "Lease"
-              },
-              {
-                "kind": "const",
-                "value": [
-                  6,
-                  221,
-                  246,
-                  225,
-                  215,
-                  101,
-                  161,
-                  147,
-                  217,
-                  203,
-                  225,
-                  70,
-                  206,
-                  235,
-                  121,
-                  172,
-                  28,
-                  180,
-                  133,
-                  237,
-                  95,
-                  91,
-                  55,
-                  145,
-                  58,
-                  140,
-                  245,
-                  133,
-                  126,
-                  255,
-                  0,
-                  169
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "mint"
-              }
-            ],
-            "program": {
-              "kind": "const",
-              "value": [
-                140,
-                151,
-                37,
-                143,
-                78,
-                36,
-                137,
-                241,
-                187,
-                61,
-                16,
-                41,
-                20,
-                142,
-                13,
-                131,
-                11,
-                90,
-                19,
-                153,
-                218,
-                255,
-                16,
-                132,
-                4,
-                142,
-                123,
-                216,
-                219,
-                233,
-                248,
-                89
-              ]
-            }
-          }
+          "docs": [
+            "Same rule for the landlord's share."
+          ],
+          "writable": true
         },
         {
           "name": "landlord",
           "docs": [
-            "Receives the vault's rent-exempt lamports when it closes. Must be `lease.landlord`."
+            "Receives the vault's rent-exempt lamports when it closes. Pinned to `lease.landlord` by",
+            "`address` and by `has_one = landlord` on `lease`. Not `SystemAccount`: the landlord could",
+            "reassign its wallet to another program and block the release (B1; test R-22). Crediting",
+            "lamports to an account owned by any program is allowed; nothing is read from it."
           ],
           "writable": true,
           "relations": [
@@ -1067,6 +736,11 @@
       "code": 6013,
       "name": "VaultShortfall",
       "msg": "The vault holds less than the deposit"
+    },
+    {
+      "code": 6014,
+      "name": "ReleaseNeedsTenant",
+      "msg": "Without the tenant's vote, a release needs the full term paid or rent overdue past the grace period"
     }
   ],
   "types": [
@@ -1643,6 +1317,15 @@
       "name": "PAYMENT_SEED",
       "type": "bytes",
       "value": "[112, 97, 121, 109, 101, 110, 116]"
+    },
+    {
+      "name": "RELEASE_GRACE_SECONDS",
+      "docs": [
+        "Without the tenant's vote, landlord + agency can release only after the full term is paid or",
+        "when the first unpaid month is overdue by more than this (10 days). qa objection 10."
+      ],
+      "type": "i64",
+      "value": "864000"
     },
     {
       "name": "ROLE_AGENCY",

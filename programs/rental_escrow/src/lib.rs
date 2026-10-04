@@ -558,10 +558,11 @@ pub struct VoteRelease<'info> {
     /// Same rule for the landlord's share.
     #[account(mut, token::mint = mint, token::authority = lease.landlord)]
     pub landlord_token: Box<Account<'info, TokenAccount>>,
-    /// CHECK: lamports destination only (the vault's rent when it closes), pinned to `lease.landlord`
-    /// by `address` and by `has_one = landlord` on `lease`. Not `SystemAccount`: the landlord could
+    /// Receives the vault's rent-exempt lamports when it closes. Pinned to `lease.landlord` by
+    /// `address` and by `has_one = landlord` on `lease`. Not `SystemAccount`: the landlord could
     /// reassign its wallet to another program and block the release (B1; test R-22). Crediting
     /// lamports to an account owned by any program is allowed; nothing is read from it.
+    /// CHECK: lamports destination only, pinned to `lease.landlord` (see above).
     #[account(mut, address = lease.landlord)]
     pub landlord: UncheckedAccount<'info>,
     pub token_program: Program<'info, Token>,

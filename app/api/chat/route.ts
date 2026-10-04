@@ -3,7 +3,7 @@ import { aiMode } from '@/lib/ai';
 import { runTurn } from '@/lib/agents/orchestrator';
 import { chatRequestSchema } from '@/lib/db/schemas';
 import { newSession, signSession, verifySession } from '@/lib/db/session';
-import { jsonError, logError, parseBody, sessionErrorResponse } from '@/lib/db/http';
+import { jsonError, logError, parseBody, sessionErrorResponse, staleSessionResponse } from '@/lib/db/http';
 
 export const runtime = 'nodejs';
 
@@ -57,6 +57,10 @@ export async function POST(request: Request): Promise<Response> {
     // Persona switcher: a different tenant resets the session.
     if (tenantId && tenantId !== state.tenantId) {
       state = newSession(tenantId);
+    } else {
+      // With a database, an older blob than the latest stored version is a replay: refuse it.
+      const stale = await staleSessionResponse(state);
+      if (stale) return stale;
     }
   } catch (err) {
     const res = sessionErrorResponse(err);

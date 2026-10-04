@@ -4,6 +4,10 @@ import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 import type { SessionState, SignedSession, TenantId } from '../contracts';
 
 const MIN_SECRET_LENGTH = 32;
+/** A blob issued further in the future than this (clock skew allowance) is rejected. */
+const MAX_FUTURE_SKEW_MS = 5 * 60 * 1000;
+/** Default lifetime of a signed session blob. Override with SESSION_MAX_AGE_HOURS. */
+const DEFAULT_MAX_AGE_HOURS = 24 * 7;
 
 /** Thrown when the session signature is missing, malformed or does not match. Routes map it to HTTP 401. */
 export class InvalidSessionError extends Error {
@@ -11,6 +15,26 @@ export class InvalidSessionError extends Error {
   constructor(message = 'Invalid session signature') {
     super(message);
     this.name = 'InvalidSessionError';
+  }
+}
+
+/** The blob is signed correctly but too old or issued in the future. Same HTTP 401 as a bad signature. */
+export class ExpiredSessionError extends InvalidSessionError {
+  constructor(message = 'Session expired') {
+    super(message);
+    this.name = 'ExpiredSessionError';
+  }
+}
+
+/**
+ * The blob is genuine but a newer version of the same session exists on the server (replay of an old blob).
+ * Needs persistence; routes map it to HTTP 409.
+ */
+export class StaleSessionError extends Error {
+  readonly status = 409;
+  constructor(message = 'This session is out of date. Start over to continue.') {
+    super(message);
+    this.name = 'StaleSessionError';
   }
 }
 
@@ -70,13 +94,40 @@ export function newSession(tenantId?: TenantId): SessionState {
   return state;
 }
 
-export function signSession(state: SessionState): SignedSession {
-  return { state, sig: hmacHex(state) };
+function maxAgeMs(): number {
+  const hours = Number(process.env.SESSION_MAX_AGE_HOURS);
+  return (Number.isFinite(hours) && hours > 0 ? hours : DEFAULT_MAX_AGE_HOURS) * 60 * 60 * 1000;
+}
+
+/**
+ * Stamps the state with the next monotonic `version` and the server time (`issuedAt`), then signs it.
+ * The input object is not mutated; the stamped copy is returned in `state`.
+ */
+export function signSession(state: SessionState, now: number = Date.now()): SignedSession {
+  const stamped: SessionState = { ...state, version: (state.version ?? 0) + 1, issuedAt: now };
+  return { state: stamped, sig: hmacHex(stamped) };
+}
+
+/**
+ * Checks that need no storage. Blobs issued before AD-11b carry no issuedAt/version and are accepted
+ * (version 0, no age limit) so the recorded demo and open tabs keep working.
+ */
+function assertFreshEnough(state: SessionState, now: number = Date.now()): void {
+  const { issuedAt, version } = state;
+  if (version !== undefined && (!Number.isInteger(version) || version < 0)) {
+    throw new InvalidSessionError('Malformed session');
+  }
+  if (issuedAt === undefined) return;
+  if (!Number.isFinite(issuedAt) || issuedAt > now + MAX_FUTURE_SKEW_MS) {
+    throw new ExpiredSessionError('Session issued in the future');
+  }
+  if (now - issuedAt > maxAgeMs()) throw new ExpiredSessionError();
 }
 
 /**
  * Returns the verified state. `undefined` yields a brand-new session.
- * Throws InvalidSessionError on a bad signature and SessionConfigError when the secret is unusable.
+ * Throws InvalidSessionError on a bad signature (ExpiredSessionError when too old) and
+ * SessionConfigError when the secret is unusable.
  */
 export function verifySession(signed: SignedSession | undefined): SessionState {
   if (signed === undefined) return newSession();
@@ -98,5 +149,6 @@ export function verifySession(signed: SignedSession | undefined): SessionState {
   if (!timingSafeEqual(expected, given)) {
     throw new InvalidSessionError();
   }
+  assertFreshEnough(signed.state);
   return signed.state;
 }

@@ -368,7 +368,7 @@ export async function runDocumentsUpload(state: SessionState, docs: readonly Upl
       ? `Revisé ${n === 1 ? 'el archivo' : `los ${n} archivos`} que subiste (demo, datos simulados; no se guardan).`
       : `I reviewed the ${n === 1 ? 'file' : `${n} files`} you uploaded (demo, simulated data; nothing is stored).`;
   const reply = `${intro}\n${decisionReply(decision, lang)}`;
-  const userText = lang === 'es' ? `Sub� ${n} ${n === 1 ? 'documento' : 'documentos'}.` : `Uploaded ${n} ${n === 1 ? 'document' : 'documents'}.`;
+  const userText = lang === 'es' ? `Subí ${n} ${n === 1 ? 'documento' : 'documentos'}.` : `Uploaded ${n} ${n === 1 ? 'document' : 'documents'}.`;
   const history = boundedHistory([...next.history, { role: 'user', text: userText }, { role: 'assistant', text: reply }]);
   return { reply, cards: [{ type: 'prequal', decision }], state: { ...next, history } };
 }

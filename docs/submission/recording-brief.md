@@ -37,3 +37,14 @@ Run before the team records. Production serves recorded answers (`REPLAY=1`). Es
 8. Open "View on Solana Explorer": the devnet transaction shows the token transfer and the Memo `lease:v1:<leaseId>:deposit:<sha256>`. Back in the app, "Verify" shows a green match: "Match: this is the contract you paid against".
 9. Chip "Pay my first rent": the "Rent payment" card shows "List price 420.00" and 399.00 ("Paid in USDC" −3%, "On-time payment" −2%, "Total discount" −5%); the pay button gives "Rent payment confirmed." and "Payment confirmed · Rent" with "On-time payment", and the timeline at "Active lease".
 10. Mobile check at 375 px: the compact "STEP 3 OF 7" style bar and the agent lines (Orchestrator, Listings, Pre-qualification, Cross-check, Lease) show; no horizontal scroll. Optional: click ES then EN to confirm the language switch. Last, confirm the Vercel env still has `REPLAY=1`, `ESCROW_MODE=custodial` and the rate limit at 120, and that the platform wallet still has devnet SOL.
+
+## Agency panel + release (optional, about 25 s, after Ana has paid the deposit)
+
+Record this only if time allows. The PIN is shared privately; never say it or show it on screen.
+
+| Click or type | What should be on screen | What to say |
+|---|---|---|
+| Click **Agency panel** (top right, next to the ES / EN toggle; Spanish: "Panel de la inmobiliaria"). | The agency view: the NEEDS_INFO queue (Bruno: payslip out of date; Carla: cross-check name mismatch) and the leases read from devnet. If it says it is still reading, wait a few seconds. | "This is what the agency sees: the cases that need a human, and every lease and payment read straight from devnet." |
+| On Ana's newest lease (deposit held), click **Release deposit**. Enter the split (for example 400 to the tenant, 20 to the landlord) and a short reason. Type the PIN in **Demo PIN** (off camera or blurred). Click **Approve and release**. | A release confirmation with a "View on Solana Explorer" link; the lease shows as released. A second attempt is refused as already released. | "At move-out the deposit is released with two of three approvals. In this demo the server holds all three keys, so it is a simulation; the Anchor program, built and tested but not deployed, is what will enforce it on chain." |
+
+Spanish labels: "Liberar depósito", "PIN de la demo", "Aprobar y liberar".

@@ -80,3 +80,14 @@ Skip it if the take is close to 3:00. Do it only if there are 10 spare seconds, 
 
 - The video is 3:00 or less, in English, with the devnet strip visible at the start and no item from "Do not show".
 - Link sharing is "anyone with the link can view". Send the link to Ani for the README and to the pre-selection form (`preselection.md`, section 7).
+
+## Agency panel + release (optional, about 25 s, after Ana has paid the deposit)
+
+Record this only if time allows. The PIN is shared privately; never say it or show it on screen.
+
+| Click or type | What should be on screen | What to say |
+|---|---|---|
+| Click **Agency panel** (top right, next to the ES / EN toggle; Spanish: "Panel de la inmobiliaria"). | The agency view: the NEEDS_INFO queue (Bruno: payslip out of date; Carla: cross-check name mismatch) and the leases read from devnet. If it says it is still reading, wait a few seconds. | "This is what the agency sees: the cases that need a human, and every lease and payment read straight from devnet." |
+| On Ana's newest lease (deposit held), click **Release deposit**. Enter the split (for example 400 to the tenant, 20 to the landlord) and a short reason. Type the PIN in **Demo PIN** (off camera or blurred). Click **Approve and release**. | A release confirmation with a "View on Solana Explorer" link; the lease shows as released. A second attempt is refused as already released. | "At move-out the deposit is released with two of three approvals. In this demo the server holds all three keys, so it is a simulation; the Anchor program, built and tested but not deployed, is what will enforce it on chain." |
+
+Spanish labels: "Liberar depósito", "PIN de la demo", "Aprobar y liberar".

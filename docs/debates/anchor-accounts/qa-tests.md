@@ -137,3 +137,29 @@ Ids are design-neutral. "vote" means `vote_release(terms)` (qa objection 2); "pr
 | S-07 | B | a replayed pre-payment session blob on the rent route in program mode | `month_index` read from the chain; no second debit; a clear "already paid" response, not a 502 |
 | S-08 | NB | tx size of the worst case (create + deposit + memo + reference, 4 signatures) | `< 1232` bytes |
 | S-09 | B | the client bundle does not contain the Anchor coder, server keys or `lib/solana/program/*` server modules (`pnpm build` + grep `.next/static`) | pass |
+
+## Status (sol-program, 2026-10-04)
+
+Implementation: `programs/rental_escrow`. Integration tests: `tests/anchor/rental_escrow.ts`; each `it()` starts with the id. Pure math: `cargo test` in `programs/rental_escrow/src/math.rs`. Shared vectors: `tests/anchor/vectors/pricing.json`, also run by vitest in `tests/anchor/pricing-vectors.test.ts`. All of these run in CI: job `anchor-build` (`anchor test --validator legacy`) and job `test` (vitest). CI results: see the run linked in `CHANGELOG.md` and the lead's report.
+
+The release design that survived is **vote slots** (qa objection 2). The R-tests therefore assert the "Vote" expectation.
+
+| Ids | Status | Notes |
+|---|---|---|
+| Q-01, Q-02, Q-03, Q-04, Q-07, Q-08 | written (integration) | Each amount is asserted equal to `computePrice()` at the record's `paid_at` and to the literal. Q-04 pays months 0, 1, 2. Q-07 waits on the validator Clock with 12 s periods. |
+| Q-05, Q-06 | written (cargo + vitest) | `now == due`, `due ± 1`, month 2, `u64::MAX` rent. |
+| Q-09 | written (static IDL) | |
+| C-01 … C-10, C-12, C-13 | written | C-06 → `InvalidBps` (objection 8 accepted). C-08/C-09/C-10 → `InvalidMint` (pinned `address`, decimals, no freeze authority); Token-2022 → owner / program-id error. |
+| C-11 | written (static IDL) | `lease_id` is `[u8; 8]`. |
+| D-01 … D-06 | written | D-06 asserts serialized size < 1232 with a reference and a 64-hex memo, and finds the tx by the reference. |
+| P-01 … P-11 | written | P-07: the outsider cannot co-sign (it is not an account of the instruction); the owner check rejects it. |
+| P-12 | written, **changed** | The overflow is rejected at `create_lease` (the last month's due date must fit in i64), so it can never reach `pay_rent`. `cargo test` covers `due_ts` overflow directly. |
+| R-01 … R-20 | written | R-05: no error, no payout (the slot is overwritten with the same value). R-07: no role argument in the IDL. R-09: `AccountNotInitialized` (vault closed) or `LeaseNotActive`. R-17: without the idempotent ATA create the vote fails (`AccountNotInitialized`); with it, the payout succeeds. R-20: allowed and documented (objection 10 rebutted). |
+| X-01 | written | deposit, pay and vote. **TODO:** `cancel_lease` with a fake token program (same `Program<Token>` type, low risk). |
+| X-02 | written (system program) | The associated-token program is not an account of `create_lease` (the program never creates ATAs), so that half is N/A. |
+| X-03 | written | A `PaymentRecord` as `Lease` → discriminator mismatch; a token account as `Lease` → wrong owner. **TODO:** a byte-identical `Lease` owned by another program needs a fixture account. |
+| X-04 | written (in the TS suite, not a separate CI grep step) | |
+| X-05, X-06 | written | |
+| H-01, H-02, H-03 | written | H-03 only covers memos the program tests send (D-06). The app's memos are sol-client's. |
+| H-04 | **TODO (hand-off)** | Salting is off-chain: ai-agents (`lib/agents/lease.ts`) and sol-client (`lib/solana/hash.ts`). |
+| S-01 … S-09 | **TODO (sol-client)** | Client builders and routes do not exist yet. D-06 already covers the S-08 worst-case size at the program level. |

@@ -1,0 +1,1668 @@
+{
+  "address": "BJiwpRFDpNoURJFKiuetaF4D2hw19JSkqbuVjUWuTLVb",
+  "metadata": {
+    "name": "rental_escrow",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Rental escrow: lease terms, deposit vault, rent with on-chain discounts, 2-of-3 deposit release (devnet only)"
+  },
+  "instructions": [
+    {
+      "name": "cancel_lease",
+      "docs": [
+        "Landlord cancels a lease that never received its deposit. Any donated tokens in the vault",
+        "go to the landlord, the vault is closed (rent back to the landlord) and the `Lease` is kept",
+        "with status `Cancelled`, so the same seeds can never be re-created with other terms."
+      ],
+      "discriminator": [
+        227,
+        48,
+        240,
+        188,
+        20,
+        185,
+        173,
+        145
+      ],
+      "accounts": [
+        {
+          "name": "landlord",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "lease"
+          ]
+        },
+        {
+          "name": "lease",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  101,
+                  97,
+                  115,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "lease.landlord",
+                "account": "Lease"
+              },
+              {
+                "kind": "account",
+                "path": "lease.lease_id",
+                "account": "Lease"
+              }
+            ]
+          }
+        },
+        {
+          "name": "mint",
+          "relations": [
+            "lease"
+          ]
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "lease"
+              }
+            ]
+          }
+        },
+        {
+          "name": "landlord_token",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "lease.landlord",
+                "account": "Lease"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "create_lease",
+      "docs": [
+        "Creates the `Lease` PDA and its empty deposit vault. Landlord (payer) and agency sign.",
+        "The tenant is named in `params` and consents by signing `deposit_escrow`."
+      ],
+      "discriminator": [
+        158,
+        42,
+        229,
+        17,
+        202,
+        87,
+        68,
+        148
+      ],
+      "accounts": [
+        {
+          "name": "landlord",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "agency",
+          "signer": true
+        },
+        {
+          "name": "mint",
+          "address": "GiCyZLFrkhKd3X4CpFGe4sMHB2kiPob5ToH8FtjYou7X"
+        },
+        {
+          "name": "lease",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  101,
+                  97,
+                  115,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "landlord"
+              },
+              {
+                "kind": "arg",
+                "path": "params.lease_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "lease"
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "CreateLeaseParams"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "deposit_escrow",
+      "docs": [
+        "The tenant moves `deposit_amount` into the vault. `Created` -> `Active`."
+      ],
+      "discriminator": [
+        226,
+        112,
+        158,
+        176,
+        178,
+        118,
+        153,
+        128
+      ],
+      "accounts": [
+        {
+          "name": "tenant",
+          "signer": true,
+          "relations": [
+            "lease"
+          ]
+        },
+        {
+          "name": "lease",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  101,
+                  97,
+                  115,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "lease.landlord",
+                "account": "Lease"
+              },
+              {
+                "kind": "account",
+                "path": "lease.lease_id",
+                "account": "Lease"
+              }
+            ]
+          }
+        },
+        {
+          "name": "mint",
+          "relations": [
+            "lease"
+          ]
+        },
+        {
+          "name": "tenant_token",
+          "writable": true
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "lease"
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "pay_rent",
+      "docs": [
+        "Pays period `month_index` (must equal `months_paid`). The amount and the on-time flag are",
+        "computed here from the lease terms and `Clock`; the client only bounds it with `max_amount`."
+      ],
+      "discriminator": [
+        69,
+        155,
+        112,
+        183,
+        178,
+        234,
+        94,
+        100
+      ],
+      "accounts": [
+        {
+          "name": "tenant",
+          "signer": true,
+          "relations": [
+            "lease"
+          ]
+        },
+        {
+          "name": "payer",
+          "docs": [
+            "Pays the `PaymentRecord` rent. May be the tenant or a platform fee payer; it has no role."
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "lease",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  101,
+                  97,
+                  115,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "lease.landlord",
+                "account": "Lease"
+              },
+              {
+                "kind": "account",
+                "path": "lease.lease_id",
+                "account": "Lease"
+              }
+            ]
+          }
+        },
+        {
+          "name": "mint",
+          "relations": [
+            "lease"
+          ]
+        },
+        {
+          "name": "tenant_token",
+          "writable": true
+        },
+        {
+          "name": "landlord_token",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "lease.landlord",
+                "account": "Lease"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "payment_record",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  97,
+                  121,
+                  109,
+                  101,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "lease"
+              },
+              {
+                "kind": "arg",
+                "path": "month_index"
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "month_index",
+          "type": "u16"
+        },
+        {
+          "name": "max_amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "vote_release",
+      "docs": [
+        "One party (role resolved from the signer, never from an argument) records its vote for the",
+        "release terms. Each role owns one slot and can only overwrite its own. When two slots hold",
+        "the same terms hash, the vault pays the split, sweeps any excess to the landlord and closes."
+      ],
+      "discriminator": [
+        158,
+        229,
+        214,
+        203,
+        81,
+        188,
+        146,
+        11
+      ],
+      "accounts": [
+        {
+          "name": "voter",
+          "signer": true
+        },
+        {
+          "name": "lease",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  101,
+                  97,
+                  115,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "lease.landlord",
+                "account": "Lease"
+              },
+              {
+                "kind": "account",
+                "path": "lease.lease_id",
+                "account": "Lease"
+              }
+            ]
+          }
+        },
+        {
+          "name": "mint",
+          "relations": [
+            "lease"
+          ]
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "lease"
+              }
+            ]
+          }
+        },
+        {
+          "name": "tenant_token",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "lease.tenant",
+                "account": "Lease"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "landlord_token",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "lease.landlord",
+                "account": "Lease"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "landlord",
+          "docs": [
+            "Receives the vault's rent-exempt lamports when it closes. Must be `lease.landlord`."
+          ],
+          "writable": true,
+          "relations": [
+            "lease"
+          ]
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "to_tenant",
+          "type": "u64"
+        },
+        {
+          "name": "to_landlord",
+          "type": "u64"
+        },
+        {
+          "name": "reason_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "exit_report_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Lease",
+      "discriminator": [
+        14,
+        103,
+        218,
+        61,
+        248,
+        234,
+        105,
+        84
+      ]
+    },
+    {
+      "name": "PaymentRecord",
+      "discriminator": [
+        202,
+        168,
+        56,
+        249,
+        127,
+        226,
+        86,
+        226
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "DepositHeld",
+      "discriminator": [
+        38,
+        255,
+        170,
+        169,
+        41,
+        17,
+        14,
+        39
+      ]
+    },
+    {
+      "name": "DepositReleased",
+      "discriminator": [
+        124,
+        51,
+        186,
+        122,
+        47,
+        97,
+        234,
+        181
+      ]
+    },
+    {
+      "name": "LeaseCancelled",
+      "discriminator": [
+        130,
+        139,
+        115,
+        112,
+        79,
+        15,
+        160,
+        150
+      ]
+    },
+    {
+      "name": "LeaseCreated",
+      "discriminator": [
+        203,
+        18,
+        89,
+        131,
+        118,
+        205,
+        117,
+        1
+      ]
+    },
+    {
+      "name": "ReleaseVoted",
+      "discriminator": [
+        112,
+        156,
+        30,
+        61,
+        235,
+        32,
+        168,
+        61
+      ]
+    },
+    {
+      "name": "RentPaid",
+      "discriminator": [
+        140,
+        29,
+        172,
+        69,
+        152,
+        38,
+        73,
+        241
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "InvalidParties",
+      "msg": "Tenant, landlord and agency must be three distinct, non-default keys"
+    },
+    {
+      "code": 6001,
+      "name": "InvalidParams",
+      "msg": "Invalid lease parameters"
+    },
+    {
+      "code": 6002,
+      "name": "InvalidBps",
+      "msg": "Each discount must be <= 10000 bps and their sum < 10000 bps"
+    },
+    {
+      "code": 6003,
+      "name": "InvalidMint",
+      "msg": "Mint must be the pinned 6-decimal payment mint with no freeze authority"
+    },
+    {
+      "code": 6004,
+      "name": "LeaseNotCreated",
+      "msg": "The lease is not in the Created state"
+    },
+    {
+      "code": 6005,
+      "name": "LeaseNotActive",
+      "msg": "The lease is not active"
+    },
+    {
+      "code": 6006,
+      "name": "MonthOutOfOrder",
+      "msg": "month_index must equal months_paid"
+    },
+    {
+      "code": 6007,
+      "name": "MonthOutOfRange",
+      "msg": "month_index is outside the lease term"
+    },
+    {
+      "code": 6008,
+      "name": "MathOverflow",
+      "msg": "Arithmetic overflow"
+    },
+    {
+      "code": 6009,
+      "name": "SplitMismatch",
+      "msg": "to_tenant + to_landlord must equal the deposit"
+    },
+    {
+      "code": 6010,
+      "name": "NotAParty",
+      "msg": "Signer is not the tenant, the landlord or the agency of this lease"
+    },
+    {
+      "code": 6011,
+      "name": "AmountAboveMax",
+      "msg": "The computed rent is above the max_amount the payer approved"
+    },
+    {
+      "code": 6012,
+      "name": "ZeroAmount",
+      "msg": "The computed rent is zero"
+    },
+    {
+      "code": 6013,
+      "name": "VaultShortfall",
+      "msg": "The vault holds less than the deposit"
+    }
+  ],
+  "types": [
+    {
+      "name": "CreateLeaseParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "lease_id",
+            "docs": [
+              "Raw 8 random bytes of the off-chain id `ls_<16 hex>` (the same id the memo uses)."
+            ],
+            "type": {
+              "array": [
+                "u8",
+                8
+              ]
+            }
+          },
+          {
+            "name": "tenant",
+            "type": "pubkey"
+          },
+          {
+            "name": "rent_amount",
+            "type": "u64"
+          },
+          {
+            "name": "deposit_amount",
+            "type": "u64"
+          },
+          {
+            "name": "due_day_ts",
+            "type": "i64"
+          },
+          {
+            "name": "period_seconds",
+            "type": "i64"
+          },
+          {
+            "name": "term_months",
+            "type": "u16"
+          },
+          {
+            "name": "discount_usdc_bps",
+            "type": "u16"
+          },
+          {
+            "name": "discount_ontime_bps",
+            "type": "u16"
+          },
+          {
+            "name": "contract_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "entry_report_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "DepositHeld",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "lease",
+            "type": "pubkey"
+          },
+          {
+            "name": "tenant",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "held_at",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DepositReleased",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "lease",
+            "type": "pubkey"
+          },
+          {
+            "name": "completed_by",
+            "type": "pubkey"
+          },
+          {
+            "name": "completed_by_role",
+            "type": "u8"
+          },
+          {
+            "name": "terms_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "to_tenant",
+            "type": "u64"
+          },
+          {
+            "name": "to_landlord",
+            "type": "u64"
+          },
+          {
+            "name": "excess_to_landlord",
+            "type": "u64"
+          },
+          {
+            "name": "reason_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "exit_report_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Lease",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "lease_id",
+            "type": {
+              "array": [
+                "u8",
+                8
+              ]
+            }
+          },
+          {
+            "name": "landlord",
+            "type": "pubkey"
+          },
+          {
+            "name": "tenant",
+            "type": "pubkey"
+          },
+          {
+            "name": "agency",
+            "type": "pubkey"
+          },
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "rent_amount",
+            "type": "u64"
+          },
+          {
+            "name": "deposit_amount",
+            "type": "u64"
+          },
+          {
+            "name": "due_day_ts",
+            "type": "i64"
+          },
+          {
+            "name": "period_seconds",
+            "type": "i64"
+          },
+          {
+            "name": "term_months",
+            "type": "u16"
+          },
+          {
+            "name": "discount_usdc_bps",
+            "type": "u16"
+          },
+          {
+            "name": "discount_ontime_bps",
+            "type": "u16"
+          },
+          {
+            "name": "contract_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "entry_report_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "exit_report_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "deposit_held",
+            "type": "bool"
+          },
+          {
+            "name": "months_paid",
+            "type": "u16"
+          },
+          {
+            "name": "on_time_streak",
+            "type": "u16"
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "LeaseStatus"
+              }
+            }
+          },
+          {
+            "name": "votes",
+            "docs": [
+              "Release vote slots, indexed by role (tenant 0, landlord 1, agency 2). All zero = no vote."
+            ],
+            "type": {
+              "array": [
+                {
+                  "array": [
+                    "u8",
+                    32
+                  ]
+                },
+                3
+              ]
+            }
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "vault_bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LeaseCancelled",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "lease",
+            "type": "pubkey"
+          },
+          {
+            "name": "cancelled_at",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LeaseCreated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "lease",
+            "type": "pubkey"
+          },
+          {
+            "name": "lease_id",
+            "type": {
+              "array": [
+                "u8",
+                8
+              ]
+            }
+          },
+          {
+            "name": "landlord",
+            "type": "pubkey"
+          },
+          {
+            "name": "tenant",
+            "type": "pubkey"
+          },
+          {
+            "name": "agency",
+            "type": "pubkey"
+          },
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "rent_amount",
+            "type": "u64"
+          },
+          {
+            "name": "deposit_amount",
+            "type": "u64"
+          },
+          {
+            "name": "due_day_ts",
+            "type": "i64"
+          },
+          {
+            "name": "period_seconds",
+            "type": "i64"
+          },
+          {
+            "name": "term_months",
+            "type": "u16"
+          },
+          {
+            "name": "discount_usdc_bps",
+            "type": "u16"
+          },
+          {
+            "name": "discount_ontime_bps",
+            "type": "u16"
+          },
+          {
+            "name": "contract_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "entry_report_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "LeaseStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Created"
+          },
+          {
+            "name": "Active"
+          },
+          {
+            "name": "Closed"
+          },
+          {
+            "name": "Cancelled"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PaymentRecord",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "lease",
+            "type": "pubkey"
+          },
+          {
+            "name": "tenant",
+            "type": "pubkey"
+          },
+          {
+            "name": "month_index",
+            "type": "u16"
+          },
+          {
+            "name": "amount_paid",
+            "type": "u64"
+          },
+          {
+            "name": "discount_applied_bps",
+            "type": "u16"
+          },
+          {
+            "name": "due_ts",
+            "type": "i64"
+          },
+          {
+            "name": "paid_at",
+            "type": "i64"
+          },
+          {
+            "name": "on_time",
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ReleaseVoted",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "lease",
+            "type": "pubkey"
+          },
+          {
+            "name": "voter",
+            "type": "pubkey"
+          },
+          {
+            "name": "role",
+            "type": "u8"
+          },
+          {
+            "name": "terms_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "to_tenant",
+            "type": "u64"
+          },
+          {
+            "name": "to_landlord",
+            "type": "u64"
+          },
+          {
+            "name": "reason_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "exit_report_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "RentPaid",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "lease",
+            "type": "pubkey"
+          },
+          {
+            "name": "tenant",
+            "type": "pubkey"
+          },
+          {
+            "name": "month_index",
+            "type": "u16"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "discount_bps",
+            "type": "u16"
+          },
+          {
+            "name": "on_time",
+            "type": "bool"
+          },
+          {
+            "name": "due_ts",
+            "type": "i64"
+          },
+          {
+            "name": "paid_at",
+            "type": "i64"
+          },
+          {
+            "name": "on_time_streak",
+            "type": "u16"
+          }
+        ]
+      }
+    }
+  ],
+  "constants": [
+    {
+      "name": "LEASE_SEED",
+      "type": "bytes",
+      "value": "[108, 101, 97, 115, 101]"
+    },
+    {
+      "name": "PAYMENT_DECIMALS",
+      "type": "u8",
+      "value": "6"
+    },
+    {
+      "name": "PAYMENT_MINT",
+      "docs": [
+        "The only accepted payment mint: the devnet tUSDC test mint (6 decimals, no freeze authority)",
+        "created by scripts/setup-devnet.ts. Classic SPL Token only."
+      ],
+      "type": "pubkey",
+      "value": "GiCyZLFrkhKd3X4CpFGe4sMHB2kiPob5ToH8FtjYou7X"
+    },
+    {
+      "name": "PAYMENT_SEED",
+      "type": "bytes",
+      "value": "[112, 97, 121, 109, 101, 110, 116]"
+    },
+    {
+      "name": "ROLE_AGENCY",
+      "type": "u8",
+      "value": "2"
+    },
+    {
+      "name": "ROLE_LANDLORD",
+      "type": "u8",
+      "value": "1"
+    },
+    {
+      "name": "ROLE_TENANT",
+      "type": "u8",
+      "value": "0"
+    },
+    {
+      "name": "VAULT_SEED",
+      "type": "bytes",
+      "value": "[118, 97, 117, 108, 116]"
+    }
+  ]
+}

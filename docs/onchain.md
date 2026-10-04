@@ -153,6 +153,12 @@ Disclosure (qa objection 7, to be used verbatim in README › Security considera
 - The integration file is deliberately not named `*.test.ts`, so vitest does not try to run it without a validator.
 - `[provider] cluster` must stay `localnet`. With any other cluster, `anchor test` deploys to it.
 
+**Measured in CI** (run [37180557182](https://github.com/Malejo01/keyhold/actions/runs/37180557182)):
+- 65/65 integration tests and 5/5 `cargo test` pass; vitest vectors 13/13.
+- `.so` size: 267 808 bytes.
+- Max compute units per instruction: `create_lease` 33 679, `deposit_escrow` 11 980, `pay_rent` 24 399, `vote_release` (with payout) 28 528, `cancel_lease` 19 838. All are far below the 200 000 default, so the client needs no `SetComputeUnitLimit`.
+- Worst-case tx `[create_lease, deposit_escrow + reference, memo]` with 4 signatures fits under 1 232 bytes (D-06).
+
 ## Deploy (documented, NOT executed)
 
 Nothing has been deployed. CI never deploys and holds no key.
@@ -179,13 +185,13 @@ After deploy:
 - hand the IDL to solana-client-engineer;
 - for a frozen demo, optionally make it immutable later with `solana program set-upgrade-authority <PROGRAM_ID> --final` (irreversible).
 
-Cost: a ~300–400 KB program needs ≈ 2–3 SOL of devnet SOL for the program data account, plus the same again temporarily for the write buffer, which is refunded.
+Cost: the CI build of `rental_escrow.so` is **267 808 bytes**. The program data account keeps ≈ 1.87 SOL, and the write buffer needs about the same temporarily (refunded). Fund the deployer with **≈ 4 SOL** of devnet SOL.
 
 ## Hand-offs
 
 | To | What |
 |---|---|
-| solana-client-engineer | IDL at `target/idl/rental_escrow.json` (committed once CI produces it). Seeds and PDA helpers above. `max_amount` = the quote shown. `month_index` read from `Lease.months_paid`. Map "already in use" on `pay_rent` and `MonthOutOfOrder` to "already paid". Idempotent ATA creation before pay, vote and cancel. Confirm by state (`PaymentRecord` / `deposit_held`), not by tx shape. Verify reads `Lease.contract_hash`. Release txs on the public route carry only the wallet's own signature. |
+| solana-client-engineer | IDL at `target/idl/rental_escrow.json` (committed from CI run 37180557182; its `address` is the placeholder id until the deploy runs `anchor keys sync`). Seeds and PDA helpers above. `max_amount` = the quote shown. `month_index` read from `Lease.months_paid`. Map "already in use" on `pay_rent` and `MonthOutOfOrder` to "already paid". Idempotent ATA creation before pay, vote and cancel. Confirm by state (`PaymentRecord` / `deposit_held`), not by tx shape. Verify reads `Lease.contract_hash`. Release txs on the public route carry only the wallet's own signature. |
 | ai-agents-engineer | Replace calendar-month `addMonthsTs` with fixed `period_seconds = 2_592_000` for due dates (affects both modes). Salt contract and report text before hashing (H-04). |
 | submission-writer / ui-motion-engineer | The custody disclosure sentence above (README › Security considerations, receipt, video). |
 | Mauro | Deploy (above). Decision 1 (who holds the landlord and agency keys in the video). Second Phantom wallet + devnet SOL if the video shows a real 2-of-3. |

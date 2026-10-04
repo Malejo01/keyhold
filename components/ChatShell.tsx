@@ -8,6 +8,7 @@ import { createRealApi, fixtureApi, isStaleSession, type Api } from "./api-clien
 import { CardRenderer, type CardContext } from "./cards/CardRenderer";
 import { AgentActivity, AgentActivityCompact } from "./AgentActivity";
 import { deriveActivity } from "./deriveAgents";
+import Link from "next/link";
 import { useI18n } from "./I18nProvider";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { CHIP_TEXT, BOOK_VISIT_FOR } from "@/lib/i18n/chips";
@@ -324,6 +325,9 @@ export function ChatShell({ useFixtures, query = "" }: { useFixtures: boolean; q
             <div className="mx-auto flex w-full max-w-3xl flex-wrap items-center justify-between gap-x-4 gap-y-2">
               <Logo />
               <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2">
+                <Link href={`/${lang}/agency`} className="text-sm font-semibold text-accent underline underline-offset-2">
+                  {t.hero.agencyLink}
+                </Link>
                 <PersonaSwitcher value={tenantId} onChange={changePersona} />
                 <LanguageSwitcher query={query} fromChat />
               </div>

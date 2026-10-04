@@ -81,7 +81,7 @@ export function toLeasesResponse(snap: LedgerSnapshot): LeasesResponse {
     pending: snap.pending,
     totalLeases: snap.totalLeases,
     cacheTtlSeconds: CACHE_TTL_MS / 1000,
-    releaseAvailable: Boolean(process.env.AGENCY_SECRET_KEY?.trim()) && process.env.ESCROW_MODE?.trim() !== "program",
+    releaseAvailable: Boolean(process.env.AGENCY_SECRET_KEY?.trim()) && Boolean(process.env.DEMO_AGENCY_PIN?.trim()) && process.env.ESCROW_MODE?.trim() !== "program",
     escrowMode: process.env.ESCROW_MODE?.trim() === "program" ? "program" : "custodial",
   };
 }

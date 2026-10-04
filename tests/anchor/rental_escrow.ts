@@ -23,6 +23,7 @@ import {
   type AccountMeta,
 } from "@solana/web3.js";
 import {
+  AuthorityType,
   TOKEN_2022_PROGRAM_ID,
   TOKEN_PROGRAM_ID,
   closeAccount,
@@ -33,6 +34,7 @@ import {
   getAccount,
   getAssociatedTokenAddressSync,
   mintTo,
+  setAuthority,
   transferChecked,
 } from "@solana/spl-token";
 import { computePrice } from "../../lib/rules/pricing";
@@ -458,6 +460,28 @@ function dropSigner(ix: TransactionInstruction, key: PublicKey): TransactionInst
   return ix;
 }
 
+/**
+ * Classic SPL Token has no immutable owner: the wallet that owns an ATA can hand it to another key
+ * (`SetAuthority AccountOwner`) at any time. qa B4 review, B1.
+ */
+async function moveAtaOwner(party: Keypair): Promise<void> {
+  await setAuthority(
+    connection,
+    walletKp,
+    ata(party.publicKey),
+    party,
+    AuthorityType.AccountOwner,
+    Keypair.generate().publicKey,
+    [],
+    { commitment: "confirmed" },
+  );
+}
+
+/** A fresh, non-ATA token account owned by `owner`. Anyone can create it without `owner`'s signature. */
+function freshTokenAccount(owner: PublicKey): Promise<PublicKey> {
+  return createAccount(connection, walletKp, MINT, owner, Keypair.generate(), { commitment: "confirmed" });
+}
+
 // ---------------------------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------------------------
@@ -860,6 +884,22 @@ describe("rental_escrow", () => {
       assert.ok(!r.tenant.equals(walletKp.publicKey));
       assert.ok(r.lease.equals(c.lease));
     });
+
+    it("P-13 landlord moves its ATA's owner before the due date; the tenant still pays on time into a fresh landlord account", async () => {
+      const L6 = await newParty();
+      const c = await newLease({ landlord: L6, due: (await clockNow()) + 3600 });
+      await moveAtaOwner(L6);
+      // The moved ATA no longer belongs to the landlord, so it is rejected ...
+      await expectFail(pay(c, 0), ["ConstraintTokenOwner"]);
+      // ... but any other token account the landlord owns is accepted, so the landlord cannot force a late payment.
+      const fresh = await freshTokenAccount(L6.publicKey);
+      await send([await payIx(c, 0, U64_MAX, { landlordToken: fresh })], [T]);
+      const r = await fetchRecord(c.lease, 0);
+      assert.equal(r.onTime, true, "paid on time");
+      assert.equal(r.amountPaid.toNumber(), 316_666_666);
+      assert.equal(await tokenBalance(fresh), BigInt(316_666_666));
+      assert.equal((await fetchLease(c.lease)).onTimeStreak, 1);
+    });
   });
 
   // ------------------------------------------------------------------ R: release (2-of-3 votes)
@@ -1107,6 +1147,55 @@ describe("rental_escrow", () => {
       const l = await fetchLease(c.lease);
       assert.equal(l.monthsPaid, 0);
       assert.equal(statusOf(l), "closed");
+    });
+    it("R-21 a party moves its ATA's owner away; the other two still release into a fresh account it owns", async () => {
+      // Tenant side, at the end of the term (the tenant holds the deposit hostage).
+      const T2 = await newParty(DEPOSIT + RENT);
+      const c = await newLease({ tenant: T2, params: { termMonths: 1 } });
+      await pay(c, 0);
+      await moveAtaOwner(T2);
+      const t = terms(700_000_000, 300_000_000, "r21-tenant");
+      await expectFail(vote(c, L, t), ["ConstraintTokenOwner"]);
+      const freshT = await freshTokenAccount(T2.publicKey);
+      const lb = await tokenBalance(ata(L.publicKey));
+      await send([await voteIx(c, L.publicKey, t, { tenantToken: freshT })], [L]);
+      await send([await voteIx(c, A.publicKey, t, { tenantToken: freshT })], [A]);
+      assert.equal(await connection.getAccountInfo(c.vault, "confirmed"), null, "vault closed");
+      assert.equal(await tokenBalance(freshT), BigInt(700_000_000));
+      assert.equal((await tokenBalance(ata(L.publicKey))) - lb, BigInt(300_000_000));
+      assert.equal(statusOf(await fetchLease(c.lease)), "closed");
+
+      // Landlord side (mirror): the landlord cannot block a tenant + agency release.
+      const L4 = await newParty();
+      const d = await newLease({ landlord: L4 });
+      await moveAtaOwner(L4);
+      const u = terms(900_000_000, 100_000_000, "r21-landlord");
+      await expectFail(vote(d, T, u), ["ConstraintTokenOwner"]);
+      const freshL = await freshTokenAccount(L4.publicKey);
+      const tb = await tokenBalance(ata(T.publicKey));
+      await send([await voteIx(d, T.publicKey, u, { landlordToken: freshL })], [T]);
+      await send([await voteIx(d, A.publicKey, u, { landlordToken: freshL })], [A]);
+      assert.equal(await connection.getAccountInfo(d.vault, "confirmed"), null, "vault closed");
+      assert.equal((await tokenBalance(ata(T.publicKey))) - tb, BigInt(900_000_000));
+      assert.equal(await tokenBalance(freshL), BigInt(100_000_000));
+      assert.equal(statusOf(await fetchLease(d.lease)), "closed");
+    });
+
+    it("R-22 landlord wallet reassigned to another program; the release still succeeds and the vault rent reaches it", async () => {
+      const L5 = await newParty();
+      const c = await newLease({ landlord: L5 });
+      const vaultLamports = (await connection.getAccountInfo(c.vault, "confirmed"))?.lamports ?? 0;
+      assert.ok(vaultLamports > 0);
+      const foreignOwner = Keypair.generate().publicKey;
+      await send([SystemProgram.assign({ accountPubkey: L5.publicKey, programId: foreignOwner })], [L5]);
+      assert.ok((await connection.getAccountInfo(L5.publicKey, "confirmed"))?.owner.equals(foreignOwner), "reassigned");
+      const before = await connection.getBalance(L5.publicKey, "confirmed");
+      const t = terms(DEPOSIT, 0, "r22");
+      await vote(c, T, t);
+      await vote(c, A, t);
+      assert.equal(await connection.getAccountInfo(c.vault, "confirmed"), null, "vault closed");
+      assert.equal((await connection.getBalance(L5.publicKey, "confirmed")) - before, vaultLamports, "vault rent to L5");
+      assert.equal(statusOf(await fetchLease(c.lease)), "closed");
     });
   });
 

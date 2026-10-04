@@ -160,6 +160,8 @@ const accounts = program.account as unknown as AccountClients;
 const eventParser = new EventParser(program.programId, program.coder);
 const allEvents: DecodedEvent[] = [];
 const memosSent: string[] = [];
+/** Max compute units seen per program instruction (printed at the end, for docs/onchain.md). */
+const maxCu: Record<string, number> = {};
 let uniqCounter = 1;
 
 const sha = (s: string): number[] => Array.from(createHash("sha256").update(s).digest());
@@ -211,6 +213,15 @@ async function send(ixs: TransactionInstruction[], signers: Keypair[]): Promise<
   const got = await connection.getTransaction(sig, { commitment: "confirmed", maxSupportedTransactionVersion: 0 });
   const logs = got?.meta?.logMessages ?? [];
   for (const ev of eventParser.parseLogs(logs)) allEvents.push(ev as DecodedEvent);
+  let current = "";
+  for (const line of logs) {
+    const ixName = /^Program log: Instruction: (\w+)$/.exec(line);
+    if (ixName) current = ixName[1];
+    const used = line.startsWith(`Program ${program.programId.toBase58()} consumed `)
+      ? /consumed (\d+) of/.exec(line)
+      : null;
+    if (used && current) maxCu[current] = Math.max(maxCu[current] ?? 0, Number(used[1]));
+  }
   return sig;
 }
 
@@ -806,10 +817,11 @@ describe("rental_escrow", () => {
       await expectFail(send([ix], [X]), ["ConstraintHasOne"]);
     });
 
-    it("P-07 tenant_token owned by X (X co-signs) -> ConstraintTokenOwner", async () => {
+    it("P-07 tenant_token owned by X -> ConstraintTokenOwner", async () => {
+      // X is not an account of the instruction, so it cannot co-sign; the owner check alone must reject it.
       const c = await newLease();
       const ix = await payIx(c, 0, U64_MAX, { tenantToken: ata(X.publicKey) });
-      await expectFail(send([ix], [T, X]), ["ConstraintTokenOwner"]);
+      await expectFail(send([ix], [T]), ["ConstraintTokenOwner"]);
     });
 
     it("P-08 / P-09 landlord_token = X's ATA or the tenant's own ATA -> rejected; balances unchanged", async () => {
@@ -1044,17 +1056,21 @@ describe("rental_escrow", () => {
     it("R-17 landlord closed its ATA before the release; the tx recreates it idempotently", async () => {
       const L3 = await newParty();
       const c = await newLease({ landlord: L3 });
-      await closeAccount(connection, walletKp, ata(L3.publicKey), L3.publicKey, L3);
-      assert.equal(await connection.getAccountInfo(ata(L3.publicKey), "confirmed"), null);
       const t = terms(100_000_000, 900_000_000, "r17");
       await vote(c, T, t);
+      // The landlord closes its (empty) ATA to block the payout.
+      await closeAccount(connection, walletKp, ata(L3.publicKey), L3.publicKey, L3);
+      assert.equal(await connection.getAccountInfo(ata(L3.publicKey), "confirmed"), null);
+      // Without the idempotent create every vote needs both ATAs, so it fails ...
+      await expectFail(vote(c, A, t), ["AccountNotInitialized"]);
+      // ... and with it (prepended by the client, paid by the fee payer) the payout goes through.
       const recreate = createAssociatedTokenAccountIdempotentInstruction(
         walletKp.publicKey,
         ata(L3.publicKey),
         L3.publicKey,
         MINT,
       );
-      await send([recreate, await voteIx(c, L3.publicKey, t)], [L3]);
+      await send([recreate, await voteIx(c, A.publicKey, t)], [A]);
       assert.equal(await tokenBalance(ata(L3.publicKey)), BigInt(900_000_000));
       assert.equal(statusOf(await fetchLease(c.lease)), "closed");
     });
@@ -1209,5 +1225,6 @@ describe("rental_escrow", () => {
 
   after(() => {
     console.log(`events decoded: ${allEvents.length}`);
+    console.log(`max compute units per instruction: ${JSON.stringify(maxCu)}`);
   });
 });

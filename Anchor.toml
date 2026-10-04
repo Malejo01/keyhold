@@ -23,8 +23,8 @@ cluster = "localnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
-# 1) pure math unit tests (shared vectors with lib/rules/pricing.ts), 2) integration tests on the local validator.
-test = "cargo test --manifest-path programs/rental_escrow/Cargo.toml --lib && pnpm exec tsx --test --test-concurrency=1 tests/anchor/rental_escrow.ts"
+# 0) print the .so size and the IDL (for the deploy cost and the committed IDL), 1) pure math unit tests (shared vectors with lib/rules/pricing.ts), 2) integration tests on the local validator.
+test = "ls -l target/deploy/rental_escrow.so && echo ===IDL-BEGIN=== && cat target/idl/rental_escrow.json && echo ===IDL-END=== && cargo test --manifest-path programs/rental_escrow/Cargo.toml --lib && pnpm exec tsx --test --test-concurrency=1 tests/anchor/rental_escrow.ts"
 
 [test]
 startup_wait = 20000

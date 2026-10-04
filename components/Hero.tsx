@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, useReducedMotion } from "framer-motion";
+import { MotionConfig, motion, useReducedMotion } from "framer-motion";
 import type { ReactNode } from "react";
 import { APP_NAME } from "@/lib/config/brand";
 import { heroItem, heroStagger } from "@/lib/motion/presets";
@@ -37,6 +37,7 @@ export function Hero({ targetId }: { targetId: string }) {
   }
 
   return (
+    <MotionConfig reducedMotion="user">
     <section aria-labelledby="hero-title" className="border-b border-border bg-surface">
       <motion.div
         variants={heroStagger}
@@ -100,5 +101,6 @@ export function Hero({ targetId }: { targetId: string }) {
         </motion.div>
       </motion.div>
     </section>
+    </MotionConfig>
   );
 }

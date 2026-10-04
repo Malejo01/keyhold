@@ -50,16 +50,19 @@ function Avatar({ row, size }: { row: AgentRow; size: "sm" | "md" }) {
 
 /** Full list for the desktop sidebar. The connector shows the cross-check reviewing pre-qualification. */
 export function AgentActivity({ rows, className }: { rows: AgentRow[]; className?: string }) {
+  const latest = [...rows].reverse().find((r) => r.summary);
   return (
     <section aria-label="Agent activity" className={className}>
       <h2 className="font-display text-sm font-semibold uppercase tracking-wide text-muted">Agent activity</h2>
-      <p className="mt-1 text-xs text-subtle">What each agent did, from the latest replies.</p>
-      <ul aria-live="polite" className="mt-4 flex flex-col">
+      <p role="status" aria-live="polite" className="sr-only">
+        {latest ? `${latest.name}: ${latest.summary}` : ""}
+      </p>
+      <ul className="mt-3 flex flex-col">
         {rows.map((r, i) => {
           const isLast = i === rows.length - 1;
           const reviewed = r.id === "prequal" && rows[i + 1]?.state === "done";
           return (
-            <li key={r.id} className={cx("relative flex gap-3", !isLast && "pb-4")}>
+            <li key={r.id} className={cx("relative flex gap-3", !isLast && "pb-3")}>
               {!isLast && (
                 <span
                   aria-hidden="true"
@@ -77,7 +80,7 @@ export function AgentActivity({ rows, className }: { rows: AgentRow[]; className
               )}
               <Avatar row={r} size="md" />
               <motion.div variants={agentState} initial={false} animate={r.state} className="min-w-0 pt-1">
-                <p className="text-sm font-semibold leading-5">
+                <p className={cx("text-sm font-semibold leading-5", r.state === "idle" && "text-muted")}>
                   {r.name}
                   {reviewed && <span className="ml-1.5 text-xs font-medium text-accent">reviewed by cross-check</span>}
                 </p>
@@ -92,7 +95,7 @@ export function AgentActivity({ rows, className }: { rows: AgentRow[]; className
                     {r.summary}
                   </motion.p>
                 ) : (
-                  <p className="text-xs text-subtle">{r.role}</p>
+                  <p className="text-xs text-muted">{r.role}</p>
                 )}
               </motion.div>
             </li>

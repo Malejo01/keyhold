@@ -90,9 +90,9 @@ export const pulseRing: Variants = {
 
 /** Step label: the current one is full opacity, the rest subdued. */
 export const timelineLabel: Variants = {
-  pending: { opacity: 0.55 },
+  pending: { opacity: 1 },
   current: { opacity: 1 },
-  done: { opacity: 0.85 },
+  done: { opacity: 1 },
 };
 
 // ---------- Cards and feedback ----------
@@ -170,7 +170,7 @@ export const heroItem: Variants = {
 
 /** An agent row: idle is dimmed, working pulses a little, done is full strength. */
 export const agentState: Variants = {
-  idle: { opacity: 0.5, scale: 1 },
+  idle: { opacity: 1, scale: 1 },
   working: { opacity: 1, scale: [1, 1.04, 1], transition: { duration: 0.9, repeat: Infinity, ease: "easeInOut" } },
   done: { opacity: 1, scale: 1, transition: spring },
 };

@@ -44,7 +44,7 @@ export function LeaseTimeline({ stage, className }: { stage: Stage; className?: 
             <li
               key={step.stage}
               aria-current={state === "current" ? "step" : undefined}
-              className={cx("relative flex gap-3", !isLast && "pb-7")}
+              className={cx("relative flex gap-3", !isLast && "pb-4")}
             >
               {/* Dot */}
               <div className="relative size-7 shrink-0">
@@ -123,7 +123,7 @@ export function LeaseTimeline({ stage, className }: { stage: Stage; className?: 
                 <p
                   className={cx(
                     "text-sm leading-6",
-                    state === "current" ? "font-semibold text-primary" : "font-medium text-foreground",
+                    state === "current" ? "font-semibold text-primary" : state === "done" ? "font-medium text-foreground" : "font-medium text-muted",
                   )}
                 >
                   {step.label}
@@ -135,7 +135,7 @@ export function LeaseTimeline({ stage, className }: { stage: Stage; className?: 
                   {state === "done" && <span aria-hidden="true" className="ml-2 text-xs font-semibold text-success">Done</span>}
                   <span className="sr-only"> ({stateText[state]})</span>
                 </p>
-                <p className="text-xs text-muted">{step.hint}</p>
+                {state === "current" && <p className="text-xs text-muted">{step.hint}</p>}
               </motion.div>
             </li>
           );

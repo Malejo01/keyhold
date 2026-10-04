@@ -397,7 +397,7 @@ export function ChatShell({ useFixtures }: { useFixtures: boolean }) {
         </section>
 
         {/* Timeline column (desktop) */}
-        <aside className="hidden min-h-0 flex-col gap-5 overflow-y-auto border-l border-border bg-surface px-6 py-6 lg:flex">
+        <aside className="hidden min-h-0 flex-col gap-4 overflow-y-auto border-l border-border bg-surface px-6 py-5 lg:flex">
           <div>
             <h2 className="font-display text-sm font-semibold uppercase tracking-wide text-muted">
               Lease timeline
@@ -405,7 +405,7 @@ export function ChatShell({ useFixtures }: { useFixtures: boolean }) {
             <p className="mt-1 text-xs text-subtle">Follows your conversation, step by step.</p>
           </div>
           <LeaseTimeline stage={stage} />
-          <AgentActivity rows={agentRows} className="border-t border-border pt-5" />
+          <AgentActivity rows={agentRows} className="border-t border-border pt-4" />
           <p className="mt-auto text-xs text-subtle">
             Amounts are in USDC (devnet test token). No real money moves.
           </p>

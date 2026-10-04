@@ -1,5 +1,4 @@
 import type { Stage, UiCard } from "@/lib/contracts";
-import { shortHash } from "./format";
 import { STAGES, stageIndex } from "./stages";
 import type { ChatMessage } from "./types";
 
@@ -36,6 +35,7 @@ function lastCard<T extends UiCard["type"]>(cards: UiCard[], type: T): Extract<U
 export function deriveActivity(messages: ChatMessage[], pending: boolean, stage: Stage): AgentRow[] {
   const cards = messages.flatMap((m) => m.cards ?? []);
   const props = lastCard(cards, "properties");
+  const searchSize = cards.reduce((n, c) => (c.type === "properties" ? Math.max(n, c.properties.length) : n), 0);
   const prequal = lastCard(cards, "prequal");
   const contract = lastCard(cards, "contract");
 
@@ -53,7 +53,10 @@ export function deriveActivity(messages: ChatMessage[], pending: boolean, stage:
     const n = props.properties.length;
     const r = row("listings");
     r.state = "done";
-    r.summary = `Found ${n} ${n === 1 ? "listing" : "listings"} in the catalog`;
+    r.summary =
+      n < searchSize
+        ? `Showing your chosen listing (1 of ${searchSize})`
+        : `Found ${n} ${n === 1 ? "listing" : "listings"} in the catalog`;
   }
   if (prequal) {
     const d = prequal.decision;
@@ -72,7 +75,7 @@ export function deriveActivity(messages: ChatMessage[], pending: boolean, stage:
   if (contract) {
     const l = row("lease");
     l.state = "done";
-    l.summary = `Drafted the contract · SHA-256 ${shortHash(contract.lease.contractHash, 8, 0).replace("…", "")}…`;
+    l.summary = `Drafted the contract · SHA-256 ${contract.lease.contractHash.slice(0, 8)}…`;
     l.tone = "ok";
   }
   return rows;

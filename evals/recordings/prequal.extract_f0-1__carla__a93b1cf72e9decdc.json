@@ -1,0 +1,20 @@
+{
+  "key": "a93b1cf72e9decdc484f5dc9c7b42c12e19d446436278aab773d63846c42817f",
+  "agent": "prequal.extract@f0-1",
+  "kind": "structured",
+  "label": "carla",
+  "model": "claude-haiku-4-5-20251001",
+  "output": {
+    "applicantName": "CARLA BEATRIZ DEMO INVENTADA",
+    "documentsPresent": [
+      "dni",
+      "payslip",
+      "income_proof",
+      "guarantee"
+    ],
+    "payslipIssueDate": "2026-09-29",
+    "monthlyIncomeUsdc": 2300
+  },
+  "source": "hand-authored",
+  "recordedAt": "2026-10-04T00:50:56.745Z"
+}

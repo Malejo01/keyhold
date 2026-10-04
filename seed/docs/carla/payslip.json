@@ -1,0 +1,7 @@
+{
+  "tenantId": "carla",
+  "docType": "payslip",
+  "fileName": "carla-payslip-2026-09.txt",
+  "simulated": true,
+  "text": "SIMULATED DOCUMENT - NOT VALID - DEMO DATA ONLY\nPAYSLIP / RECIBO DE HABERES\nEmployer: Estudio Contable Ficticio S.A. (fictitious) - CUIT 00-00000003-0 (SIMULATED)\nEmployee: Camila Demo Inventada\nEmployee CUIL: 00-00000003-0 (SIMULATED)\nPosition: Accounting Analyst\nPay period: September 2026\nIssue date: 2026-09-29 (29 September 2026)\n----------------------------------------\nGross salary ............ USD 2,900.00\nDeductions .............. USD   600.00\nNET PAY ................. USD 2,300.00\n----------------------------------------\nPaid in USDC to the employee's wallet (simulated).\nSignature: Payroll department (simulated)"
+}

@@ -1,0 +1,7 @@
+{
+  "tenantId": "ana",
+  "docType": "dni",
+  "fileName": "ana-dni-front.txt",
+  "simulated": true,
+  "text": "SIMULATED DOCUMENT - NOT VALID - DEMO DATA ONLY\nREPUBLICA ARGENTINA - REGISTRO NACIONAL DE LAS PERSONAS\nDOCUMENTO NACIONAL DE IDENTIDAD\nSurname / Apellido: TESTA FICTICIA\nGiven names / Nombres: ANA LUCIA\nSex / Sexo: F\nNationality / Nacionalidad: ARGENTINA\nDate of birth / Fecha de nacimiento: 1994-03-12\nDocument number / Documento: 00.000.001 (SIMULATED)\nDate of issue / Fecha de emision: 2021-07-01\nDate of expiry / Fecha de vencimiento: 2036-07-01\nTramite: 0000000000001"
+}

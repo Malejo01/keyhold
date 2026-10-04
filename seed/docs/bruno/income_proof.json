@@ -1,0 +1,7 @@
+{
+  "tenantId": "bruno",
+  "docType": "income_proof",
+  "fileName": "bruno-income-certificate.txt",
+  "simulated": true,
+  "text": "SIMULATED DOCUMENT - NOT VALID - DEMO DATA ONLY\nCERTIFICATE OF EMPLOYMENT AND INCOME / CONSTANCIA DE INGRESOS\nSalta, 2026-09-22 (22 September 2026)\nLogistica Imaginaria S.R.L. (fictitious) certifies that Bruno Ejemplo Simulado has been a full-time employee since 2019-08-01 under an indefinite contract.\nAverage net monthly income over the last 6 months: USD 2,700.00.\nIssued at the employee's request to be presented to a rental agency.\nHuman Resources - Logistica Imaginaria S.R.L. (simulated signature)"
+}

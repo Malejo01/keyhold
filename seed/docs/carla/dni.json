@@ -1,0 +1,7 @@
+{
+  "tenantId": "carla",
+  "docType": "dni",
+  "fileName": "carla-dni-front.txt",
+  "simulated": true,
+  "text": "SIMULATED DOCUMENT - NOT VALID - DEMO DATA ONLY\nREPUBLICA ARGENTINA - REGISTRO NACIONAL DE LAS PERSONAS\nDOCUMENTO NACIONAL DE IDENTIDAD\nSurname / Apellido: DEMO INVENTADA\nGiven names / Nombres: CARLA BEATRIZ\nSex / Sexo: F\nNationality / Nacionalidad: ARGENTINA\nDate of birth / Fecha de nacimiento: 1996-08-21\nDocument number / Documento: 00.000.003 (SIMULATED)\nDate of issue / Fecha de emision: 2022-01-10\nDate of expiry / Fecha de vencimiento: 2037-01-10\nTramite: 0000000000003"
+}

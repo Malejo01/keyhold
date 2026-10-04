@@ -1,0 +1,37 @@
+{
+  "key": "bf7013af3921a20daa04240d18fd5e8c7388c9a40c1f20e3912fb978e72a2995",
+  "agent": "crosscheck.extract@f0-1",
+  "kind": "structured",
+  "label": "carla",
+  "model": "claude-haiku-4-5-20251001",
+  "output": {
+    "documents": [
+      {
+        "docType": "dni",
+        "holderName": "CARLA BEATRIZ DEMO INVENTADA",
+        "issueDate": "2022-01-10",
+        "monthlyIncomeUsdc": null
+      },
+      {
+        "docType": "payslip",
+        "holderName": "Camila Demo Inventada",
+        "issueDate": "2026-09-29",
+        "monthlyIncomeUsdc": 2300
+      },
+      {
+        "docType": "income_proof",
+        "holderName": "Carla Beatriz Demo Inventada",
+        "issueDate": "2026-09-24",
+        "monthlyIncomeUsdc": 2300
+      },
+      {
+        "docType": "guarantee",
+        "holderName": "Carla Demo Inventada",
+        "issueDate": "2026-09-26",
+        "monthlyIncomeUsdc": null
+      }
+    ]
+  },
+  "source": "hand-authored",
+  "recordedAt": "2026-10-04T00:50:56.745Z"
+}

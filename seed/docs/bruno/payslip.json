@@ -1,0 +1,7 @@
+{
+  "tenantId": "bruno",
+  "docType": "payslip",
+  "fileName": "bruno-payslip-2026-05.txt",
+  "simulated": true,
+  "text": "SIMULATED DOCUMENT - NOT VALID - DEMO DATA ONLY\nPAYSLIP / RECIBO DE HABERES\nEmployer: Logistica Imaginaria S.R.L. (fictitious) - CUIT 00-00000002-0 (SIMULATED)\nEmployee: Bruno Ejemplo Simulado\nEmployee CUIL: 00-00000002-0 (SIMULATED)\nPosition: Operations Coordinator\nPay period: May 2026\nIssue date: 2026-06-05 (5 June 2026)\n----------------------------------------\nGross salary ............ USD 3,350.00\nDeductions .............. USD   650.00\nNET PAY ................. USD 2,700.00\n----------------------------------------\nPaid in USDC to the employee's wallet (simulated).\nSignature: Payroll department (simulated)"
+}

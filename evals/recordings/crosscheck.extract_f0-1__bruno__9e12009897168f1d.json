@@ -1,0 +1,37 @@
+{
+  "key": "9e12009897168f1d729a0b94c762b19eb1c7b72e8c06b6306298b6ad0242ee59",
+  "agent": "crosscheck.extract@f0-1",
+  "kind": "structured",
+  "label": "bruno",
+  "model": "claude-haiku-4-5-20251001",
+  "output": {
+    "documents": [
+      {
+        "docType": "dni",
+        "holderName": "BRUNO EJEMPLO SIMULADO",
+        "issueDate": "2020-05-15",
+        "monthlyIncomeUsdc": null
+      },
+      {
+        "docType": "payslip",
+        "holderName": "Bruno Ejemplo Simulado",
+        "issueDate": "2026-06-05",
+        "monthlyIncomeUsdc": 2700
+      },
+      {
+        "docType": "income_proof",
+        "holderName": "Bruno Ejemplo Simulado",
+        "issueDate": "2026-09-22",
+        "monthlyIncomeUsdc": 2700
+      },
+      {
+        "docType": "guarantee",
+        "holderName": "Bruno Ejemplo Simulado",
+        "issueDate": "2026-09-20",
+        "monthlyIncomeUsdc": null
+      }
+    ]
+  },
+  "source": "hand-authored",
+  "recordedAt": "2026-10-04T00:50:56.744Z"
+}

@@ -1,0 +1,7 @@
+{
+  "tenantId": "carla",
+  "docType": "guarantee",
+  "fileName": "carla-surety-insurance.txt",
+  "simulated": true,
+  "text": "SIMULATED DOCUMENT - NOT VALID - DEMO DATA ONLY\nRENTAL SURETY INSURANCE POLICY / SEGURO DE CAUCION PARA ALQUILERES\nInsurer: Garantias de Prueba S.A. (fictitious)\nPolicy number: SIM-0003\nInsured tenant: Carla Demo Inventada\nCoverage: unpaid rent and charges up to 24 months of rent, for a residential lease in Salta, Argentina.\nPolicy issue date: 2026-09-26 (26 September 2026)\nValid until: 2027-09-26\nStatus: ACTIVE (simulated)"
+}

@@ -1,0 +1,27 @@
+{
+  "referenceDate": "2026-10-03",
+  "note": "Simulated tenants for the demo. Every name, number and document is fake. Documents are a frozen snapshot evaluated as of referenceDate, so the demo cases never rot.",
+  "tenants": [
+    {
+      "id": "ana",
+      "displayName": "Ana (demo tenant)",
+      "summary": "Complete and consistent documents.",
+      "documents": ["dni", "payslip", "income_proof", "guarantee"],
+      "expected": { "status": "APPROVED", "decidedBy": "prequal", "issue": null }
+    },
+    {
+      "id": "bruno",
+      "displayName": "Bruno (demo tenant)",
+      "summary": "Payslip issued more than 90 days before the reference date.",
+      "documents": ["dni", "payslip", "income_proof", "guarantee"],
+      "expected": { "status": "NEEDS_INFO", "decidedBy": "prequal", "issue": "expired_payslip" }
+    },
+    {
+      "id": "carla",
+      "displayName": "Carla (demo tenant)",
+      "summary": "Passes every prequal check, but the payslip is issued to a different name than the DNI.",
+      "documents": ["dni", "payslip", "income_proof", "guarantee"],
+      "expected": { "status": "NEEDS_INFO", "decidedBy": "crosscheck", "issue": "name_mismatch" }
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "tenantId": "ana",
+  "docType": "payslip",
+  "fileName": "ana-payslip-2026-09.txt",
+  "simulated": true,
+  "text": "SIMULATED DOCUMENT - NOT VALID - DEMO DATA ONLY\nPAYSLIP / RECIBO DE HABERES\nEmployer: Ejemplo Software S.A. (fictitious) - CUIT 00-00000001-0 (SIMULATED)\nEmployee: Ana Lucia Testa Ficticia\nEmployee CUIL: 00-00000001-0 (SIMULATED)\nPosition: Senior QA Analyst\nPay period: September 2026\nIssue date: 2026-09-30 (30 September 2026)\n----------------------------------------\nGross salary ............ USD 3,050.00\nDeductions .............. USD   600.00\nNET PAY ................. USD 2,450.00\n----------------------------------------\nPaid in USDC to the employee's wallet (simulated).\nSignature: Payroll department (simulated)"
+}

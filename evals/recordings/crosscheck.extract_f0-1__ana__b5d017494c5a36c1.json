@@ -1,0 +1,37 @@
+{
+  "key": "b5d017494c5a36c18a1a88ca0a7b7a43eb500bbe3dc6ca589667f81f22ec8c94",
+  "agent": "crosscheck.extract@f0-1",
+  "kind": "structured",
+  "label": "ana",
+  "model": "claude-haiku-4-5-20251001",
+  "output": {
+    "documents": [
+      {
+        "docType": "dni",
+        "holderName": "ANA LUCIA TESTA FICTICIA",
+        "issueDate": "2021-07-01",
+        "monthlyIncomeUsdc": null
+      },
+      {
+        "docType": "payslip",
+        "holderName": "Ana Lucia Testa Ficticia",
+        "issueDate": "2026-09-30",
+        "monthlyIncomeUsdc": 2450
+      },
+      {
+        "docType": "income_proof",
+        "holderName": "Ana Testa Ficticia",
+        "issueDate": "2026-09-25",
+        "monthlyIncomeUsdc": 2450
+      },
+      {
+        "docType": "guarantee",
+        "holderName": "Ana Lucia Testa Ficticia",
+        "issueDate": "2026-09-28",
+        "monthlyIncomeUsdc": null
+      }
+    ]
+  },
+  "source": "hand-authored",
+  "recordedAt": "2026-10-04T00:50:56.743Z"
+}

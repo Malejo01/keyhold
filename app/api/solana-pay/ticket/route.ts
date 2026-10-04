@@ -8,7 +8,8 @@ import { jsonError, parseBody, sessionErrorResponse } from "@/lib/db/http";
 import { signedSessionSchema } from "@/lib/db/schemas";
 import { verifySession } from "@/lib/db/session";
 import { nextPaymentSlot } from "@/lib/solana/payment-slot";
-import { quoteForIntent } from "@/lib/solana/solana-pay";
+import { SOLANA_PAY_LIMITS, checkRateLimit, clientIp } from "@/lib/solana/rate-limit";
+import { quoteForBuild } from "@/lib/solana/solana-pay";
 import { custodialOnly, publicOrigin, solanaPayEnabled, transactionRequestUrl } from "@/lib/solana/solana-pay-http";
 import { mintTicket } from "@/lib/solana/solana-pay-ticket";
 
@@ -34,6 +35,9 @@ export async function POST(request: Request): Promise<Response> {
   if (!solanaPayEnabled()) return jsonError("Not found", 404);
   if (!custodialOnly()) return jsonError("Solana Pay is only available in custodial escrow mode", 501);
 
+  const retryAfter = checkRateLimit(SOLANA_PAY_LIMITS.ticket, clientIp(request), Date.now());
+  if (retryAfter > 0) return jsonError("Too many requests, slow down", 429, { "Retry-After": String(retryAfter) });
+
   const body = await parseBody(request, bodySchema);
   if (!body.ok) return body.response;
   const { kind, session } = body.data;
@@ -57,7 +61,7 @@ export async function POST(request: Request): Promise<Response> {
   const response: SolanaPayTicketResponse = {
     ...minted,
     url: transactionRequestUrl(publicOrigin(request), minted.ticket, APP_NAME),
-    amountBaseUnits: quoteForIntent(intent, nowSec).amountBaseUnits.toString(),
+    amountBaseUnits: quoteForBuild(intent, nowSec).amountBaseUnits.toString(),
   };
   return Response.json(response, { headers: { "cache-control": "no-store" } });
 }

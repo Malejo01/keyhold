@@ -50,7 +50,7 @@ export function buildMemo(intent: Pick<PaymentIntent, "leaseId" | "kind" | "mont
  *  - rent:    tenant -> landlord, amount quoted by computePrice with server time and method 'usdc'.
  * After confirmation, `onTime` is recomputed from the confirmed tx blockTime.
  */
-export async function executePayment(intent: PaymentIntent): Promise<PaymentResult> {
+export async function executePayment(intent: PaymentIntent, options: { reference?: PublicKey } = {}): Promise<PaymentResult> {
   if (!DECIMAL_RE.test(intent.listAmountBaseUnits)) throw new Error("Invalid listAmountBaseUnits.");
   const memo = buildMemo(intent);
   const list = BigInt(intent.listAmountBaseUnits);
@@ -84,6 +84,7 @@ export async function executePayment(intent: PaymentIntent): Promise<PaymentResu
     destination,
     amountBaseUnits: amount,
     memo,
+    reference: options.reference,
   });
 
   // The record is always based on the chain's clock, never the client's or the server's.

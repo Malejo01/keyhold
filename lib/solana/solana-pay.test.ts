@@ -1,18 +1,26 @@
-import { createAssociatedTokenAccountIdempotentInstruction, getAssociatedTokenAddressSync } from "@solana/spl-token";
+import {
+  createAssociatedTokenAccountIdempotentInstruction,
+  createTransferCheckedInstruction,
+  getAssociatedTokenAddressSync,
+} from "@solana/spl-token";
 import { type Connection, Keypair, type PublicKey, Transaction, type VersionedTransactionResponse } from "@solana/web3.js";
 import { beforeAll, describe, expect, it } from "vitest";
 import type { PaymentIntent } from "../contracts";
 import { buildMemo } from "./pay";
 import {
-  IN_FLIGHT_GRACE_SECONDS,
+  ForbiddenPayerError,
+  QUOTE_LOOKAHEAD_SECONDS,
+  assertFeePayerAuthorizesNothing,
   buildSolanaPayTransaction,
   findValidPayment,
+  findValidPayments,
+  quoteForBuild,
   quoteForIntent,
   serializeForWallet,
   toPaymentResult,
   transferAmountIfValid,
 } from "./solana-pay";
-import { InvalidTicketError, decodeTicket, encodeTicket, mintTicket } from "./solana-pay-ticket";
+import { InvalidTicketError, decodeTicket, encodeTicket, mintTicket, slotReference } from "./solana-pay-ticket";
 import { nextPaymentSlot } from "./payment-slot";
 import { memoInstruction } from "./transfer";
 
@@ -21,7 +29,10 @@ const DUE = 1_800_000_000;
 const feePayer = Keypair.generate();
 const payer = Keypair.generate().publicKey;
 const landlord = Keypair.generate().publicKey;
+const agency = Keypair.generate().publicKey;
 const custody = feePayer.publicKey;
+/** What the server holds: platform (= custody = fee payer), landlord, agency. */
+const serverKeys = [feePayer.publicKey, landlord, agency];
 const mint = Keypair.generate().publicKey;
 const reference = Keypair.generate().publicKey;
 const BLOCKHASH = "EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG";
@@ -53,6 +64,7 @@ function build(intent: PaymentIntent, amount: bigint, ref: PublicKey = reference
     amountBaseUnits: amount,
     feePayer,
     blockhash: BLOCKHASH,
+    serverKeys,
   });
 }
 
@@ -80,6 +92,31 @@ function confirmed(tx: Transaction, destinationOwner: PublicKey, received: bigin
   } as unknown as VersionedTransactionResponse;
 }
 
+/** A payment the tenant built and signed on their own: tenant is fee payer and token authority, no server signature. */
+function selfBuilt(authority: Keypair, sourceOwner: PublicKey, amount: bigint, feePayerKey: PublicKey = authority.publicKey) {
+  const tx = new Transaction({ feePayer: feePayerKey, recentBlockhash: BLOCKHASH });
+  const transfer = createTransferCheckedInstruction(
+    getAssociatedTokenAddressSync(mint, sourceOwner),
+    mint,
+    getAssociatedTokenAddressSync(mint, landlord),
+    authority.publicKey,
+    amount,
+    6,
+  );
+  transfer.keys.push({ pubkey: reference, isSigner: false, isWritable: false });
+  tx.add(memoInstruction(buildMemo(rent)), transfer);
+  return tx;
+}
+
+function connectionWith(entries: { signature: string; err?: object | null; blockTime?: number; response: VersionedTransactionResponse | null }[]) {
+  return {
+    getSignaturesForAddress: async () =>
+      // Real RPC returns newest first.
+      [...entries].reverse().map((e) => ({ signature: e.signature, err: e.err ?? null, blockTime: e.blockTime ?? null, slot: 1, memo: null })),
+    getTransaction: async (sig: string) => entries.find((e) => e.signature === sig)?.response ?? null,
+  } as unknown as Connection;
+}
+
 describe("ticket", () => {
   const now = 1_700_000_000;
 
@@ -95,9 +132,27 @@ describe("ticket", () => {
     });
   });
 
-  it("issues a fresh unique reference every time", () => {
-    const refs = new Set(Array.from({ length: 50 }, () => mintTicket({ sessionId: "s", intent: rent, nowSec: now }).reference));
-    expect(refs.size).toBe(50);
+  it("issues ONE reference per payment slot, shared by every ticket and by the custodial button (B5 N1)", () => {
+    const a = mintTicket({ sessionId: "s", intent: rent, nowSec: now });
+    const b = mintTicket({ sessionId: "s", intent: rent, nowSec: now + 30 });
+    expect(a.reference).toBe(b.reference);
+    expect(a.ticket).not.toBe(b.ticket);
+    expect(a.reference).toBe(slotReference("s", rent).toBase58());
+    // Another session, month, kind or lease never collides.
+    const others = [
+      slotReference("other", rent),
+      slotReference("s", { ...rent, monthIndex: 1 }),
+      slotReference("s", deposit),
+      slotReference("s", { ...rent, leaseId: "ls_other" }),
+    ].map((k) => k.toBase58());
+    expect(new Set([a.reference, ...others]).size).toBe(5);
+  });
+
+  it("derives the reference from the server secret, so it cannot be precomputed with another secret", () => {
+    const before = slotReference("s", rent).toBase58();
+    process.env.SESSION_SECRET = "y".repeat(40);
+    expect(slotReference("s", rent).toBase58()).not.toBe(before);
+    process.env.SESSION_SECRET = "x".repeat(40);
   });
 
   it("rejects a tampered body, a tampered signature and a ticket signed with another secret", () => {
@@ -142,6 +197,16 @@ describe("quoteForIntent", () => {
   });
 });
 
+describe("quoteForBuild", () => {
+  it("quotes the price at the latest possible landing time, so an in-flight tx is never underpaid", () => {
+    expect(quoteForBuild(rent, DUE - QUOTE_LOOKAHEAD_SECONDS - 1).amountBaseUnits).toBe(BigInt(920_000_000));
+    expect(quoteForBuild(rent, DUE - QUOTE_LOOKAHEAD_SECONDS).amountBaseUnits).toBe(BigInt(920_000_000));
+    expect(quoteForBuild(rent, DUE - QUOTE_LOOKAHEAD_SECONDS + 1).amountBaseUnits).toBe(BigInt(950_000_000));
+    expect(quoteForBuild(rent, DUE + 10).amountBaseUnits).toBe(BigInt(950_000_000));
+    expect(quoteForBuild(deposit, DUE - 10_000).amountBaseUnits).toBe(BigInt(1_000_000_000));
+  });
+});
+
 describe("buildSolanaPayTransaction", () => {
   const amount = BigInt(920_000_000);
   const tx = build(rent, amount);
@@ -175,11 +240,48 @@ describe("buildSolanaPayTransaction", () => {
   it("refuses a zero amount", () => {
     expect(() => build(rent, BigInt(0))).toThrow();
   });
+
+  it("B5-1: refuses as payer the platform/fee payer/custody, the landlord or the agency", () => {
+    const attempt = (intent: PaymentIntent, who: PublicKey) =>
+      buildSolanaPayTransaction({
+        intent,
+        payer: who,
+        reference,
+        destinationOwner: intent.kind === "deposit" ? custody : landlord,
+        mint,
+        amountBaseUnits: amount,
+        feePayer,
+        blockhash: BLOCKHASH,
+        serverKeys,
+      });
+    for (const who of [feePayer.publicKey, landlord, agency]) {
+      expect(() => attempt(rent, who)).toThrow(ForbiddenPayerError);
+      expect(() => attempt(deposit, who)).toThrow(ForbiddenPayerError);
+    }
+    expect(() => attempt(rent, Keypair.generate().publicKey)).not.toThrow();
+  });
+
+  it("B5-1: the transfer authority is the payer, the source is the payer's own token account, never custody", () => {
+    const transfer = tx.instructions[2];
+    expect(transfer.keys[0].pubkey.equals(getAssociatedTokenAddressSync(mint, payer))).toBe(true);
+    expect(transfer.keys[3].pubkey.equals(payer)).toBe(true);
+    expect(transfer.keys[3].isSigner).toBe(true);
+    // The server (fee payer) signature alone leaves the tx incomplete: the payer's slot is empty.
+    expect(tx.signatures.filter((s) => s.signature !== null).map((s) => s.publicKey.toBase58())).toEqual([feePayer.publicKey.toBase58()]);
+    expect(tx.verifySignatures(true)).toBe(false);
+  });
+
+  it("B5-1: the fee payer appears only as the ATA-creation funder, so its signature can never authorise a token movement", () => {
+    expect(() => assertFeePayerAuthorizesNothing(tx, feePayer.publicKey)).not.toThrow();
+    // A tx in which the fee payer is a token authority must never be signed.
+    const bad = selfBuilt(feePayer, custody, amount);
+    expect(() => assertFeePayerAuthorizesNothing(bad, feePayer.publicKey)).toThrow(/Refusing to sign/);
+  });
 });
 
 describe("transferAmountIfValid", () => {
   const amount = BigInt(920_000_000);
-  const params = { intent: rent, reference, destinationOwner: landlord, mint };
+  const params = { intent: rent, reference, destinationOwner: landlord, mint, serverKeys };
 
   it("accepts a well-formed payment and returns the instruction amount", () => {
     expect(transferAmountIfValid(confirmed(build(rent, amount), landlord, amount), params)).toBe(amount);
@@ -209,18 +311,62 @@ describe("transferAmountIfValid", () => {
   });
 });
 
+describe("B5-1 confirmation scan: server-held authorities are never a tenant payment", () => {
+  const amount = BigInt(920_000_000);
+  const params = { intent: rent, reference, destinationOwner: landlord, mint, serverKeys };
+
+  it("rejects custody -> landlord authorised by the platform key (the original attack)", () => {
+    // qa's probe: custody ATA -> landlord ATA, authority = platform = fee payer, with the reference and the memo.
+    const tx = selfBuilt(feePayer, custody, amount);
+    expect(transferAmountIfValid(confirmed(tx, landlord, amount), params)).toBeNull();
+  });
+
+  it("rejects any server-held authority: landlord, agency, platform", () => {
+    const landlordKp = Keypair.generate();
+    const agencyKp = Keypair.generate();
+    const keys = [feePayer.publicKey, landlordKp.publicKey, agencyKp.publicKey];
+    for (const kp of [feePayer, landlordKp, agencyKp]) {
+      const tx = selfBuilt(kp, kp.publicKey, amount);
+      expect(transferAmountIfValid(confirmed(tx, landlord, amount), { ...params, serverKeys: keys })).toBeNull();
+    }
+  });
+
+  it("rejects a transfer whose source is not the authority's own token account (a pull from custody)", () => {
+    const tenant = Keypair.generate();
+    const tx = selfBuilt(tenant, custody, amount);
+    expect(transferAmountIfValid(confirmed(tx, landlord, amount), params)).toBeNull();
+  });
+
+  it("rejects an authority that is not a signer of the transaction", () => {
+    const tenant = Keypair.generate();
+    const tx = selfBuilt(tenant, tenant.publicKey, amount, feePayer.publicKey);
+    const res = confirmed(tx, landlord, amount);
+    // Same instructions, but only the fee payer signed.
+    (res.transaction.message as unknown as { header: { numRequiredSignatures: number } }).header.numRequiredSignatures = 1;
+    expect(transferAmountIfValid(res, params)).toBeNull();
+  });
+
+  it("rejects a self-transfer where the authority is the destination owner", () => {
+    const tx = selfBuilt(Keypair.generate(), landlord, amount);
+    expect(transferAmountIfValid(confirmed(tx, landlord, amount), params)).toBeNull();
+  });
+
+  it("accepts the honest shape: tenant signs, source is the tenant's own token account", () => {
+    const tenant = Keypair.generate();
+    const tx = selfBuilt(tenant, tenant.publicKey, amount);
+    expect(transferAmountIfValid(confirmed(tx, landlord, amount), params)).toBe(amount);
+  });
+
+  it("findValidPayment never records the crafted custody transfer", async () => {
+    const tx = selfBuilt(feePayer, custody, amount);
+    const conn = connectionWith([{ signature: "evil", response: confirmed(tx, landlord, amount, DUE - 5) }]);
+    expect(await findValidPayment(conn, params)).toBeNull();
+  });
+});
+
 describe("findValidPayment", () => {
   const amount = BigInt(920_000_000);
-  const params = { intent: rent, reference, destinationOwner: landlord, mint };
-
-  function connectionWith(entries: { signature: string; err?: object | null; blockTime?: number; response: VersionedTransactionResponse | null }[]) {
-    return {
-      getSignaturesForAddress: async () =>
-        // Real RPC returns newest first.
-        [...entries].reverse().map((e) => ({ signature: e.signature, err: e.err ?? null, blockTime: e.blockTime ?? null, slot: 1, memo: null })),
-      getTransaction: async (sig: string) => entries.find((e) => e.signature === sig)?.response ?? null,
-    } as unknown as Connection;
-  }
+  const params = { intent: rent, reference, destinationOwner: landlord, mint, serverKeys };
 
   it("is pending until a tx references the reference", async () => {
     expect(await findValidPayment(connectionWith([]), params)).toBeNull();
@@ -261,20 +407,51 @@ describe("findValidPayment", () => {
     expect(await findValidPayment(connectionWith([{ signature: "lie", response: res }]), params)).toBeNull();
   });
 
-  it("uses blockTime for the price: late payment needs the non-discounted usdc price, with a bounded in-flight grace", async () => {
-    // Paid 920 (full on-time discount) but confirmed long after the due date: not enough.
-    const late = confirmed(build(rent, amount), landlord, amount, DUE + 3600);
-    expect(await findValidPayment(connectionWith([{ signature: "late", response: late }]), params)).toBeNull();
-    // Same amount confirmed within the grace window after the due date: accepted, but onTime is false.
-    const inFlight = confirmed(build(rent, amount), landlord, amount, DUE + IN_FLIGHT_GRACE_SECONDS - 1);
-    const found = await findValidPayment(connectionWith([{ signature: "edge", response: inFlight }]), params);
-    expect(found?.signature).toBe("edge");
-    expect(toPaymentResult(rent, found!).onTime).toBe(false);
-    expect(toPaymentResult(rent, found!).discountAppliedBps).toBe(800);
+  it("prices strictly by blockTime with no grace: the on-time amount confirmed even 1 s late is refused (B5 N2)", async () => {
+    const at = (blockTime: number) =>
+      connectionWith([{ signature: "t", response: confirmed(build(rent, amount), landlord, amount, blockTime) }]);
+    expect((await findValidPayment(at(DUE), params))?.amountBaseUnits).toBe(amount);
+    expect(await findValidPayment(at(DUE + 1), params)).toBeNull();
+    expect(await findValidPayment(at(DUE + 149), params)).toBeNull(); // the old grace window
+    expect(await findValidPayment(at(DUE + 3600), params)).toBeNull();
+    // The late price (usdc discount only) is accepted after the due date and records onTime = false.
+    const lateAmount = BigInt(950_000_000);
+    const late = await findValidPayment(
+      connectionWith([{ signature: "l", response: confirmed(build(rent, lateAmount), landlord, lateAmount, DUE + 600) }]),
+      params,
+    );
+    expect(toPaymentResult(rent, late!)).toMatchObject({ onTime: false, discountAppliedBps: 500, amountBaseUnits: "950000000" });
+  });
+
+  it("a self-built tx (the tenant is fee payer, own blockhash) cannot get the on-time price after the due date", async () => {
+    const tenant = Keypair.generate();
+    const own = selfBuilt(tenant, tenant.publicKey, amount);
+    const conn = connectionWith([{ signature: "own", response: confirmed(own, landlord, amount, DUE + 100) }]);
+    expect(await findValidPayment(conn, params)).toBeNull();
+  });
+
+  it("returns every valid payment, oldest first, so a second approval can be flagged (B5 N1)", async () => {
+    const one = confirmed(build(rent, amount), landlord, amount, DUE - 50);
+    const two = confirmed(build(rent, amount), landlord, amount, DUE - 20);
+    const conn = connectionWith([
+      { signature: "first", response: one },
+      { signature: "second", response: two },
+    ]);
+    expect((await findValidPayments(conn, params)).map((f) => f.signature)).toEqual(["first", "second"]);
+    expect((await findValidPayment(conn, params))?.signature).toBe("first");
+  });
+
+  it("records the discount tier actually paid, never a bigger one", () => {
+    const paid = (amt: bigint) => toPaymentResult(rent, { signature: "s", blockTime: DUE - 30, amountBaseUnits: amt });
+    expect(paid(BigInt(920_000_000))).toMatchObject({ onTime: true, discountAppliedBps: 800 });
+    // Paid the worst-case quote (usdc only) although it landed on time.
+    expect(paid(BigInt(950_000_000))).toMatchObject({ onTime: true, discountAppliedBps: 500 });
+    expect(paid(BigInt(1_000_000_000))).toMatchObject({ onTime: true, discountAppliedBps: 0 });
+    expect(paid(BigInt(1_300_000_000))).toMatchObject({ onTime: true, discountAppliedBps: 0 });
   });
 
   it("deposit needs the full list amount and has no discount", async () => {
-    const dep = { intent: deposit, reference, destinationOwner: custody, mint };
+    const dep = { intent: deposit, reference, destinationOwner: custody, mint, serverKeys };
     const full = BigInt(1_000_000_000);
     const ok = confirmed(build(deposit, full), custody, full);
     expect((await findValidPayment(connectionWith([{ signature: "d", response: ok }]), dep))?.amountBaseUnits).toBe(full);

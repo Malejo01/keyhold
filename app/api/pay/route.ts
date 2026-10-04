@@ -7,8 +7,12 @@ import { applyEvent } from "@/lib/agents/orchestrator";
 import { jsonError, logError, parseBody, sessionErrorResponse } from "@/lib/db/http";
 import { signedSessionSchema } from "@/lib/db/schemas";
 import { signSession, verifySession } from "@/lib/db/session";
+import { getDevnetConnection } from "@/lib/solana/connection";
 import { InsufficientFundsError, executePayment } from "@/lib/solana/pay";
 import { nextPaymentSlot } from "@/lib/solana/payment-slot";
+import { findValidPayment } from "@/lib/solana/solana-pay";
+import { custodialOnly, solanaPayEnabled, validateParamsFor } from "@/lib/solana/solana-pay-http";
+import { slotReference } from "@/lib/solana/solana-pay-ticket";
 
 export const runtime = "nodejs";
 
@@ -50,7 +54,16 @@ export async function POST(request: Request): Promise<Response> {
   inFlight.add(slot);
   try {
     const intent = buildPaymentIntent(lease, kind as PaymentKind, monthIndex);
-    const result = await executePayment(intent);
+    // Solana Pay on: the button shares the slot reference with the QR flow. A wallet payment that is already on chain
+    // for this slot (not yet recorded in the session) must not be paid a second time.
+    let reference;
+    if (solanaPayEnabled() && custodialOnly()) {
+      reference = slotReference(state.sessionId, intent);
+      if (await findValidPayment(await getDevnetConnection(), validateParamsFor(intent, reference))) {
+        return jsonError("This payment was already made with a wallet. Check the QR payment status.", 409);
+      }
+    }
+    const result = await executePayment(intent, { reference });
     const next = applyEvent(state, { type: "payment_confirmed", result });
     const response: PayResponse = { result, session: signSession(next) };
     return Response.json(response);

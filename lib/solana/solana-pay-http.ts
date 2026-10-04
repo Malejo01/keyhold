@@ -1,8 +1,9 @@
 // Server-only helpers shared by the /api/solana-pay/* routes.
 import { encodeURL } from "@solana/pay";
 import type { PublicKey } from "@solana/web3.js";
-import type { PaymentKind } from "../contracts";
-import { landlordKeypair, platformKeypair } from "./keys";
+import type { PaymentIntent, PaymentKind } from "../contracts";
+import { getPaymentMint, landlordKeypair, platformKeypair, serverHeldPublicKeys } from "./keys";
+import type { ValidateParams } from "./solana-pay";
 
 /** Feature flag. When off, every route answers 404 so the surface does not exist. Default off. */
 export function solanaPayEnabled(): boolean {
@@ -35,6 +36,17 @@ export function custodialOnly(): boolean {
 /** Custody (deposit) or landlord (rent): the owner of the destination token account. */
 export function destinationOwnerFor(kind: PaymentKind): PublicKey {
   return kind === "deposit" ? platformKeypair().publicKey : landlordKeypair().publicKey;
+}
+
+/** Everything findValidPayment(s) needs for one payment slot, including the keys that may never be the payer. */
+export function validateParamsFor(intent: PaymentIntent, reference: PublicKey): ValidateParams {
+  return {
+    intent,
+    reference,
+    destinationOwner: destinationOwnerFor(intent.kind),
+    mint: getPaymentMint(),
+    serverKeys: serverHeldPublicKeys(),
+  };
 }
 
 /**

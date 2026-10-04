@@ -6,11 +6,14 @@ import { z } from "zod";
 import { APP_NAME } from "@/lib/config/brand";
 import { logError } from "@/lib/db/http";
 import { getDevnetConnection } from "@/lib/solana/connection";
-import { PAYMENT_DECIMALS, getPaymentMint, platformKeypair } from "@/lib/solana/keys";
+import { PAYMENT_DECIMALS, platformKeypair } from "@/lib/solana/keys";
+import { SOLANA_PAY_LIMITS, checkRateLimit, clientIp } from "@/lib/solana/rate-limit";
 import {
+  ForbiddenPayerError,
   buildSolanaPayTransaction,
-  quoteForIntent,
-  referenceAlreadyUsed,
+  findValidPayment,
+  isForbiddenPayer,
+  quoteForBuild,
   serializeForWallet,
   tokenBalanceOf,
 } from "@/lib/solana/solana-pay";
@@ -19,9 +22,9 @@ import {
   corsError,
   corsJson,
   custodialOnly,
-  destinationOwnerFor,
   publicOrigin,
   solanaPayEnabled,
+  validateParamsFor,
 } from "@/lib/solana/solana-pay-http";
 import { InvalidTicketError, decodeTicket } from "@/lib/solana/solana-pay-ticket";
 
@@ -40,11 +43,23 @@ function ticketError(err: unknown): Response | null {
 }
 
 export function OPTIONS(): Response {
+  // The surface does not exist while the flag is off (no CORS preflight answer either).
+  if (!solanaPayEnabled()) return corsError("Not found", 404);
   return new Response(null, { status: 204, headers: CORS_HEADERS });
+}
+
+function rateLimited(request: Request): Response | null {
+  const retryAfter = checkRateLimit(SOLANA_PAY_LIMITS.tx, clientIp(request), Date.now());
+  if (retryAfter === 0) return null;
+  const res = corsError("Too many requests, slow down", 429);
+  res.headers.set("Retry-After", String(retryAfter));
+  return res;
 }
 
 export async function GET(request: Request): Promise<Response> {
   if (!solanaPayEnabled()) return corsError("Not found", 404);
+  const limited = rateLimited(request);
+  if (limited) return limited;
   try {
     readTicket(request);
   } catch (err) {
@@ -58,6 +73,8 @@ export async function GET(request: Request): Promise<Response> {
 export async function POST(request: Request): Promise<Response> {
   if (!solanaPayEnabled()) return corsError("Not found", 404);
   if (!custodialOnly()) return corsError("Solana Pay is only available in custodial escrow mode", 501);
+  const limited = rateLimited(request);
+  if (limited) return limited;
 
   let payload;
   try {
@@ -81,13 +98,19 @@ export async function POST(request: Request): Promise<Response> {
   try {
     const { intent } = payload;
     const reference = new PublicKey(payload.reference);
-    const connection = await getDevnetConnection();
-    const mint = getPaymentMint();
-    const quote = quoteForIntent(intent, Math.floor(Date.now() / 1000));
+    const checks = validateParamsFor(intent, reference);
 
-    // One payment per ticket: refuse to build a second tx once the reference was used.
-    if (await referenceAlreadyUsed(connection, reference)) return corsError("This payment was already made", 409);
-    if ((await tokenBalanceOf(connection, mint, payer)) < quote.amountBaseUnits) {
+    // B5-1: the paying wallet must be the tenant's own wallet. Any key the server holds (platform/custody and fee
+    // payer, landlord, agency) or the destination owner is refused before anything is built or signed.
+    if (isForbiddenPayer(payer, checks.destinationOwner, checks.serverKeys)) return corsError("Invalid account", 400);
+
+    const connection = await getDevnetConnection();
+    const quote = quoteForBuild(intent, Math.floor(Date.now() / 1000));
+
+    // One payment per slot: the reference is shared by every ticket and by the custodial button for this slot, so a
+    // valid payment under it (from either path) means this slot is already paid.
+    if (await findValidPayment(connection, checks)) return corsError("This payment was already made", 409);
+    if ((await tokenBalanceOf(connection, checks.mint, payer)) < quote.amountBaseUnits) {
       return corsError("Your wallet does not hold enough devnet test USDC for this payment", 409);
     }
 
@@ -96,16 +119,18 @@ export async function POST(request: Request): Promise<Response> {
       intent,
       payer,
       reference,
-      destinationOwner: destinationOwnerFor(intent.kind),
-      mint,
+      destinationOwner: checks.destinationOwner,
+      mint: checks.mint,
       amountBaseUnits: quote.amountBaseUnits,
       feePayer: platformKeypair(),
       blockhash,
+      serverKeys: checks.serverKeys,
     });
     const label = intent.kind === "deposit" ? "Security deposit" : "Rent payment";
     const amount = (Number(quote.amountBaseUnits) / 10 ** PAYMENT_DECIMALS).toFixed(PAYMENT_DECIMALS).replace(/\.?0+$/, "");
     return corsJson({ transaction: serializeForWallet(tx), message: `${label}: ${amount} test USDC (devnet)` });
   } catch (err) {
+    if (err instanceof ForbiddenPayerError) return corsError("Invalid account", 400);
     logError("solana-pay/tx", err);
     return corsError("Could not build the transaction", 502);
   }

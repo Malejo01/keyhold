@@ -3,7 +3,13 @@
 // Instruction order is fixed by what @solana/pay's validateTransfer expects:
 //   [create destination ATA (idempotent)] , Memo , transferChecked(+ reference as read-only non-signer key)
 // The platform wallet is the fee payer and signs first; the payer signs in their wallet.
+//
+// Security invariant (B5-1): the server's signature must never authorise a token movement. The transfer authority is
+// always the requesting wallet and the source is that wallet's own token account; the payer can never be a key the
+// server holds; and before signing, the fee payer is proven to appear in the message only as the funder of the
+// (idempotent) destination token account creation. The confirmation scan enforces the same rules on chain data.
 import {
+  ASSOCIATED_TOKEN_PROGRAM_ID,
   TOKEN_PROGRAM_ID,
   TokenAccountNotFoundError,
   createAssociatedTokenAccountIdempotentInstruction,
@@ -20,11 +26,14 @@ import { buildMemo } from "./pay";
 import { MEMO_PROGRAM_ID, memoInstruction } from "./transfer";
 
 /**
- * A tx is built with the quote at build time and lands up to ~2 minutes later (blockhash lifetime), so a payment
- * that crossed the due date while in flight is still accepted at the discounted amount. Beyond this window the
- * strict blockTime price applies. Bounded by the blockhash lifetime.
+ * A tx built now can land until its blockhash expires (about 60 to 90 s, bounded with margin here). The endpoint
+ * therefore quotes the price that applies at the LATEST possible landing time, so a transaction that crosses the
+ * due date while in flight is never underpaid and no grace period exists at confirmation: the confirmed blockTime
+ * alone decides the price (see findValidPayments). A payer in the last two minutes before the due date is quoted
+ * the non-discounted-on-time price; if the tx still lands on time, the receipt records the discount tier that was
+ * actually paid.
  */
-export const IN_FLIGHT_GRACE_SECONDS = 150;
+export const QUOTE_LOOKAHEAD_SECONDS = 120;
 
 export interface Quote {
   amountBaseUnits: bigint;
@@ -46,6 +55,23 @@ export function quoteForIntent(intent: PaymentIntent, atTs: number): Quote {
   return { amountBaseUnits: q.amountBaseUnits, discountBps: q.discountBps };
 }
 
+/** What the endpoint charges for a transaction built at `nowSec` (worst-case landing time, see above). */
+export function quoteForBuild(intent: PaymentIntent, nowSec: number): Quote {
+  return quoteForIntent(intent, nowSec + QUOTE_LOOKAHEAD_SECONDS);
+}
+
+/** The requested paying wallet is a key the server holds (or the destination owner): never allowed. */
+export class ForbiddenPayerError extends Error {
+  constructor() {
+    super("This wallet cannot be used for this payment.");
+    this.name = "ForbiddenPayerError";
+  }
+}
+
+export function isForbiddenPayer(payer: PublicKey, destinationOwner: PublicKey, serverKeys: PublicKey[]): boolean {
+  return payer.equals(destinationOwner) || serverKeys.some((k) => payer.equals(k));
+}
+
 export interface BuildParams {
   intent: PaymentIntent;
   /** The wallet that will pay and sign (the `account` field of the POST). */
@@ -57,12 +83,33 @@ export interface BuildParams {
   amountBaseUnits: bigint;
   feePayer: Keypair;
   blockhash: string;
+  /** Every key the server can sign with (serverHeldPublicKeys()). The payer must not be one of them. */
+  serverKeys: PublicKey[];
+}
+
+/**
+ * Proof obligation before the fee payer signs: in the compiled message its key may appear only in the
+ * associated-token-account creation, as funder (account 0) or as the owner value (account 2, never a signer there). It
+ * is in no token-program or system-program instruction, so its signature cannot authorise moving any token or
+ * lamport, whatever it holds. Throws otherwise.
+ */
+export function assertFeePayerAuthorizesNothing(tx: Transaction, feePayer: PublicKey): void {
+  for (const ix of tx.instructions) {
+    ix.keys.forEach((k, i) => {
+      if (!k.pubkey.equals(feePayer)) return;
+      // Associated-token-account creation: position 0 is the funder (pays rent only if the account is missing) and
+      // position 2 is the account owner, a plain value that never signs (it is the platform itself for deposits).
+      if (ix.programId.equals(ASSOCIATED_TOKEN_PROGRAM_ID) && (i === 0 || i === 2)) return;
+      throw new Error("Refusing to sign: the fee payer would take part in an instruction other than paying the fee.");
+    });
+  }
 }
 
 /** Builds the transaction and signs it with the fee payer only. The payer's signature slot stays empty. */
 export function buildSolanaPayTransaction(params: BuildParams): Transaction {
-  const { intent, payer, reference, destinationOwner, mint, amountBaseUnits, feePayer, blockhash } = params;
+  const { intent, payer, reference, destinationOwner, mint, amountBaseUnits, feePayer, blockhash, serverKeys } = params;
   if (amountBaseUnits <= BigInt(0)) throw new RangeError("amount must be > 0");
+  if (payer.equals(feePayer.publicKey) || isForbiddenPayer(payer, destinationOwner, serverKeys)) throw new ForbiddenPayerError();
   const source = getAssociatedTokenAddressSync(mint, payer);
   const destinationAta = getAssociatedTokenAddressSync(mint, destinationOwner);
 
@@ -76,6 +123,7 @@ export function buildSolanaPayTransaction(params: BuildParams): Transaction {
     memoInstruction(buildMemo(intent)),
     transfer,
   );
+  assertFeePayerAuthorizesNothing(tx, feePayer.publicKey);
   tx.partialSign(feePayer);
   return tx;
 }
@@ -95,12 +143,6 @@ export async function tokenBalanceOf(connection: Connection, mint: PublicKey, ow
   }
 }
 
-/** True when any non-failed tx already references this reference (used to refuse a second payment). */
-export async function referenceAlreadyUsed(connection: Connection, reference: PublicKey): Promise<boolean> {
-  const sigs = await connection.getSignaturesForAddress(reference, { limit: 10 }, "confirmed");
-  return sigs.some((s) => !s.err);
-}
-
 export interface FoundPayment {
   signature: string;
   blockTime: number;
@@ -113,6 +155,8 @@ export interface ValidateParams {
   reference: PublicKey;
   destinationOwner: PublicKey;
   mint: PublicKey;
+  /** Every key the server can sign with. A transfer authorised by one of them is never a tenant payment. */
+  serverKeys: PublicKey[];
 }
 
 const TRANSFER_CHECKED_TAG = 12;
@@ -124,8 +168,11 @@ const TRANSFER_CHECKED_TAG = 12;
  *  - the tx succeeded;
  *  - one SPL transferChecked to the destination token account, of our mint and decimals, whose extra keys are
  *    exactly [reference] (this is how Solana Pay binds a payment to a reference);
+ *  - that transfer is authorised by a wallet that signed the tx, is neither a key the server holds nor the
+ *    destination owner, and moves tokens out of that wallet's own associated token account (never custody);
  *  - a Memo instruction (no keys) whose data equals our memo byte for byte.
- * Returns the amount of that instruction, or null if the tx is not a valid payment for the intent.
+ * Returns the amount of that instruction, or null if the tx is not a valid payment for the intent. A transfer that
+ * matches the reference but breaks the authority rules makes the whole tx invalid.
  */
 export function transferAmountIfValid(
   response: VersionedTransactionResponse,
@@ -148,10 +195,15 @@ export function transferAmountIfValid(
     }
     if (!program.equals(TOKEN_PROGRAM_ID) || ix.data[0] !== TRANSFER_CHECKED_TAG || ix.data.length !== 10) continue;
     const accounts = ix.accountKeyIndexes.map((i) => keys.get(i));
-    const [, mint, dest, , ...extra] = accounts;
+    const [source, mint, dest, authority, ...extra] = accounts;
     if (!mint?.equals(p.mint) || !dest?.equals(destinationAta)) continue;
     if (ix.data[9] !== PAYMENT_DECIMALS) continue;
     if (extra.length !== 1 || !extra[0]?.equals(p.reference)) continue;
+    // From here on the instruction claims this payment: any authority problem invalidates the whole tx.
+    if (!source || !authority) return null;
+    if (ix.accountKeyIndexes[3] >= message.header.numRequiredSignatures) return null; // authority did not sign
+    if (isForbiddenPayer(authority, p.destinationOwner, p.serverKeys)) return null;
+    if (!source.equals(getAssociatedTokenAddressSync(p.mint, authority))) return null;
     if (amount !== null) return null; // two matching transfers: ambiguous, refuse
     amount = Buffer.from(ix.data).readBigUInt64LE(1);
   }
@@ -159,16 +211,22 @@ export function transferAmountIfValid(
 }
 
 /**
- * Looks for a confirmed transaction that carries `reference` AND is a valid payment for this intent.
+ * Every confirmed transaction that carries `reference` AND is a valid payment for this intent, oldest first.
  * Candidates are tried oldest first and invalid ones are skipped, so someone who merely attaches the public
- * reference to an unrelated tx cannot block the real payment. Returns null while nothing valid exists yet.
- * The amount must reach the minimum: the price at the confirmed blockTime (never client time), relaxed by
- * IN_FLIGHT_GRACE_SECONDS for txs that were quoted just before the due date. The amount that counts is the
- * smaller of the instruction amount and the real balance change of the destination token account.
+ * reference to an unrelated tx cannot block the real payment. The amount must reach the price at the confirmed
+ * blockTime (never client time), with no grace: the quote was already computed for the latest possible landing time
+ * (quoteForBuild), so an honest payment always reaches it and a self-built late tx never gets the on-time price.
+ * The amount that counts is the smaller of the instruction amount and the real balance change of the destination
+ * token account. `stopAtFirst` ends the scan at the first valid payment.
  */
-export async function findValidPayment(connection: Connection, p: ValidateParams): Promise<FoundPayment | null> {
+export async function findValidPayments(
+  connection: Connection,
+  p: ValidateParams,
+  stopAtFirst = false,
+): Promise<FoundPayment[]> {
   const sigs = await connection.getSignaturesForAddress(p.reference, { limit: 20 }, "confirmed");
   const destinationAta = getAssociatedTokenAddressSync(p.mint, p.destinationOwner);
+  const found: FoundPayment[] = [];
 
   for (const info of [...sigs].reverse()) {
     if (info.err) continue;
@@ -193,23 +251,42 @@ export async function findValidPayment(connection: Connection, p: ValidateParams
       const delta = BigInt(post?.uiTokenAmount.amount ?? "0") - BigInt(pre?.uiTokenAmount.amount ?? "0");
       const received = delta < ixAmount ? delta : ixAmount;
 
-      const strict = quoteForIntent(p.intent, blockTime).amountBaseUnits;
-      const graced = quoteForIntent(p.intent, blockTime - IN_FLIGHT_GRACE_SECONDS).amountBaseUnits;
-      const minimum = strict < graced ? strict : graced;
+      const minimum = quoteForIntent(p.intent, blockTime).amountBaseUnits;
       if (received <= BigInt(0) || received < minimum) continue;
-      return { signature: info.signature, blockTime, amountBaseUnits: received };
+      found.push({ signature: info.signature, blockTime, amountBaseUnits: received });
+      if (stopAtFirst) break;
     } catch {
       continue; // unreadable or not a valid payment for this ticket
     }
   }
-  return null;
+  return found;
 }
 
-/** The record stored in the session. onTime always comes from the confirmed blockTime. */
+/** The first valid payment for the reference, or null while nothing valid exists yet. */
+export async function findValidPayment(connection: Connection, p: ValidateParams): Promise<FoundPayment | null> {
+  return (await findValidPayments(connection, p, true))[0] ?? null;
+}
+
+/**
+ * The record stored in the session. onTime always comes from the confirmed blockTime. discountAppliedBps is the
+ * discount tier the payer actually paid for: the cheapest of [price at blockTime, usdc-only price, list price] that
+ * does not exceed the amount received. Paying more than the on-time price in the last minutes before the due date
+ * (see QUOTE_LOOKAHEAD_SECONDS) therefore records a smaller discount than the rules would have granted, never a
+ * bigger one.
+ */
 export function toPaymentResult(intent: PaymentIntent, found: FoundPayment): PaymentResult {
   const strict = quoteForIntent(intent, found.blockTime);
-  const graced = quoteForIntent(intent, found.blockTime - IN_FLIGHT_GRACE_SECONDS);
-  const discountAppliedBps = found.amountBaseUnits >= strict.amountBaseUnits ? strict.discountBps : graced.discountBps;
+  let discountAppliedBps = strict.discountBps;
+  if (intent.kind === "rent") {
+    const list = BigInt(intent.listAmountBaseUnits);
+    const tiers: Quote[] = [
+      strict,
+      quoteForIntent(intent, intent.dueTs + 1),
+      { amountBaseUnits: list, discountBps: 0 },
+    ].filter((t) => t.amountBaseUnits <= found.amountBaseUnits);
+    const best = tiers.reduce((a, b) => (b.amountBaseUnits > a.amountBaseUnits ? b : a), strict);
+    discountAppliedBps = best.discountBps;
+  }
   const onTime = computePrice({
     listBaseUnits: BigInt(intent.listAmountBaseUnits),
     discountUsdcBps: intent.discountUsdcBps,

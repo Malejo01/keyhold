@@ -25,6 +25,11 @@ export interface TransferParams {
   destination: PublicKey;
   amountBaseUnits: bigint;
   memo: string;
+  /**
+   * Optional Solana Pay reference, added as a read-only non-signer key on the transfer. Used when Solana Pay is on, so
+   * the custodial button and the QR flow share one reference per payment slot and each can see the other's payment.
+   */
+  reference?: PublicKey;
 }
 
 /**
@@ -33,7 +38,7 @@ export interface TransferParams {
  * Resolves once the tx is confirmed. Returns the signature.
  */
 export async function sendTokenTransferWithMemo(params: TransferParams): Promise<string> {
-  const { owner, destination, amountBaseUnits, memo } = params;
+  const { owner, destination, amountBaseUnits, memo, reference } = params;
   if (amountBaseUnits <= BigInt(0)) throw new RangeError("amount must be > 0");
 
   const connection = await getDevnetConnection();
@@ -42,10 +47,13 @@ export async function sendTokenTransferWithMemo(params: TransferParams): Promise
   const source = getAssociatedTokenAddressSync(mint, owner.publicKey);
   const destinationAta = getAssociatedTokenAddressSync(mint, destination);
 
+  const transfer = createTransferCheckedInstruction(source, mint, destinationAta, owner.publicKey, amountBaseUnits, PAYMENT_DECIMALS);
+  if (reference) transfer.keys.push({ pubkey: reference, isSigner: false, isWritable: false });
+
   const tx = new Transaction();
   tx.add(
     createAssociatedTokenAccountIdempotentInstruction(feePayer.publicKey, destinationAta, destination, mint),
-    createTransferCheckedInstruction(source, mint, destinationAta, owner.publicKey, amountBaseUnits, PAYMENT_DECIMALS),
+    transfer,
     memoInstruction(memo),
   );
 

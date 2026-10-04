@@ -126,9 +126,16 @@ export function decodeTicket(token: string, nowSec: number): TicketPayload {
   return { sessionId, reference, expiresAt, intent };
 }
 
-/** Fresh unique reference (the secret half is discarded: nobody ever signs with it). */
-export function newReference(): PublicKey {
-  return Keypair.generate().publicKey;
+/**
+ * One reference per payment slot (session, lease, kind, month), the same for every ticket and for the custodial
+ * button. It is derived, not random, so two tickets for the same slot share it: the second wallet approval is then
+ * visible on chain under the same reference and gets refused or flagged, and a QR payment is seen by the custodial
+ * button (and the other way round). Sessions are part of the input so two visitors with the same demo lease do not
+ * collide. The seed is HMAC-secret, so nobody can precompute it; the private half is never used to sign anything.
+ */
+export function slotReference(sessionId: string, intent: Pick<PaymentIntent, "leaseId" | "kind" | "monthIndex">): PublicKey {
+  const slot = ["ref:v1", sessionId, intent.leaseId, intent.kind, intent.monthIndex ?? "-"].join("|");
+  return Keypair.fromSeed(mac(slot)).publicKey;
 }
 
 export function mintTicket(params: { sessionId: string; intent: PaymentIntent; nowSec: number }): {
@@ -136,7 +143,7 @@ export function mintTicket(params: { sessionId: string; intent: PaymentIntent; n
   reference: string;
   expiresAt: number;
 } {
-  const reference = newReference().toBase58();
+  const reference = slotReference(params.sessionId, params.intent).toBase58();
   const expiresAt = params.nowSec + TICKET_TTL_SECONDS;
   const ticket = encodeTicket({ sessionId: params.sessionId, reference, expiresAt, intent: params.intent });
   return { ticket, reference, expiresAt };

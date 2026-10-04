@@ -102,3 +102,38 @@ Devnet usage: the 2 phase0 transactions above, which this gate requested. No ext
 ## Re-review needed for flag ON
 
 Re-run `tests/e2e/b5-solana-pay-attacks.ts`: it must exit 0. Re-run `scripts/solana-pay-e2e.ts`: 2 devnet transactions. Confirm the fix for B5-1 and, ideally, N1 and N2.
+
+## Fixes (sol-client)
+
+Author: solana-client-engineer. Re-review needed for flag ON. Evidence is at the end of this section.
+
+### B5-1 (blocking): fixed
+
+1. **Server-held accounts refused.** `serverHeldPublicKeys()` (`lib/solana/keys.ts`) returns platform (custody and fee payer), landlord and agency (when set). `POST /api/solana-pay/tx` answers 400 `Invalid account` when `account` is one of them or is the destination owner, before any RPC call, any signature or any transaction build. `buildSolanaPayTransaction` throws `ForbiddenPayerError` for the same keys, so a regression in the route still cannot produce the transaction. The demo tenant keys (ana, bruno, carla) are not in the list on purpose: they stand in for the tenant wallet and the e2e script signs with Ana's. Handing out a tx for Ana's pubkey is harmless because only Ana's key can complete it.
+2. **Authority and source.** The transfer authority is the requesting `account`, the source is `ATA(mint, account)`. Custody is never a source. Tests: `lib/solana/solana-pay.test.ts` ("transfer authority is the payer...") and `app/api/solana-pay/routes.test.ts` (the built tx has the platform signature only, `verifySignatures(true)` is false, neither the platform nor the custody ATA appears in the transfer).
+3. **Fee payer: kept as the platform key, with a proof instead of a dedicated key.** Reason: a dedicated key needs a new env var and funded SOL, and the lead owns env changes. The platform signature cannot authorise a token movement because:
+   - The Token program only accepts a transfer if the source token account's owner signed. The source is `ATA(account)`, and `account` is not a server key (item 1), so the platform's signature is not the owner's signature.
+   - `assertFeePayerAuthorizesNothing` runs before `partialSign` and throws if the fee payer key appears in any instruction other than the associated-token-account creation (account 0, the funder, or account 2, the owner value, which never signs there; that is the platform itself for deposits). So it is in no token-program and no system-program instruction.
+   - A signature covers the exact message, so the holder of the returned transaction cannot add an instruction to it without invalidating the platform signature.
+   - The only thing the platform pays is the fee, plus the rent of a destination token account that already exists. A tx lands only if the wallet's own signature and tokens make the transfer succeed, since it is atomic.
+   - If you still want a dedicated fee payer, the change is one line (`feePayer:` in the tx route) plus a funded key. It is optional.
+4. **Confirmation scan** (`transferAmountIfValid`). Once an instruction matches the destination ATA, mint, decimals and reference, the whole tx is invalid when: the authority is a server-held key or the destination owner; the source is not `ATA(mint, authority)`; or the authority did not sign (`index >= numRequiredSignatures`). `findValidPayments` skips such a tx, so it cannot be recorded or block the real payment (tested: the custody drain tx and an honest tx attached to the same reference, the honest one is recorded).
+
+### Non-blocking
+
+- **N1 (double payment): fixed for the sequential cases, flagged for the concurrent ones.** The reference is now `slotReference(sessionId, leaseId, kind, month)`, derived from an HMAC of the server secret, so every ticket for a slot shares it. The tx route refuses with 409 when a valid payment already exists under it (`findValidPayment`, not "any tx", so junk attached to the reference does not block it). The custodial `/api/pay` carries the same reference on its transfer when the flag is on, and refuses with 409 when a wallet payment for the slot is already on chain. Status flags any other valid payment under the reference as `duplicatePayments: [signatures]` (never recorded, logged server side). Residual: two approvals that land within the same poll interval, and a button payment racing a QR payment, are detected afterwards and flagged, not prevented. There is no refund path in the custodial demo. The UI does not render `duplicatePayments` yet (ui-motion-engineer, if wanted). The "hide the custodial button while a QR is open" suggestion is a UI change and is not done here.
+- **N2 (grace): removed.** `IN_FLIGHT_GRACE_SECONDS` is gone. The price is checked at the confirmed `blockTime` only, and the stricter rule is the one that applies to every transaction. The endpoint instead quotes the price at the latest possible landing time (`quoteForBuild`: now + 120 s, longer than a blockhash lives), so an honest tx that crosses the due date in flight is still sufficient and nothing is stranded. Cost: a payer in the last 120 s before the due date is quoted the usdc-only price. `toPaymentResult` records the discount tier actually paid (`discountAppliedBps`) and `onTime` strictly from `blockTime`, so the record is consistent (before: `onTime=false discountAppliedBps=500` with the on-time amount). Tests: 1 s late with the on-time amount is refused, as is `due + 149`, and a self-built tx at `due + 100`.
+- **N3 (rate limit): done.** `lib/solana/rate-limit.ts`, in-memory sliding window per IP, same approach as `/api/chat`: ticket 20, tx 30, status 200 per 5 min, 429 with `Retry-After`. Best effort per warm instance.
+- **N6 (OPTIONS): done.** 404 with the flag off.
+- **N4, N5, N7, N8: not changed.** N4 (newest 20 signatures) still applies. N5: set `SOLANA_PAY_PUBLIC_URL` in any public deployment with the flag on. N7 and N8 are state-consistency or wire-format notes with no money impact.
+
+### Evidence
+
+| Check | Result |
+| --- | --- |
+| `pnpm exec tsc --noEmit`, `pnpm lint` | clean |
+| `pnpm test` | 8 files, 90/90 (was 61). Regression tests: `lib/solana/solana-pay.test.ts`, `app/api/solana-pay/routes.test.ts` (fake RPC, nothing sent to devnet). Mutation check: removing the authority and source checks makes 7 tests fail. |
+| `pnpm exec tsx tests/e2e/b5-solana-pay-attacks.ts` | exit 0, ALL PROBES PASSED (simulation only: account = platform, landlord, agency refused with 400; the tx for a wallet fails `sigVerify` and moves nothing) |
+| `pnpm build` | OK |
+| phase0 e2e, flag off (`next start -p 3016`, `REPLAY=1`) | 59/59; OPTIONS on the tx route 404. Txs: [2u7gYq…](https://explorer.solana.com/tx/2u7gYqjFsSdchb9Y3Zm1bkEA9CHiNzpMcfur8QhnHHPzTqnkyF2hEinEwxWegxgZLZu1CHCnTH9Ve4MXjy3qbwNe?cluster=devnet), [iqboAu…](https://explorer.solana.com/tx/iqboAuQHWNbd8ZkbyuzesWxNJvmvDWdhHxd7x2dUCmL2VrvWLtcq2QMPWedCXkmRnVTpxWzmPD7Nrgdg526xdbv?cluster=devnet) |
+| `scripts/solana-pay-e2e.ts`, flag on (`next dev -p 3015`) | ALL CHECKS PASSED. Deposit [3AMPPe…](https://explorer.solana.com/tx/3AMPPeQyyvQtqofccX1d7pueW9kctNBSZENB5vcwsJ2Uyn4mg9vJuVYZxJbpXEt8G8iqfPEnBgC8m4gNQjCkcwQp?cluster=devnet), rent [4EYHnw…](https://explorer.solana.com/tx/4EYHnwDTsJKqwF9J4uFWayjJyHcmEq3cAhKcg1yKA9am2N2KWTZrThAB71WgqmjeGQpoeJR8rsrSVYg313SEyxW7?cluster=devnet) (the 2 devnet txs of this fix, plus the 2 of phase0). Both dev servers stopped. |

@@ -53,6 +53,7 @@ export function CardRenderer({ card, ctx }: { card: UiCard; ctx: CardContext }) 
             kind={card.kind}
             quote={card.quote}
             alreadyPaid={ctx.payments.some((p) => p.kind === card.kind)}
+            depositSecured={ctx.payments.some((p) => p.kind === "deposit")}
             onPay={ctx.onPay}
           />
         </motion.div>

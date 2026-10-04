@@ -10,7 +10,7 @@ import { Badge, Button, CardShell, CheckIcon, ClockIcon, ShieldIcon, cx } from "
 type PayStatus = "idle" | "processing" | "confirmed" | "error";
 
 const kindCopy: Record<PaymentKind, { title: string; action: string }> = {
-  deposit: { title: "Secured deposit", action: "Pay deposit" },
+  deposit: { title: "Security deposit", action: "Pay deposit" },
   rent: { title: "Rent payment", action: "Pay rent" },
 };
 
@@ -31,17 +31,22 @@ export function PaymentCard({
   kind,
   quote,
   alreadyPaid,
+  depositSecured,
   onPay,
 }: {
   kind: PaymentKind;
   quote: PriceQuoteDto;
   alreadyPaid: boolean;
+  /** Rent cannot be paid before the deposit is confirmed. */
+  depositSecured: boolean;
   /** Resolves when the server confirmed the payment; rejects with a readable message otherwise. */
   onPay: (kind: PaymentKind) => Promise<void>;
 }) {
   const [status, setStatus] = useState<PayStatus>(alreadyPaid ? "confirmed" : "idle");
   const [error, setError] = useState<string | null>(null);
   const copy = kindCopy[kind];
+  const isRent = kind === "rent";
+  const locked = isRent && !depositSecured;
 
   async function pay() {
     setStatus("processing");
@@ -67,22 +72,25 @@ export function PaymentCard({
           <ShieldIcon className="size-5 text-primary" />
           {copy.title}
         </h3>
-        {quote.onTime ? (
-          <Badge tone="success">
-            <ClockIcon className="size-3.5" />
-            On time
-          </Badge>
-        ) : (
-          <Badge tone="neutral">After due date</Badge>
-        )}
+        {isRent &&
+          (quote.onTime ? (
+            <Badge tone="success">
+              <ClockIcon className="size-3.5" />
+              On time
+            </Badge>
+          ) : (
+            <Badge tone="neutral">After due date</Badge>
+          ))}
       </div>
 
       {/* Two prices */}
       <div>
-        <p className="text-sm text-muted">
-          List price{" "}
-          <span className="tabular-nums line-through decoration-2">{formatUsdc(quote.listBaseUnits)}</span>
-        </p>
+        {isRent && (
+          <p className="text-sm text-muted">
+            List price{" "}
+            <span className="tabular-nums line-through decoration-2">{formatUsdc(quote.listBaseUnits)}</span>
+          </p>
+        )}
         <motion.p
           variants={priceRise}
           initial="hidden"
@@ -95,6 +103,7 @@ export function PaymentCard({
       </div>
 
       {/* Breakdown, straight from the server quote */}
+      {isRent && (
       <ul className="flex flex-col gap-1.5 rounded-md bg-sunken p-3 text-sm">
         {lines.map((l) => (
           <li
@@ -114,6 +123,7 @@ export function PaymentCard({
           </span>
         </li>
       </ul>
+      )}
 
       {/* Action + status */}
       <div aria-live="polite" role="status" className="min-h-11">
@@ -158,11 +168,21 @@ export function PaymentCard({
               exit="exit"
               className="flex flex-col gap-2"
             >
-              <Button onClick={pay} className="w-full sm:w-auto sm:self-start">
+              <Button
+                onClick={pay}
+                disabled={locked}
+                aria-describedby={locked ? `pay-hint-${kind}` : undefined}
+                className="w-full sm:w-auto sm:self-start"
+              >
                 {status === "error"
                   ? "Try again"
                   : `${copy.action} · ${formatUsdc(quote.amountBaseUnits)} USDC`}
               </Button>
+              {locked && (
+                <p id={`pay-hint-${kind}`} className="text-xs text-muted">
+                  Available after the deposit is paid.
+                </p>
+              )}
               {error && <p className="text-sm text-danger">{error}</p>}
             </motion.div>
           )}

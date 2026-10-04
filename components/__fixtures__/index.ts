@@ -195,7 +195,7 @@ export async function fixtureChat(req: ChatRequest): Promise<ChatResponse> {
       state.stage = "CONTRACT";
       state.lease = { ...FIXTURE_LEASE, tenantId };
       reply =
-        "Your contract is ready. Read it through; its fingerprint will be stored with your secured deposit.";
+        "Your contract is ready. Read it through; its fingerprint will be recorded with your deposit payment.";
       cards.push({ type: "contract", lease: state.lease });
     }
   } else if (/deposit/.test(text)) {

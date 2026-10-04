@@ -95,12 +95,12 @@ export function ContractCard({
           </Button>
           {!canVerify && (
             <p id="verify-hint" className="text-xs text-muted">
-              Available after the deposit is secured.
+              Available after the deposit is paid.
             </p>
           )}
           {canVerify && verify.status === "idle" && (
             <p id="verify-hint" className="text-xs text-muted">
-              Checks this text against the fingerprint stored with your secured deposit.
+              Checks this text against the fingerprint recorded with your deposit payment.
             </p>
           )}
         </div>
@@ -139,7 +139,7 @@ export function ContractCard({
                 <div className="min-w-0">
                   <p className={cx("font-semibold", verify.result.match ? "text-success" : "text-danger")}>
                     {verify.result.match
-                      ? "Match: this is the contract you secured"
+                      ? "Match: this is the contract you paid against"
                       : "Mismatch: the text was changed"}
                   </p>
                   <p className="mt-1 break-all font-mono text-xs text-muted">

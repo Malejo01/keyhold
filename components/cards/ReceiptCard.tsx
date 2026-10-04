@@ -7,7 +7,7 @@ import { formatBps, formatTs, formatUsdc, shortHash } from "../format";
 import { Badge, CardShell, CheckIcon, ClockIcon, ExternalIcon } from "../ui";
 
 export function ReceiptCard({ result }: { result: PaymentResult }) {
-  const title = result.kind === "deposit" ? "Deposit secured" : "Rent paid";
+  const title = result.kind === "deposit" ? "Deposit" : "Rent";
 
   return (
     <motion.div variants={receiptIn} initial="hidden" animate="show" className="max-w-2xl">
@@ -17,7 +17,7 @@ export function ReceiptCard({ result }: { result: PaymentResult }) {
             <span className="flex size-6 items-center justify-center rounded-full bg-success text-primary-foreground">
               <CheckIcon className="size-4" strokeWidth={3} />
             </span>
-            Verified payment · {title}
+            Payment confirmed · {title}
           </h3>
           <motion.div variants={pop} initial="hidden" animate="show" transition={{ delay: 0.25 }}>
             {result.onTime ? (

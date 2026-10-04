@@ -14,6 +14,16 @@ import { PERSONAS, SUGGESTED_PROMPTS, type ChatMessage, type PersistedDemo } fro
 import { SendIcon, cx } from "./ui";
 
 const STORAGE_KEY = "demo.session.v2";
+/** Index into SUGGESTED_PROMPTS of the natural next step for each stage. */
+const NEXT_CHIP: Record<Stage, number> = {
+  SEARCH: 0,
+  VISIT: 1,
+  DOCUMENTS: 2,
+  CONTRACT: 3,
+  PAYMENT: 4,
+  ACTIVE: 5,
+  MOVE_OUT: 5,
+};
 let idCounter = 0;
 const newId = () => `m${Date.now().toString(36)}${(idCounter++).toString(36)}`;
 
@@ -43,6 +53,7 @@ function TypingIndicator() {
       initial="hidden"
       animate="show"
       className="flex w-fit items-center gap-1.5 rounded-2xl rounded-bl-sm border border-border bg-surface px-4 py-3"
+      role="status"
       aria-label={`${APP_NAME} is typing`}
     >
       {[0, 1, 2].map((i) => (
@@ -78,6 +89,7 @@ export function ChatShell({ useFixtures }: { useFixtures: boolean }) {
   const epochRef = useRef(0);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const chipsRef = useRef<HTMLUListElement>(null);
 
   // Restore from sessionStorage after mount (reading it during render would cause hydration mismatches).
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -169,7 +181,7 @@ export function ChatShell({ useFixtures }: { useFixtures: boolean }) {
       setStage(res.session.state.stage);
       append({
         role: "assistant",
-        text: res.result.kind === "deposit" ? "Your deposit is secured." : "Your rent payment is verified.",
+        text: res.result.kind === "deposit" ? "Deposit payment confirmed." : "Rent payment confirmed.",
         cards: [{ type: "receipt", result: res.result }],
       });
     },
@@ -217,7 +229,19 @@ export function ChatShell({ useFixtures }: { useFixtures: boolean }) {
     [session, pending, generating, send, pay, generateContract, api],
   );
 
-  const personaName = PERSONAS.find((p) => p.id === tenantId)?.name ?? "";
+  // Highlight the chip for the natural next step and keep it reachable in the scrolling mobile row.
+  const nextChip = Math.min(NEXT_CHIP[stage], SUGGESTED_PROMPTS.length - 1);
+  useEffect(() => {
+    const row = chipsRef.current;
+    const chip = row?.querySelector<HTMLElement>("[data-next='true']");
+    if (!row || !chip) return;
+    row.scrollTo({
+      left: chip.offsetLeft - row.offsetLeft - 8,
+      behavior: reduced ? "auto" : "smooth",
+    });
+  }, [nextChip, reduced, tenantId]);
+
+  const personaName =PERSONAS.find((p) => p.id === tenantId)?.name ?? "";
 
   return (
     <MotionConfig reducedMotion="user">
@@ -252,9 +276,9 @@ export function ChatShell({ useFixtures }: { useFixtures: boolean }) {
               <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col gap-4">
                 {messages.length === 0 && (
                   <div className="my-auto mx-auto max-w-md py-8 text-center">
-                    <p className="font-display text-xl font-semibold">Hi {personaName}, I am {APP_NAME}.</p>
+                    <p className="font-display text-xl font-semibold">Hi {personaName}, I&apos;m {APP_NAME}.</p>
                     <p className="mt-2 text-sm text-muted">
-                      I find rentals, check your documents, prepare the contract and take a secured deposit.
+                      I find rentals, check your documents, prepare the contract and take the deposit.
                       Tell me what you are looking for, or pick a suggestion below.
                     </p>
                   </div>
@@ -309,16 +333,23 @@ export function ChatShell({ useFixtures }: { useFixtures: boolean }) {
                 initial="hidden"
                 animate="show"
                 aria-label="Suggested prompts"
-                className="no-scrollbar mb-3 flex gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible"
+                ref={chipsRef}
+                className="no-scrollbar mb-3 flex gap-2 overflow-x-auto pb-1 pr-8 [mask-image:linear-gradient(to_right,black_88%,transparent)] sm:flex-wrap sm:overflow-visible sm:pr-0 sm:[mask-image:none]"
               >
-                {SUGGESTED_PROMPTS.map((p) => (
+                {SUGGESTED_PROMPTS.map((p, i) => (
                   <motion.li key={p.label} variants={itemIn} className="shrink-0">
                     <button
                       type="button"
                       disabled={pending}
                       onClick={() => void send(p.text)}
                       title={p.text}
-                      className="rounded-full border border-border-strong bg-surface px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-primary-soft hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
+                      data-next={i === nextChip ? "true" : undefined}
+                      className={cx(
+                        "rounded-full border bg-surface px-3 py-1.5 text-xs font-medium transition-colors hover:bg-primary-soft hover:text-primary disabled:cursor-not-allowed disabled:opacity-50",
+                        i === nextChip
+                          ? "border-primary text-primary"
+                          : "border-border-strong text-foreground",
+                      )}
                     >
                       {p.label}
                     </button>

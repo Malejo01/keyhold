@@ -12,10 +12,17 @@ export function PropertyCards({
   properties,
   disabled,
   onVisit,
+  confirmVisit = false,
+  visitConfirmed = false,
+  onConfirmVisit,
 }: {
   properties: Property[];
   disabled: boolean;
   onVisit: (property: Property) => void;
+  /** Card shown after picking a property: its button confirms the visit instead of booking again. */
+  confirmVisit?: boolean;
+  visitConfirmed?: boolean;
+  onConfirmVisit?: () => void;
 }) {
   const { lang, t } = useI18n();
   const c = t.cards.property;
@@ -73,10 +80,10 @@ export function PropertyCards({
               <Button
                 variant="secondary"
                 className="mt-auto w-full"
-                disabled={disabled}
-                onClick={() => onVisit(p)}
+                disabled={disabled || (confirmVisit && visitConfirmed)}
+                onClick={() => (confirmVisit ? onConfirmVisit?.() : onVisit(p))}
               >
-                {c.bookVisit}
+                {confirmVisit ? (visitConfirmed ? c.visitConfirmed : c.confirmVisit) : c.bookVisit}
               </Button>
             </CardShell>
           </motion.li>

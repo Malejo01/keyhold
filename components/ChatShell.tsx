@@ -11,7 +11,7 @@ import { deriveActivity } from "./deriveAgents";
 import Link from "next/link";
 import { useI18n } from "./I18nProvider";
 import { LanguageSwitcher } from "./LanguageSwitcher";
-import { CHIP_TEXT, BOOK_VISIT_FOR } from "@/lib/i18n/chips";
+import { CHIP_TEXT, BOOK_VISIT_FOR, CONFIRM_VISIT } from "@/lib/i18n/chips";
 import { LeaseTimeline, LeaseTimelineCompact } from "./LeaseTimeline";
 import { APP_NAME } from "@/lib/config/brand";
 import { Logo } from "./Logo";
@@ -288,13 +288,15 @@ export function ChatShell({ useFixtures, query = "" }: { useFixtures: boolean; q
       busy: pending,
       generatingContract: generating,
       onVisit: (p: Property) => void send(`${BOOK_VISIT_FOR[lang]} ${lang === "es" ? (p.titleEs ?? p.title) : p.title}`),
+      visitConfirmed: stage !== "SEARCH" && stage !== "VISIT",
+      onConfirmVisit: () => void send(CONFIRM_VISIT[lang]),
       onPay: pay,
       getSession: () => sessionRef.current,
       onPaid: applyPaid,
       onVerify: (contractText, signature) => api.verify({ contractText, signature }),
       onGenerateContract: () => void generateContract(),
     }),
-    [session, pending, generating, send, pay, applyPaid, generateContract, api, lang],
+    [session, pending, generating, send, pay, applyPaid, generateContract, api, lang, stage],
   );
 
   // Highlight the chip for the natural next step and keep it reachable in the scrolling mobile row.

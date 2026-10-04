@@ -16,6 +16,9 @@ export interface CardContext {
   busy: boolean;
   generatingContract: boolean;
   onVisit: (property: Property) => void;
+  /** True once the visit is confirmed (stage past VISIT). */
+  visitConfirmed: boolean;
+  onConfirmVisit: () => void;
   onPay: (kind: PaymentKind) => Promise<void>;
   /** Solana Pay QR flow: read the current session, and apply a payment the server confirmed through the QR. */
   getSession?: () => SignedSession | undefined;
@@ -27,7 +30,16 @@ export interface CardContext {
 export function CardRenderer({ card, ctx }: { card: UiCard; ctx: CardContext }) {
   switch (card.type) {
     case "properties":
-      return <PropertyCards properties={card.properties} disabled={ctx.busy} onVisit={ctx.onVisit} />;
+      return (
+        <PropertyCards
+          properties={card.properties}
+          disabled={ctx.busy}
+          onVisit={ctx.onVisit}
+          confirmVisit={card.confirmVisit === true}
+          visitConfirmed={ctx.visitConfirmed}
+          onConfirmVisit={ctx.onConfirmVisit}
+        />
+      );
     case "prequal":
       return (
         <motion.div variants={cardIn} className="max-w-2xl">

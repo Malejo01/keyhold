@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import type { PaymentKind, PaymentResult, Property, UiCard, VerifyResponse } from "@/lib/contracts";
+import type { PayResponse, PaymentKind, PaymentResult, Property, SignedSession, UiCard, VerifyResponse } from "@/lib/contracts";
 import { cardIn } from "@/lib/motion/presets";
 import { ContractCard } from "./ContractCard";
 import { PaymentCard } from "./PaymentCard";
@@ -17,6 +17,9 @@ export interface CardContext {
   generatingContract: boolean;
   onVisit: (property: Property) => void;
   onPay: (kind: PaymentKind) => Promise<void>;
+  /** Solana Pay QR flow: read the current session, and apply a payment the server confirmed through the QR. */
+  getSession?: () => SignedSession | undefined;
+  onPaid?: (res: PayResponse) => void;
   onVerify: (contractText: string, signature: string) => Promise<VerifyResponse>;
   onGenerateContract: () => void;
 }
@@ -55,6 +58,8 @@ export function CardRenderer({ card, ctx }: { card: UiCard; ctx: CardContext }) 
             alreadyPaid={ctx.payments.some((p) => p.kind === card.kind)}
             depositSecured={ctx.payments.some((p) => p.kind === "deposit")}
             onPay={ctx.onPay}
+            getSession={ctx.getSession}
+            onPaid={ctx.onPaid}
           />
         </motion.div>
       );

@@ -10,6 +10,7 @@
 //    retry reconciles against devnet (landed -> confirm and return the receipt, can never land -> release).
 //  - DATABASE_URL unset: the legacy path (HMAC blob + per-instance in-flight guard), plus the storage-free
 //    issuedAt checks inside verifySession.
+import type { PublicKey } from "@solana/web3.js";
 import { z } from "zod";
 import type { PayRequest, PayResponse, PaymentIntent, PaymentKind, PaymentResult, SessionState } from "@/lib/contracts";
 import { buildPaymentIntent } from "@/lib/agents/lease";
@@ -35,6 +36,11 @@ import {
 } from "@/lib/db/store";
 import { InsufficientFundsError, checkPayment, preparePayment, submitPayment } from "@/lib/solana/pay";
 import type { PreparedPayment } from "@/lib/solana/pay";
+import { getDevnetConnection } from "@/lib/solana/connection";
+import { nextPaymentSlot } from "@/lib/solana/payment-slot";
+import { findValidPayment } from "@/lib/solana/solana-pay";
+import { custodialOnly, solanaPayEnabled, validateParamsFor } from "@/lib/solana/solana-pay-http";
+import { slotReference } from "@/lib/solana/solana-pay-ticket";
 
 export const runtime = "nodejs";
 
@@ -42,17 +48,6 @@ const payRequestSchema: z.ZodType<PayRequest> = z.object({
   kind: z.enum(["deposit", "rent"]),
   session: signedSessionSchema,
 });
-
-/** Month indexes (0-based) already paid, read back from the memos the server itself wrote. */
-function paidRentMonths(payments: PaymentResult[]): Set<number> {
-  const months = new Set<number>();
-  for (const payment of payments) {
-    if (payment.kind !== "rent") continue;
-    const match = /:rent:(\d+):[0-9a-f]{64}$/.exec(payment.memo);
-    if (match) months.add(Number(match[1]));
-  }
-  return months;
-}
 
 /**
  * In-process guard against a double submit of the same session: the session blob is client-held, so
@@ -94,17 +89,15 @@ export async function POST(request: Request): Promise<Response> {
   const lease = state.lease;
   if (!lease) return jsonError("No lease in this session yet", 409);
 
-  let monthIndex: number | undefined;
-  if (kind === "deposit") {
-    if (state.payments.some((p) => p.kind === "deposit")) return conflict("Deposit already paid", "already_paid");
-  } else {
-    if (!state.payments.some((p) => p.kind === "deposit")) return jsonError("Pay the deposit first.", 409);
-    const paid = paidRentMonths(state.payments);
-    // The next unpaid month, in order. The client cannot choose or skip a month.
-    monthIndex = 0;
-    while (paid.has(monthIndex)) monthIndex += 1;
-    if (monthIndex >= lease.months) return jsonError("All rent months are already paid", 409);
+  const next = nextPaymentSlot(state, kind);
+  if (!next.ok) {
+    // "Deposit already paid" keeps its machine-readable code (the client and the B3 attack tests rely on it).
+    if (kind === "deposit" && state.payments.some((p) => p.kind === "deposit")) {
+      return conflict(next.error, "already_paid");
+    }
+    return jsonError(next.error, next.status);
   }
+  const monthIndex = next.monthIndex;
 
   const slot = `${state.sessionId}:${kind}:${monthIndex ?? "-"}`;
   if (inFlight.has(slot)) return jsonError("A payment for this item is already in progress", 409);
@@ -114,6 +107,16 @@ export async function POST(request: Request): Promise<Response> {
   let claimId: string | null = null;
   try {
     const intent = buildPaymentIntent(lease, kind as PaymentKind, monthIndex);
+    // Solana Pay on: the button shares the slot reference with the QR flow. A wallet payment that is already on chain
+    // for this slot (not yet recorded in the session) must not be paid a second time. This check runs BEFORE the
+    // claim, so a refused attempt never leaves a pending row behind.
+    let reference: PublicKey | undefined;
+    if (solanaPayEnabled() && custodialOnly()) {
+      reference = slotReference(state.sessionId, intent);
+      if (await findValidPayment(await getDevnetConnection(), validateParamsFor(intent, reference))) {
+        return jsonError("This payment was already made with a wallet. Check the QR payment status.", 409);
+      }
+    }
     let result: PaymentResult | undefined;
     if (db) {
       const gate = await claimInDatabase(db, state, kind, monthIndex, intent);
@@ -127,7 +130,7 @@ export async function POST(request: Request): Promise<Response> {
       // transfer did not happen: the claim is freed and the tenant can simply retry.
       let prepared: PreparedPayment;
       try {
-        prepared = await preparePayment(intent);
+        prepared = await preparePayment(intent, { reference });
       } catch (err) {
         if (db && claimId) await releaseNotSent(db, claimId);
         throw err;

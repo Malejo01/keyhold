@@ -2,7 +2,7 @@
 
 import { AnimatePresence, MotionConfig, motion, useReducedMotion } from "framer-motion";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { PaymentKind, Property, SignedSession, Stage, TenantId } from "@/lib/contracts";
+import type { PayResponse, PaymentKind, Property, SignedSession, Stage, TenantId } from "@/lib/contracts";
 import { itemIn, messageIn, resetFade, stagger, typingDot, loop } from "@/lib/motion/presets";
 import { fixtureApi, isStaleSession, realApi, type Api } from "./api-client";
 import { CardRenderer, type CardContext } from "./cards/CardRenderer";
@@ -194,6 +194,20 @@ export function ChatShell({ useFixtures }: { useFixtures: boolean }) {
     inputRef.current?.focus();
   }, []);
 
+  // Shared by the server-signed button and the Solana Pay QR flow: both end with a PayResponse.
+  const applyPaid = useCallback(
+    (res: PayResponse) => {
+      applySession(res.session);
+      setStage(res.session.state.stage);
+      append({
+        role: "assistant",
+        text: res.result.kind === "deposit" ? "Deposit payment confirmed." : "Rent payment confirmed.",
+        cards: [{ type: "receipt", result: res.result }],
+      });
+    },
+    [append, applySession],
+  );
+
   const pay = useCallback(
     async (kind: PaymentKind) => {
       const current = sessionRef.current;
@@ -210,15 +224,9 @@ export function ChatShell({ useFixtures }: { useFixtures: boolean }) {
         throw err;
       }
       if (epoch !== epochRef.current) return;
-      applySession(res.session);
-      setStage(res.session.state.stage);
-      append({
-        role: "assistant",
-        text: res.result.kind === "deposit" ? "Deposit payment confirmed." : "Rent payment confirmed.",
-        cards: [{ type: "receipt", result: res.result }],
-      });
+      applyPaid(res);
     },
-    [api, append, applySession, resetStaleSession],
+    [api, applyPaid, resetStaleSession],
   );
 
   // Same path as the "Generate the contract" chip, so the reply carries contract + deposit cards.
@@ -243,10 +251,12 @@ export function ChatShell({ useFixtures }: { useFixtures: boolean }) {
       generatingContract: generating,
       onVisit: (p: Property) => void send(`Book a visit for ${p.title}`),
       onPay: pay,
+      getSession: () => sessionRef.current,
+      onPaid: applyPaid,
       onVerify: (contractText, signature) => api.verify({ contractText, signature }),
       onGenerateContract: () => void generateContract(),
     }),
-    [session, pending, generating, send, pay, generateContract, api],
+    [session, pending, generating, send, pay, applyPaid, generateContract, api],
   );
 
   // Highlight the chip for the natural next step and keep it reachable in the scrolling mobile row.

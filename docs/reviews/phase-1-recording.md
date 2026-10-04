@@ -150,3 +150,29 @@ Mismatches: B1 (no deposit card after the card button; "do not click the chip"),
 - **Unit tests.** vitest is blocked on this machine.
 - **Disclosure scope.** Whether `.claude/agents/*` or prompts were derived from Mauro's other projects (out of scope for this diff; those repos are read-only and were not opened). Disclosures currently say no code was imported.
 - **The pitch video.** Only its script was reviewed.
+
+## Addendum: re-check after 65f2582 and 6a3e96b
+
+**Updated verdict for recording: GO, on one remaining condition.** Production is still waiting for the deploy of this branch. After the deploy, `node tests/e2e/phase0.mjs` (default target `https://keyhold-app.vercel.app`) must pass once against production, followed by one practice take in the browser. Until that happens, production still serves the old flow (deposit and rent offered together), and the updated e2e fails against it.
+
+**B1: closed (verified in code).** The PrequalCard button "Generate the contract" now calls `generateContract` (`components/ChatShell.tsx:216`). That function now runs `send("Generate the contract")` (`ChatShell.tsx:193-205`), the same `/api/chat` → `handleContract` path the chip uses. That path re-runs approval on the server and returns the contract card plus the deposit card (confirmed earlier in replay mode: `PAYMENT contract,payment:deposit`). `ChatShell` no longer calls `api.lease`. Double clicks are covered: `generatingRef`, the `pending` guard in both `generateContract` and `send`, and `onClick` unset while generating. The button disappears once the session has a lease (`CardRenderer.tsx:33`). I did not click through it in a browser myself; the lead's headless-Chrome run following the script (card button, 1280 px light and 375 px dark) is the UI evidence.
+
+**Non-blocking issues, status after these commits:**
+- 1 (wrong chip highlighted after the deposit): fixed. In `PAYMENT` with a deposit paid, the highlight moves to index 5, "Pay my first rent" (`ChatShell.tsx:222-226`). In `ACTIVE` it still highlights that already-paid chip; this is cosmetic.
+- 2 (chat/payment race): mitigated in the script only. Steps 1:50 and 2:15 now say "While it says 'Confirming your payment…', don't click or type". The code still lets a chat request go out while a payment is confirming. Fix this in F2 together with session replay.
+- 3 (which receipt): fixed. Step 2:30 now names the deposit receipt.
+- 4 (a11y): mostly fixed. The locked Pay and Verify buttons and the busy Generate button now use `aria-disabled` and stay focusable, with no click handler while locked. Styling covers `aria-disabled:` (`components/ui.tsx:15, 18`). Still open: per-kind duplicate ids, and the next-step chip marked by colour only.
+- 5 (cosmetic): `ChatShell.tsx:93` adds another missing space (`const chipsRef =useRef`).
+- 6-9: unchanged.
+
+**Evidence for this addendum:**
+```
+git log --oneline -4   -> f1bf6cb test(e2e)…, 6a3e96b docs(submission)…, 65f2582 fix(ui)…, cb43f63
+BASE_URL=http://localhost:3000 node tests/e2e/phase0.mjs   -> 59/59 checks passed in 211s (exit 0; 429s on /api/chat honoured)
+  deposit https://explorer.solana.com/tx/4zi1J5f3vAT4kcyWnVQVeHVXQwzreDQ4Hc9QBLpe5jiJaXM1xWdkHmZxgezSnnoQctsNYeT4maASafqjmYCLysVN?cluster=devnet
+  rent    https://explorer.solana.com/tx/2hwv8QWDAd4NkKpZYkkUz7Ai8kK483vuLoVR6cwqUu2t447eVAjBhLRy4HUoKVkc8Y2RSWH4TGB8zc1Pj49HufNM?cluster=devnet
+pnpm exec tsc --noEmit -> 0;  pnpm lint -> no findings
+```
+That makes three local e2e passes on this branch (runs 1-2 before the fix, run 3 after). The e2e drives the API, not the UI, so the button-path change is covered by code review plus the lead's browser run, not by this script.
+
+**Still not covered:** production (pending deploy), my own real-browser pass, and vitest (blocked on this machine).

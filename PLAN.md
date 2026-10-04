@@ -4,6 +4,8 @@ Status: **F0 approved by Mauro on Sat 2026-10-03.** F2–F7 replanned the same n
 
 Current phase: **F0 — gate passed (see `docs/reviews/phase-0.md`, addendum); demo video still to be recorded by the product team (Ani and teammates; Mauro only does code).** Next: F1 on Sun 04/10 09:00.
 
+F1 status (Sun 04/10, ~02:45 ART): first real-browser run done (headless Chrome, real routes) and its findings fixed on branch `f1-recording-ready`; qa verdict for recording **GO once production is redeployed and `tests/e2e/phase0.mjs` passes there** (`docs/reviews/phase-1-recording.md`). F1-01 drafts done (`preselection.md`, `pitch-script.md`, demo script rewritten for the product team); F1-02 done (`gtm.md`, `docs/validation/agencies-salta.md`: 14 verified, 1 unverified). Open: humans' TODOs in `preselection.md` and README, videos, submit before 15:30. Monday debates prepared in `docs/debates/2026-10-05-prepared.md`, not started.
+
 Legend: **[U]** = long task that can run unattended while Mauro teaches. It still ends in a review by Mauro before merging.
 
 ---

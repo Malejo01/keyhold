@@ -112,10 +112,20 @@ Not blocking, to close in F2:
 - Script and brief for the product team: `docs/submission/demo-script.md`, `docs/submission/recording-brief.md`. Before/after screenshots: `docs/reviews/ux/`.
 - F1-07 (bilingual ES/EN) starts after this merge, on its own branch, because it touches the same files.
 
+## Overnight run (Sun 04/10, ~01:30 → ~05:00 ART)
+
+Full report: `docs/MORNING_REPORT.md` on `main` and the GitHub issue "Morning report 2026-10-04".
+
+- `f1-design` merged to `main` as `ad57ca3`; production verified (e2e 59/59, recording script 0 issues). `main` frozen afterwards; its only later change is the morning report.
+- Blocks B1–B9 each on their own branch and worktree (`../alquilia-wt/<branch>`), each with a qa gate in `docs/reviews/b*.md` and a draft PR (#1–#9). B10 `integration/overnight` (PR #10, do not merge) contains all nine; qa GO (`docs/reviews/b10-integration.md`).
+- Not on any deployment: Neon (needs Vercel Marketplace provisioning by Mauro), the Anchor program (built and CI-tested, not deployed), Solana Pay (flag off), agency release on production (no `AGENCY_SECRET_KEY` there).
+- vitest runs locally inside the worktrees; the Windows Application Control note above applied to the main folder only.
+- `.claude/settings.local.json` holds the overnight permission rules approved by Mauro (git worktree, draft PRs, preview-only Vercel env, Neon create; deny force-push, branch deletion, other project folders).
+
 ## Next 5 steps
 
-1. Product team (Ani and teammates): record the demo (≤ 3 min, English) with `docs/submission/demo-script.md`, on the public URL (recorded answers). Mauro only does code.
-2. Mauro: close the app, rename the folder to `keyhold`, open a new session there (`.claude/settings.json` enables agent teams). Check with `/agents` that the 8 dev agents load. Remove the `tuki-rentals.vercel.app` alias after Mon 12/10.
-3. F1-01 and F1-02 in parallel: `docs/submission/preselection.md` with character counts and `pitch-script.md` (submission-writer), GTM text and the list of 15 agencies (market-validation-analyst). Product model is named "Google Gemini"; Claude Code stays declared as the coding assistant.
-4. Mauro and Ani: answer the README TODOs; the product team records the pitch; share the repo with `hackathon@superteam.ar` if it is ever made private, and submit the form **before 15:30**.
-5. Lead: complete the detailed boards for F2–F7 in `PLAN.md` (F1-05), then start F2 on Monday with the Neon project and the program account table.
+1. Product team: record the demo from `main` with `docs/submission/demo-script.md` and `recording-brief.md` (production URL, recorded answers). Then the pre-selection form before 15:30.
+2. Mauro: answer the 10 decisions in `docs/MORNING_REPORT.md` (one letter each).
+3. After the recording: unfreeze `main` and merge PRs #1→#9 in order (decision 1), re-running e2e on production after each risky one (B3, B5, B6).
+4. Mauro: provision Neon via Vercel Marketplace (Preview first), fund a devnet deployer for the Anchor program, optionally set `AGENCY_SECRET_KEY` and a dedicated RPC on Preview.
+5. Lead: wire `ESCROW_MODE=program` to the deployed program (sol-client hand-offs in `docs/onchain.md`), align `addMonthsTs` with the program's fixed period, and fix the B6 marker-funding griefing (`allocateWithSeed`).

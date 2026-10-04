@@ -28,7 +28,7 @@ Persona order: Bruno (fast), Carla (the key moment), Ana (full flow). Each perso
 | 1:57 - 2:07 | Scroll up to the contract card. Click **Verify**. | A green result "Match: this is the contract you paid against", with the computed and stored fingerprints equal. | "Verify recomputes the fingerprint and compares it with the one in the payment. It matches." |
 | 2:07 - 2:22 | Click chip **Pay my first rent** (it is highlighted as the next step). Watch the price. Click **Pay rent · 399.00 USDC**. | Chat reply "Deposit received. First month's rent: ..." and the rent card: the price counts down from 420.00 to 399.00 USDC, with −3% for paying in USDC and −2% for paying on time. Click the button; "Confirming your payment…" shows. **Do not click or type until the receipt appears.** Then "Rent payment confirmed." and the receipt "Payment confirmed · Rent" with an on-time badge. The timeline reaches "Active lease" with the "Now" pill. | "Rent shows two prices. The on-time discount is checked from the confirmed block time on Solana, not from a button or the browser's clock." |
 | 2:22 - 2:42 | On the **deposit** receipt ("Payment confirmed · Deposit") click **View on Solana Explorer**. A new tab opens. Show the token transfer and the Memo line `lease:v1:<leaseId>:deposit:<sha256>`. | Devnet explorer page for the transaction: the token transfer and the Memo. | "Here is the transaction on the devnet explorer: the token transfer and a memo with the contract fingerprint. Only hashes, amounts, timestamps and public keys are on-chain. No personal data." |
-| 2:42 - 2:58 | Close the explorer tab. Show the app with the timeline at "Active lease" and the five agents in the sidebar. | App, timeline at Active lease, receipts in the chat, Agent activity panel. | "One honest note: the escrow is custodial today, a platform wallet on devnet with demo keys. The Anchor program with two-of-three release is in progress, not built. This is AlquilIA." |
+| 2:42 - 2:58 | Close the explorer tab. Show the app with the timeline at "Active lease" and the five agents in the sidebar. | App, timeline at Active lease, receipts in the chat, Agent activity panel. | "One honest note: the escrow is custodial today, a platform wallet on devnet with demo keys. The Anchor program with two-of-three release is tested on a branch, not deployed. This is AlquilIA." |
 
 Order matters: if anyone asks for the rent before the deposit is paid, the agent answers "The deposit comes first." Pay the deposit, then the rent.
 
@@ -38,7 +38,7 @@ If the take runs over 3:00: talk while pages load, shorten the Bruno and Carla s
 
 - "Everything here is simulated, on Solana devnet, and the AI answers in this take are recorded." (The production site serves recorded Gemini answers; the decisions are made by code either way. Do not say the answers are live.)
 - "The model never approves anybody: it extracts, and code decides."
-- "The escrow is custodial today ... The Anchor program with two-of-three release is in progress, not built."
+- "The escrow is custodial today ... The Anchor program with two-of-three release is tested on a branch, not deployed."
 
 ## Do not show
 
@@ -60,7 +60,7 @@ If the take runs over 3:00: talk while pages load, shorten the Bruno and Carla s
 ## Expected questions (short answers, no invented facts)
 
 - "Who pays in USDC in Salta?" "We do not have evidence yet. Rents there are in pesos. The plan is a peso on-ramp with USDC as the settlement layer. We are starting validation with Salta agencies."
-- "Is the escrow real?" "The transfers are real devnet transactions. The custody is a platform wallet today, so it is custodial. The Anchor program is the fix and is in progress."
+- "Is the escrow real?" "The transfers are real devnet transactions. The custody is a platform wallet today, so it is custodial. The Anchor program is the fix: it is tested on a branch and not deployed yet."
 - "How is this different from Fiador.sol or RentLock?" "We start from the agency back-office: pre-qualification and a cross-check agent before any money moves, and the planned release needs 2 of 3 signatures with the agency as arbiter. We have only read their public descriptions."
 
 ## Check after recording

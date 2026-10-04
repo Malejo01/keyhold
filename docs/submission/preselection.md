@@ -1,8 +1,8 @@
 # Pre-selection form answers (superteam.ar/colosseum/preseleccion)
 
 Deadline: Sun 04/10, before 16:00 ART (internal target: before 15:30). Fields are in the order listed in `docs/02-hackathon-rules-market-judges.md` §1.1.
-Character counts were done by hand, counting spaces and punctuation, with a single space between sentences and a single line break counted as 1 character. Paste each answer into the form and re-check the counter the form shows; if it disagrees, trust the form and trim.
-Status of the product at the time of writing: devnet only, simulated data, escrow is **custodial** (platform wallet, server signs with demo keys), Anchor program with 2-of-3 release in progress and not built.
+Character counts were first done by hand, re-checked on 2026-10-04 with exact-length regex probes and re-checked by QA with node (code points, spaces and punctuation included, line endings excluded), with a single space between sentences and a single line break counted as 1 character. Two answers were edited afterwards for branch status (section 4: 1,229; section 11: 1,692); those two counts were computed by hand and need a recount by the lead. Paste each answer into the form and re-check the counter the form shows; if it disagrees, trust the form and trim.
+Status of the product at the time of writing: devnet only, simulated data, escrow is **custodial** (platform wallet, server signs with demo keys). The Anchor program with 2-of-3 release is not on `main` yet: built and CI-tested on a branch, not deployed.
 
 ## 1. Name, email, Telegram, city and province
 
@@ -28,10 +28,10 @@ Count: **121** of 140. (Based on the positioning line, but without "trustless", 
 ## 4. Description (limit 50 to 2000 characters)
 
 ```
-AlquilIA is an AI leasing back-office for real-estate agencies in Argentina's interior. Small agencies in Salta check each tenant's ID, payslip and guarantee by hand, and the security deposit sits with whoever is in the middle. AlquilIA's agents read the documents and a second, independent agent re-checks them. The model only extracts fields; deterministic code decides approval. The lease is hashed (sha256), and the deposit and rent are paid as SPL token transfers on Solana devnet, each with a Memo carrying the contract hash. Only hashes, amounts, timestamps and public keys go on-chain; no personal data. What is real today: a working app at keyhold-app.vercel.app with three simulated tenants (one approved, one stopped for an old payslip, one stopped by the cross-check for a name mismatch) and real devnet transactions. What is not: the escrow is custodial today (a platform wallet on devnet, signed by the server with demo keys). An Anchor program with 2-of-3 release between tenant, landlord and agency is in progress, not built. Rents in Salta are in pesos; the roadmap is a peso on-ramp with USDC as the settlement layer. All data and the tUSDC token are simulated.
+AlquilIA is an AI leasing back-office for real-estate agencies in Argentina's interior. Small agencies in Salta check each tenant's ID, payslip and guarantee by hand, and the security deposit sits with whoever is in the middle. AlquilIA's agents read the documents and a second, independent agent re-checks them. The model only extracts fields; deterministic code decides approval. The lease is hashed (sha256), and the deposit and rent are paid as SPL token transfers on Solana devnet, each with a Memo carrying the contract hash. Only hashes, amounts, timestamps and public keys go on-chain; no personal data. What is real today: a working app at keyhold-app.vercel.app with three simulated tenants (one approved, one stopped for an old payslip, one stopped by the cross-check for a name mismatch) and real devnet transactions. What is not: the escrow is custodial today (a platform wallet on devnet, signed by the server with demo keys). An Anchor program with 2-of-3 release between tenant, landlord and agency has been built and CI-tested on a branch; it is not merged and not deployed. Rents in Salta are in pesos; the roadmap is a peso on-ramp with USDC as the settlement layer. All data and the tUSDC token are simulated.
 ```
 
-Count: **1,179** (nine sentences of 87, 139, 84, 68, 149, 79, 217, 211 and 137 characters plus 8 spaces; the name "AlquilIA" is one character longer than "Keyhold"). Inside 50 to 2000.
+Count: **1,229** (1,179 re-checked by regex probe and by QA with node, plus 50 characters from the edited Anchor sentence, hand count; recount by lead). Inside 50 to 2000.
 
 ## 5. Blockchains and tools
 
@@ -39,7 +39,7 @@ Count: **1,179** (nine sentences of 87, 139, 84, 68, 149, 79, 217, 211 and 137 c
 Solana (devnet), SPL Token, Memo program, @solana/web3.js, Google Gemini (Flash-Lite), Next.js, TypeScript, Tailwind CSS, Vercel
 ```
 
-Count: 128. Notes: the model in the product is Google Gemini. Claude Code is not listed here; it is declared as the AI coding assistant in the README Disclosures. Solana Pay is not listed because it is planned, not built (the draft in docs/02 listed it).
+Count: 128. Notes: the model in the product is Google Gemini. Claude Code is not listed here; it is declared as the AI coding assistant in the README Disclosures. Solana Pay and Anchor are not listed because they are on branches, not on `main` and not deployed (the draft in docs/02 listed Solana Pay).
 
 ## 6. Logo (optional)
 
@@ -49,7 +49,7 @@ TODO(Ani): link to the logo, or leave empty. Do not add one that was not made fo
 
 | Field | Answer |
 |---|---|
-| Pitch video link (max 2:00, English, YouTube, Loom or Drive) | TODO(Ani): link after recording. Script: `docs/submission/pitch-script.md` (243 words) |
+| Pitch video link (max 2:00, English, YouTube, Loom or Drive) | TODO(Ani): link after recording. Script: `docs/submission/pitch-script.md` (245 words) |
 | Demo video link (max 3:00, English) | TODO(Ani) or TODO(Mauro): link after recording. Script: `docs/submission/demo-script.md`. The product team records; set link sharing to "anyone with the link can view" |
 
 Rule from docs/02: no real people or material without permission in the videos. Data is 100% simulated.
@@ -98,10 +98,10 @@ AlquilIA is software for agencies, which stay the registered intermediary; it is
 Validation plan for the coming week: interview 5 real-estate agencies in Salta (time spent on tenant checks, deposit disputes, willingness to pay), 5 direct landlords, and survey 30 tenants or students (was the deposit returned; do they hold stablecoins). Target: one letter of intent or pilot. Each conversation is logged with date and notes in the repo before we cite it.
 Currency: rents in Salta are in pesos. USDC is the settlement layer in this build; the roadmap is a peso on-ramp so tenants pay in pesos and the agency receives USDC or pesos. Early adopters we would test first: mining professionals, remote workers paid abroad, and students supported from abroad. We do not yet know how many hold USDC.
 Regulation: no legal advice yet. The design is regime-agnostic: the contract stays off-chain, only its hash goes on-chain, and USDC is a payment method. Rental rules in Argentina may change, and the product does not depend on one regime. A short legal consult is planned.
-Similar projects: Fiador.sol (deposit escrow with yield and reputation) and RentLock (rent escrow in Solana PDAs). AlquilIA starts from the agency back-office, with document checks before any money moves; its planned 2-of-3 release is not built yet. Comparison based on public descriptions; we have not tested them.
+Similar projects: Fiador.sol (deposit escrow with yield and reputation) and RentLock (rent escrow in Solana PDAs). AlquilIA starts from the agency back-office, with document checks before any money moves; its 2-of-3 release exists only on a branch and is not deployed. Comparison based on public descriptions; we have not tested them.
 ```
 
-Count: **1,673** characters (eight paragraphs of 93, 69, 101, 109, 372, 336, 271 and 315 characters, plus 7 line breaks counted as 1 each; paragraphs 2 to 4 are separate lines in the block above). If the form counts a line break as 2, it is 1,680. Under 2000.
+Count: **1,692** characters (eight paragraphs of 93, 69, 101, 108, 373, 336, 271 and 334 characters; the first seven re-checked by regex probe on 2026-10-04 and by QA with node, the last one edited and counted by hand, +19; recount by lead; plus 7 line breaks counted as 1 each; paragraphs 2 to 4 are separate lines in the block above). If the form counts a line break as 2, it is 1,699. Under 2000.
 
 Open items for the market teammate: replace the plan with real, recorded contacts only after they are logged in `docs/validation/evidence.md` (the file does not exist yet at the time of writing). The mining, remote-worker and student segments come from the market notes in docs/02 §5.3 and are hypotheses.
 

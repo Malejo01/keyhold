@@ -8,7 +8,7 @@
  * replay if not. Live runs are strict (no recording fallback, no memo) and spaced to respect free-tier rate limits.
  */
 import { config } from 'dotenv';
-import type { FinalDecision, PaymentResult, SessionState, TenantId } from '../lib/contracts';
+import type { FinalDecision, PaymentResult, SessionState, TenantId, UiCard } from '../lib/contracts';
 import { aiDescribe, aiMode } from '../lib/ai';
 import { RECORDINGS } from './recordings';
 import { loadCatalog } from '../lib/agents/catalog';
@@ -104,7 +104,13 @@ async function flowEval(): Promise<void> {
   const fakeReceipt = (kind: PaymentResult['kind']): PaymentResult => ({
     kind, signature: `sig-${kind}`, explorerUrl: '', blockTime: 0, amountBaseUnits: '0', discountAppliedBps: 0, onTime: true, memo: '',
   });
+  const paymentKinds = (cards: UiCard[]) => cards.flatMap((c) => (c.type === 'payment' ? [c.kind] : []));
+  // Deposit strictly before rent: asking for rent first still offers only the deposit.
+  const rentFirst = await runTurn(state, 'I want to pay the rent');
+  const rentFirstOk = paymentKinds(rentFirst.cards).join(',') === 'deposit' && /deposit comes first/i.test(rentFirst.reply);
   state = applyEvent(state, { type: 'payment_confirmed', result: fakeReceipt('deposit') });
+  const afterDeposit = await runTurn(state, 'What do I pay next?');
+  const afterDepositOk = afterDeposit.state.stage === 'PAYMENT' && paymentKinds(afterDeposit.cards).join(',') === 'rent';
   state = applyEvent(state, { type: 'payment_confirmed', result: fakeReceipt('rent') });
   stages.push(state.stage);
 
@@ -112,9 +118,10 @@ async function flowEval(): Promise<void> {
     stages.join('>') === 'SEARCH>SEARCH>VISIT>DOCUMENTS>CONTRACT>PAYMENT>ACTIVE' &&
     docs.cards.some((c) => c.type === 'prequal') &&
     contract.cards.some((c) => c.type === 'contract') &&
-    contract.cards.filter((c) => c.type === 'payment').length === 2 &&
+    paymentKinds(contract.cards).join(',') === 'deposit' &&
     state.history.length <= 24;
   check('orchestrator: Ana end-to-end stage flow', ok, stages.join('>'));
+  check('orchestrator: deposit before rent', rentFirstOk && afterDepositOk, `${rentFirst.reply.split('\n')[0]} | ${afterDeposit.reply.split('\n')[0]}`);
 
   const bruno = await runTurn({ sessionId: 'eval-b', stage: 'DOCUMENTS', tenantId: 'bruno', selectedPropertyId: first?.id, payments: [], history: [] }, 'Uploading my documents');
   check('orchestrator: Bruno stays in DOCUMENTS', bruno.state.stage === 'DOCUMENTS', bruno.reply.split('\n')[0]);

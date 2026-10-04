@@ -1,58 +1,69 @@
 # Demo script (max 3:00, English)
 
-Speaker: Mauro, on screen. Follows section 3.5 of `docs/02-hackathon-rules-market-judges.md`.
-Source for the on-screen behaviour: `lib/contracts.ts` and the UI built in F0-05. Where the exact button label or chat wording of the build may differ, the line is marked and listed in "Check before recording".
+For the product team (Ani and teammates). You do not need to know the code. Everything below is what you click, what you should see, and what you say. Flow checked in headless Chrome on 2026-10-04 (1280 px light, 375 px dark) against the local build; production must be redeployed with these changes before recording, and one practice run on production confirms it.
+Target length 2:55, hard stop 3:00. The pitch (`pitch-script.md`, 2:00) covers the problem, the market and the ask, so this video does **not** repeat them: it shows the product.
 
-## Setup before pressing record
+## Before you press record
 
-- Open the public URL (or localhost) in a clean browser window, light theme, 1280 px wide. The banner "Demo · Solana devnet · simulated data" must be visible at the top the whole time.
-- Fresh session. Persona switcher visible: Ana / Bruno / Carla. Chat on the left, lease timeline on the right.
-- Use `REPLAY=1` if the model API is slow or failing. The behaviour is the same because `lib/rules/` decides.
-- Devnet explorer tab ready, not open on screen yet.
-- Platform wallet funded with devnet SOL, `tUSDC` set up (`pnpm setup:devnet` ran clean).
-- Have `docs/submission/tx-links.md` open off-screen as a backup if an explorer page loads slowly.
-- No real person's data and no real documents on screen. Everything is simulated.
+- [ ] Open https://keyhold-app.vercel.app in a clean Chrome window (new profile or guest window, so no bookmarks bar, extensions or profile name show). Light theme, window 1280 px wide, browser zoom 100 to 110 percent.
+- [ ] Close every other tab and app. Turn off notifications (Do Not Disturb).
+- [ ] Reload the page so the session is fresh. Check the banner "Demo · Solana devnet · simulated data" is visible. It must stay visible the whole video.
+- [ ] Persona switcher (top right) shows Ana, Bruno, Carla. Chips above the input show: Find a place, Book a visit, Upload my documents, Generate the contract, Pay the deposit, Pay my first rent.
+- [ ] Have a second tab ready in the same window with a devnet explorer page for a recent Keyhold deposit payment (take the link from a receipt of a practice run, not from old notes). It is a backup if the explorer loads slowly. Do not show it unless needed.
+- [ ] Rate limit: the app allows 30 chat messages per 5 minutes per IP. A full take uses about 10. If a "too many requests" message appears, wait 5 minutes and start again.
+- [ ] Do one practice run first. Then reload and record.
+- [ ] Record screen and microphone. English only. No real person's data or real documents appear anywhere; everything is simulated.
 
 ## Script
 
-| Time | On screen | Mauro types | Mauro says |
+Persona order: Bruno (fast), Carla (the key moment), Ana (full flow). Each persona starts with an empty chat; switching persona resets the chat.
+
+| Time | Click or type (exact text) | What should be on screen | What to say |
 |---|---|---|---|
-| 0:00 - 0:20 | The app with the devnet banner. Persona switcher visible. | nothing | "Small real-estate agencies in Salta check every tenant by hand: ID, payslip, guarantee. Mistakes get through, and the deposit sits with someone in the middle. Keyhold is an AI back-office for those agencies, and Solana holds the deposit and the payment record. Everything you see is simulated, on devnet." |
-| 0:20 - 0:50 | Select persona **Bruno**. Chat on the left. Timeline on the right shows stage SEARCH. Property cards appear (2 or 3), all from the catalogue. | `2-bedroom near Tres Cerritos, under 500 USDC, pets ok` | "The listings agent only answers from the catalogue, so it cannot invent a property. The agent works in stages, shown on the timeline: search, documents, contract, payment." Pick one card. |
-| 0:50 - 1:05 | Bruno submits his documents (chat message or upload action, whichever the build offers). Prequal card: status NEEDS_INFO, issue `expired_payslip`. Timeline stays on DOCUMENTS. | `I'd like to apply. Here are my documents.` (check wording) | "Bruno's payslip is older than 90 days. The model reads the documents, but a plain rule in code makes the call. The model never approves anybody. The agency would see this in its review queue." |
-| 1:05 - 1:35 | Switch persona to **Carla** (session resets). Search and select the same property, then submit her documents. Prequal card shows APPROVED, then the crosscheck discrepancy card appears: `name_mismatch`, final status NEEDS_INFO, decided by crosscheck. | `2-bedroom near Tres Cerritos, under 500 USDC, pets ok`, then `I'd like to apply. Here are my documents.` (check wording) | "Carla looks fine to the first agent, which approves her. A second agent, with its own prompt, reads the original documents again and finds that the name on her ID is not the name on her payslip. When the two disagree, the case stops. This is the cross-check, and the decision is still made by code, not by the model." |
-| 1:35 - 1:45 | Switch persona to **Ana**. Search, select the property, submit documents. Prequal card: APPROVED. Crosscheck agrees. Timeline moves to CONTRACT. | `2-bedroom near Tres Cerritos, under 500 USDC, pets ok`, then `I'd like to apply. Here are my documents.` (check wording) | "Ana's documents are complete and consistent. Both agents agree, so she moves on." |
-| 1:45 - 2:10 | Contract card: contract text, sha256 shown. Press **Verify**. Green check. | nothing (click Verify) | "The lease is generated from a template and we compute its sha256. Only that hash goes on-chain, never the text and never a name. Verify recomputes the hash and compares it with the one in the transaction memo." (If Verify needs a payment first, say: "Verify turns green after the first payment, in a moment.") |
-| 2:10 - 2:30 | Payment card with two prices: list price crossed out, discounted price shown, with the two discounts (paying in USDC, paying on time). Click pay deposit. Receipt card appears with an explorer link. | nothing (click Pay deposit) | "Two prices. The on-time discount is computed by the server from the block time of the confirmed transaction, not from a button or the browser's clock. Now the deposit." |
-| 2:30 - 2:45 | Click pay rent. Second receipt. Open an explorer link: the devnet transaction shows the token transfer and the Memo `lease:v1:<id>:deposit:<hash>`. Back in the app, press Verify again: green. | nothing (click Pay rent, open link, press Verify) | "Two real devnet transactions, each with a memo carrying the lease id and the contract hash. Only hashes, amounts, timestamps and public keys are on-chain. Verify is green." |
-| 2:45 - 3:00 | Timeline at ACTIVE with the receipts. Optional: cut to the README "Current status" section. | nothing | "One honest note. Today the escrow is custodial: the deposit goes to a platform wallet on devnet and the server signs with demo keys. The Anchor program with 2-of-3 release between tenant, landlord and agency is in progress this week, not built yet. Next also come a Phantom QR payment and an agency panel. This is Keyhold." |
+| 0:00 - 0:12 | Nothing. | The app: banner "Demo · Solana devnet · simulated data", chat on the left, "Lease timeline" on the right, Ana selected. | "This is Keyhold, an AI back-office for rental agencies. Everything here is simulated, on Solana devnet, and the AI answers in this take are recorded." |
+| 0:12 - 0:42 | Click **Bruno** (top right). Click chip **Find a place**. When the property cards appear, click **Book a visit** on the first card ("Bright 2-bedroom apartment near Tres Cerritos park", 420 USDC). Click chip **Upload my documents**. | Chat sends "2-bedroom near Tres Cerritos, under 500 USDC, pets ok". Property cards appear. Then the pre-qualification card: badge "More information needed", payslip 120 days old (over 90). Timeline stays on Documents. | "Three demo tenants. Bruno first: a search, a visit, then his documents. The listings agent only answers from the catalog. Google Gemini reads his documents, but plain code makes the call: his payslip is 120 days old, over the 90-day limit, so he needs to send a newer one." |
+| 0:42 - 1:20 | Click **Carla**. Click chip **Find a place**. Click **Book a visit** on the first card. Click chip **Upload my documents**. Point the cursor at "First review: Approved" and then at "Cross-check: Discrepancy found". | Pre-qualification card with an accent border: banner "Independent cross-check found a discrepancy"; "First review: Approved" next to "Cross-check: Discrepancy found"; line "Name does not match · Payslip" showing Camila against CARLA BEATRIZ. | "Now Carla, same steps. The first agent approves her. Then a second, independent agent reads the same documents on its own, and finds the name on her payslip is Camila, not Carla Beatriz. They disagree, so the case stops. The model never approves anybody: it extracts, and code decides." |
+| 1:20 - 1:35 | Click **Ana**. Click chip **Find a place**. Click **Book a visit** on the first card. Click chip **Upload my documents**. | Pre-qualification card: badge "Approved", text that all checks passed and the cross-check agrees, button "Generate the contract". Timeline on Documents. | "Ana, same steps. Both agents agree, so she is approved." |
+| 1:35 - 1:50 | Click **Generate the contract**. | Contract card: contract text, "Contract fingerprint (SHA-256)", a disabled **Verify** button with the hint "Available after the deposit is paid." Below it one card, "Security deposit", 420.00 USDC, with the button "Pay deposit · 420.00 USDC". The rent card is not shown yet. | "The contract is built from a template. Its SHA-256 fingerprint is what goes on-chain, never the text and never a name. Verify unlocks after the deposit." |
+| 1:50 - 2:05 | Click the button **Pay deposit · 420.00 USDC** on the "Security deposit" card. Do **not** click the chip "Pay the deposit": it only shows the same card again. | "Confirming your payment…" for about 4 seconds, then the chat says "Deposit payment confirmed." and a receipt "Payment confirmed · Deposit" appears with "View on explorer". Say nothing for the 4 seconds, or keep the sentence short. | "The deposit moves as a real token transfer on devnet. No discount applies to a deposit." |
+| 2:05 - 2:15 | Scroll up to the contract card. Click **Verify**. | A green result "Match: this is the contract you paid against", with the computed and stored fingerprints equal. | "Verify recomputes the fingerprint and compares it with the one in the payment. It matches." |
+| 2:15 - 2:30 | Click chip **Pay my first rent** (it is highlighted as the next step). Point at the crossed-out price. Click **Pay rent · 399.00 USDC**. | Chat reply "Deposit received. First month's rent: ..." and the rent card: list price 420.00 crossed out, then 399.00 USDC with −3% for paying in USDC and −2% for paying on time. After about 4 seconds: "Rent payment confirmed." and a receipt "Payment confirmed · Rent". The timeline reaches "Active lease" (on a narrow window it is the compact timeline at the top). | "Rent shows two prices. The on-time discount is checked from the confirmed block time on Solana, not from a button or the browser's clock." |
+| 2:30 - 2:45 | On a receipt click **View on explorer**. A new tab opens. Show the token transfer and the Memo line `lease:v1:<leaseId>:deposit:<sha256>`. | Devnet explorer page for the transaction: the token transfer and the Memo. | "Here is the transaction on the devnet explorer: the token transfer and a memo with the contract fingerprint. Only hashes, amounts, timestamps and public keys are on-chain. No personal data." |
+| 2:45 - 3:00 | Close the explorer tab. Show the app with the timeline at "Active lease". | App, timeline at Active lease, receipts in the chat. | "One honest note: the escrow is custodial today, a platform wallet on devnet with demo keys. The Anchor program with two-of-three release is in progress, not built. This is Keyhold." |
 
-Total: 3:00 hard stop. If the take runs over, cut the second explorer view, then shorten the Carla search by starting her chat already on the property.
+If the take runs over 3:00: shorten the Bruno and Carla searches by talking while the page loads, and skip the Verify click (keep the line about the fingerprint). Do not cut the honest note.
 
-## Exact lines to keep word for word
+Order matters: if anyone asks for the rent before the deposit is paid, the agent answers "The deposit comes first." Pay the deposit, then the rent.
 
-- "Everything you see is simulated, on devnet."
-- "The model never approves anybody." (Principle: the model extracts, the code decides.)
-- "Today the escrow is custodial ... The Anchor program with 2-of-3 release ... is in progress this week, not built yet."
+## Lines to keep word for word
+
+- "Everything here is simulated, on Solana devnet, and the AI answers in this take are recorded." (The production site serves recorded Gemini answers; the decisions are made by code either way. Do not say the answers are live.)
+- "The model never approves anybody: it extracts, and code decides."
+- "The escrow is custodial today ... The Anchor program with two-of-three release is in progress, not built."
+
+## Do not show
+
+- `.env` files, any terminal, the Vercel dashboard, wallet secret keys or keypair files.
+- `docs/submission/tx-links.md` (it also lists old transactions with the previous `tuki:lease:` prefix).
+- The `?fixtures=1` mode of the app (fake data without the server).
+- The browser bookmarks bar, extensions, or your Chrome profile name and photo.
+- Any real person's data or documents.
 
 ## Do not say
 
-- Anything about users, pilots, revenue, agencies that "use" Keyhold, or partnerships. None exist in the evidence log.
-- That the escrow is trustless or non-custodial. It is not, yet.
-- That the contract is legally valid or that USDC is legal tender, or any statement about the law. If asked, say the design keeps the contract off-chain, puts only its hash on-chain, and treats USDC as a payment method, and that legal review is pending.
-- "Blockchain" on the tenant-facing screens (the UI avoids the word; the voice-over can say Solana).
+- Anything about users, pilots, revenue, agencies that "use" Keyhold, or partnerships. None exist.
+- That the escrow is trustless or non-custodial. It is not yet.
+- That the contract is legally valid, that USDC is legal tender, or anything about what the law allows. If asked: the contract stays off-chain, only its hash goes on-chain, USDC is a payment method, legal review is pending.
+- That the AI is live in this take, or that Claude is the product's model. The product model is Google Gemini.
+- "Blockchain" on screen copy (the UI avoids it; say Solana in the voice-over).
 
 ## Expected questions (short answers, no invented facts)
 
-- "Who pays in USDC in Salta?" "We do not have evidence yet. Rents there are in pesos. The plan is to accept pesos through an on-ramp and settle in USDC. We are doing the validation work this week." (Ani owns this answer; see `docs/validation/evidence.md` for anything citable.)
+- "Who pays in USDC in Salta?" "We do not have evidence yet. Rents there are in pesos. The plan is a peso on-ramp with USDC as the settlement layer. We are starting validation with Salta agencies."
 - "Is the escrow real?" "The transfers are real devnet transactions. The custody is a platform wallet today, so it is custodial. The Anchor program is the fix and is in progress."
-- "How is this different from Fiador.sol or RentLock?" "We start from the agency back-office: pre-qualification and a cross-check agent before any money moves, and the planned release needs 2 of 3 signatures with the agency as arbiter."
+- "How is this different from Fiador.sol or RentLock?" "We start from the agency back-office: pre-qualification and a cross-check agent before any money moves, and the planned release needs 2 of 3 signatures with the agency as arbiter. We have only read their public descriptions."
 
-## Check before recording
+## Check after recording
 
-- TODO(Mauro): confirm the exact chat sentence or upload action that submits a persona's documents, and the Verify and Pay button labels, against the UI after F0-08. Edit the "Mauro types" column to match.
-- TODO(Mauro): confirm whether Verify is available before the first payment or only after it, and keep the matching line in the 1:45 row.
-- TODO(Mauro): confirm that switching persona resets the session as designed (`ChatRequest.tenantId`), and that the property picked after the reset needs no extra step. If it does, move the 1:05 and 1:35 timings.
-- TODO(Mauro): put the final public URL and the recorded video link in `README.md`.
-- TODO(Ani): the 2-minute pitch has its own script (`pitch-script.md`, written in F1). Keep the problem statement here to one sentence so the two do not repeat.
-- Run the full flow three times in a row before the final take. If one run differs, use `REPLAY=1`.
+- The video is 3:00 or less, in English, with the banner visible throughout and no item from "Do not show".
+- Link sharing is "anyone with the link can view". Send the link to Mauro for the README and to the pre-selection form (`preselection.md`, section 7).

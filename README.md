@@ -2,12 +2,12 @@
 
 > "Keyhold" is a working name; the final brand is still to be defined.
 
-AI leasing back-office for real-estate agencies in Argentina's interior. Agents pre-qualify tenants and draft contracts; Solana makes the deposit and the payment record trustless and portable.
+AI leasing back-office for real-estate agencies in Argentina's interior. Agents pre-qualify tenants and draft contracts; deposit and rent are paid on Solana with the contract hash in every payment. The trust-minimised escrow is in progress and not built yet; today it is custodial.
 
 Built for the Colosseum Crypto World's Fair hackathon, Superteam Argentina track. Team based in Salta, Argentina.
 
 - Live demo: https://keyhold-app.vercel.app
-- Demo video (max 3 min): TODO(Mauro) add the link after recording.
+- Demo video (max 3 min): TODO(Ani) add the link after recording.
 - Devnet transaction links: see [`docs/submission/tx-links.md`](docs/submission/tx-links.md).
 - Demo script: [`docs/submission/demo-script.md`](docs/submission/demo-script.md).
 

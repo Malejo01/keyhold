@@ -1,5 +1,7 @@
 # AlquilIA
 
+[![CI](https://github.com/Malejo01/keyhold/actions/workflows/ci.yml/badge.svg)](https://github.com/Malejo01/keyhold/actions/workflows/ci.yml)
+
 > "AlquilIA" (alquilar + IA) is a provisional working name, formerly "Keyhold"; the final brand is still to be decided. The repo and production URLs still use "keyhold".
 
 AI leasing back-office for real-estate agencies in Argentina's interior. Agents pre-qualify tenants and draft contracts; deposit and rent are paid on Solana with the contract hash in every payment. The trust-minimised escrow is in progress and not built yet; today it is custodial.

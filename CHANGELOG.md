@@ -45,5 +45,6 @@ Work before the tag `v0-hackathon-start` or imported via `chore(import)` commits
 - docs(validation): honest GTM draft `docs/submission/gtm.md` (plan, no traction), 15 Salta agencies to contact, empty evidence log (market-validation-analyst).
 - docs: the demo and pitch videos are recorded by the product team, not Mauro; no new Gemini key, production stays on `REPLAY=1`; Monday design debates prepared in `docs/debates/` (lead).
 - feat(rules): optional `Issue.evidence` (field, rule, values compared side by side) on name_mismatch, expired_payslip and income_ratio_exceeded, for the UI comparison view; decisions unchanged. The lease template names the product via `APP_NAME`. The rename to "AlquilIA" needs no re-recording: replay keys use the agent id and user input only, never the system prompt. Replay evals and `tsc` pass (ai-agents-engineer).
+- ci: GitHub Actions workflow `.github/workflows/ci.yml` (push + PR, read-only token, no deploy, no secrets): lint, typecheck, vitest, evals in replay, build, plus an `anchor-build` job pinned to Agave 4.1.2 and Anchor 1.2.0 that passes with a notice until `programs/` or `Anchor.toml` exists (fullstack-engineer, B1). First Linux run of `pnpm test`.
 
 ## Week 2 — 2026-10-05 → 2026-10-12

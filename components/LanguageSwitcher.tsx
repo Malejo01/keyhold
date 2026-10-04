@@ -3,18 +3,29 @@
 import Link from "next/link";
 import { LANGS } from "@/lib/i18n";
 import { useI18n } from "./I18nProvider";
+import { prepareLanguageSwitch, rememberLanguage } from "./langSwitch";
 import { cx } from "./ui";
 
 /**
- * Visible ES | EN selector. Each option is a plain link to the equivalent route (`/es`, `/en`), so it works
- * without JavaScript and keeps the user on the same screen. The choice is also remembered in a cookie that
- * the root redirect reads next time. `query` carries the dev-only `?fixtures=1` flag across languages.
+ * Prominent ES | EN pill toggle. Each option is a plain link to the equivalent route (`/es`, `/en`), so it works
+ * without JavaScript. On click we remember the choice in the `lang` cookie (read by the root redirect) and
+ * prepare the saved demo for the other language (carry over before a lease, keep + notice after). Each segment
+ * is at least 44 px tall. `query` carries the dev-only `?fixtures=1` flag across languages.
  */
-export function LanguageSwitcher({ query = "", className }: { query?: string; className?: string }) {
+export function LanguageSwitcher({
+  query = "",
+  className,
+  fromChat = false,
+}: {
+  query?: string;
+  className?: string;
+  /** The toggle sits in the chat header: after switching, land on the chat instead of the hero. */
+  fromChat?: boolean;
+}) {
   const { lang, t } = useI18n();
   return (
     <nav aria-label={t.lang.groupLabel} className={className}>
-      <ul className="inline-flex rounded-full border border-border bg-sunken p-0.5 text-xs font-semibold">
+      <ul className="inline-flex items-center rounded-full border border-border-strong bg-sunken p-0.5 text-sm font-bold">
         {LANGS.map((code) => {
           const active = code === lang;
           return (
@@ -26,12 +37,16 @@ export function LanguageSwitcher({ query = "", className }: { query?: string; cl
                 aria-current={active ? "true" : undefined}
                 aria-label={t.lang.switchTo[code]}
                 title={t.lang.switchTo[code]}
+                data-lang-option={code}
                 onClick={() => {
-                  document.cookie = `lang=${code}; path=/; max-age=31536000; samesite=lax`;
+                  rememberLanguage(code);
+                  prepareLanguageSwitch(lang, code, fromChat);
                 }}
                 className={cx(
-                  "block rounded-full px-2.5 py-1 uppercase tracking-wide transition-colors",
-                  active ? "bg-primary text-primary-foreground" : "text-muted hover:text-foreground",
+                  "flex min-h-11 min-w-12 items-center justify-center rounded-full px-3 uppercase tracking-wide transition-colors",
+                  active
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted hover:bg-surface hover:text-foreground",
                 )}
               >
                 {code}

@@ -2,7 +2,7 @@
 
 import { AnimatePresence, MotionConfig, motion, useReducedMotion } from "framer-motion";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { PayResponse, PaymentKind, Property, SignedSession, Stage, TenantId } from "@/lib/contracts";
+import type { Lang, PayResponse, PaymentKind, Property, SignedSession, Stage, TenantId } from "@/lib/contracts";
 import { itemIn, messageIn, resetFade, stagger, typingDot, loop } from "@/lib/motion/presets";
 import { createRealApi, fixtureApi, isStaleSession, type Api } from "./api-client";
 import { CardRenderer, type CardContext } from "./cards/CardRenderer";
@@ -14,13 +14,19 @@ import { CHIP_TEXT, BOOK_VISIT_FOR } from "@/lib/i18n/chips";
 import { LeaseTimeline, LeaseTimelineCompact } from "./LeaseTimeline";
 import { APP_NAME } from "@/lib/config/brand";
 import { Logo } from "./Logo";
+import {
+  clearSwitchNotice,
+  readPersisted,
+  readSwitchNotice,
+  storageKey,
+  takeScrollHint,
+  writePersisted,
+} from "./langSwitch";
 import { PersonaSwitcher } from "./PersonaSwitcher";
 import { UploadDocuments } from "./UploadDocuments";
 import { CHIP_KEYS, PERSONAS, type ChatMessage, type PersistedDemo } from "./types";
 import { AlertIcon, SendIcon, cx } from "./ui";
 
-/** One saved conversation per language: the contract text (and its hash) is language-specific. */
-const storageKey = (lang: string) => `demo.session.v2.${lang}`;
 /** Index into CHIP_KEYS of the natural next step for each stage. */
 const NEXT_CHIP: Record<Stage, number> = {
   SEARCH: 0,
@@ -33,24 +39,6 @@ const NEXT_CHIP: Record<Stage, number> = {
 };
 let idCounter = 0;
 const newId = () => `m${Date.now().toString(36)}${(idCounter++).toString(36)}`;
-
-function readPersisted(key: string): PersistedDemo | null {
-  try {
-    const raw = window.sessionStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as PersistedDemo) : null;
-  } catch {
-    return null;
-  }
-}
-
-function writePersisted(key: string, value: PersistedDemo | null) {
-  try {
-    if (value) window.sessionStorage.setItem(key, JSON.stringify(value));
-    else window.sessionStorage.removeItem(key);
-  } catch {
-    // Storage can be unavailable (private mode); the demo still works in memory.
-  }
-}
 
 function TypingIndicator() {
   const reduced = useReducedMotion();
@@ -92,6 +80,8 @@ export function ChatShell({ useFixtures, query = "" }: { useFixtures: boolean; q
   const [generating, setGenerating] = useState(false);
   const [draft, setDraft] = useState("");
   const [hydrated, setHydrated] = useState(false);
+  /** Set when the user just switched language away from a demo that already has a lease or payments. */
+  const [switchNotice, setSwitchNotice] = useState<{ from: Lang } | null>(null);
 
   const sessionRef = useRef<SignedSession | undefined>(undefined);
   const tenantRef = useRef<TenantId>("ana");
@@ -114,8 +104,12 @@ export function ChatShell({ useFixtures, query = "" }: { useFixtures: boolean; q
       setMessages(saved.messages);
       setStage(saved.stage);
     }
+    // The notice only makes sense on an empty conversation; otherwise this language already has its own demo.
+    if (saved && saved.messages.length > 0) clearSwitchNotice();
+    else setSwitchNotice(readSwitchNotice(lang));
+    if (takeScrollHint()) document.getElementById("demo")?.scrollIntoView({ block: "start" });
     setHydrated(true);
-  }, [storeKey]);
+  }, [storeKey, lang]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
@@ -155,12 +149,18 @@ export function ChatShell({ useFixtures, query = "" }: { useFixtures: boolean; q
     setDraft("");
   }, [t]);
 
+  const dismissNotice = useCallback(() => {
+    clearSwitchNotice();
+    setSwitchNotice(null);
+  }, []);
+
   const send = useCallback(
     async (text: string) => {
       const message = text.trim();
       if (!message || pending) return;
       const epoch = epochRef.current;
       append({ role: "user", text: message });
+      dismissNotice();
       setDraft("");
       setPending(true);
       try {
@@ -184,7 +184,7 @@ export function ChatShell({ useFixtures, query = "" }: { useFixtures: boolean; q
         if (epoch === epochRef.current) setPending(false);
       }
     },
-    [api, append, applySession, pending, resetStaleSession, t],
+    [api, append, applySession, dismissNotice, pending, resetStaleSession, t],
   );
 
   /** Real files for the DOCUMENTS stage: same turn lifecycle as `send`, via /api/upload. */
@@ -227,8 +227,9 @@ export function ChatShell({ useFixtures, query = "" }: { useFixtures: boolean; q
     generatingRef.current = false;
     setGenerating(false);
     setDraft("");
+    dismissNotice();
     inputRef.current?.focus();
-  }, []);
+  }, [dismissNotice]);
 
   // Shared by the server-signed button and the Solana Pay QR flow: both end with a PayResponse.
   const applyPaid = useCallback(
@@ -324,7 +325,7 @@ export function ChatShell({ useFixtures, query = "" }: { useFixtures: boolean; q
               <Logo />
               <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2">
                 <PersonaSwitcher value={tenantId} onChange={changePersona} />
-                <LanguageSwitcher query={query} />
+                <LanguageSwitcher query={query} fromChat />
               </div>
             </div>
           </header>
@@ -351,6 +352,28 @@ export function ChatShell({ useFixtures, query = "" }: { useFixtures: boolean; q
               className="scroll-thin min-h-0 flex-1 overflow-y-auto px-gutter py-5"
             >
               <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col gap-4">
+                {switchNotice && messages.length === 0 && (
+                  <div
+                    role="status"
+                    className="mx-auto w-full max-w-md rounded-xl border border-border-strong bg-primary-soft px-4 py-3 text-sm"
+                  >
+                    <p>
+                      <span className="font-semibold">{t.lang.noticeTitle}</span>{" "}
+                      {t.lang.notice(t.lang.names[switchNotice.from])}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        dismissNotice();
+                        inputRef.current?.focus();
+                      }}
+                      className="mt-3 inline-flex min-h-11 items-center justify-center rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-hover"
+                    >
+                      {t.lang.startOver(t.lang.names[lang])}
+                    </button>
+                  </div>
+                )}
+
                 {messages.length === 0 && (
                   <div className="my-auto mx-auto max-w-md py-8 text-center">
                     <p className="font-display text-xl font-semibold">{t.chat.greeting(personaName, APP_NAME)}</p>

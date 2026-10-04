@@ -18,8 +18,13 @@ export const en = {
   },
   banner: "Demo · Solana devnet · simulated data",
   lang: {
-    groupLabel: "Language",
-    switchTo: { en: "Switch to English", es: "Switch to Spanish" },
+    groupLabel: "Change language / Cambiar idioma",
+    switchTo: { en: "Switch to English (EN)", es: "Switch to Spanish (ES)" },
+    names: { en: "English", es: "Spanish" },
+    noticeTitle: "You switched language.",
+    notice: (saved: string) =>
+      `Your demo in ${saved} is saved — switch back to continue it, or start here.`,
+    startOver: (name: string) => `Start over in ${name}`,
   },
   hero: {
     title: "Rental paperwork, checked by AI agents and decided by clear rules.",

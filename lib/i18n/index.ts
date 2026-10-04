@@ -21,9 +21,21 @@ export function getDict(lang: Lang): Dict {
 /** Locale used for number and date formatting. */
 export const LOCALE: Record<Lang, string> = { en: "en-US", es: "es-AR" };
 
-/** Picks a route language from an Accept-Language header: any Spanish variant wins, everything else is English. */
+/**
+ * Picks a route language from an Accept-Language header. The highest-ranked English or Spanish entry wins
+ * (any `es*` variant is Spanish, any `en*` is English, ties keep header order); no header or no es/en entry means English.
+ */
 export function pickLang(acceptLanguage: string | null | undefined): Lang {
   if (!acceptLanguage) return DEFAULT_LANG;
-  const first = acceptLanguage.split(",")[0]?.trim().toLowerCase() ?? "";
-  return first.startsWith("es") ? "es" : DEFAULT_LANG;
+  let best: { lang: Lang; q: number } | null = null;
+  for (const part of acceptLanguage.split(",")) {
+    const [tag = "", ...params] = part.trim().toLowerCase().split(";");
+    const base = tag.trim().split("-")[0];
+    if (base !== "es" && base !== "en") continue;
+    const qParam = params.map((p) => p.trim()).find((p) => p.startsWith("q="));
+    const q = qParam ? Number.parseFloat(qParam.slice(2)) : 1;
+    if (!Number.isFinite(q) || q <= 0) continue;
+    if (!best || q > best.q) best = { lang: base, q };
+  }
+  return best?.lang ?? DEFAULT_LANG;
 }

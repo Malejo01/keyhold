@@ -16,8 +16,13 @@ export const es: Dict = {
   },
   banner: "Demo · Solana devnet · datos simulados",
   lang: {
-    groupLabel: "Idioma",
-    switchTo: { en: "Cambiar a inglés", es: "Cambiar a español" },
+    groupLabel: "Change language / Cambiar idioma",
+    switchTo: { en: "Cambiar a inglés (EN)", es: "Cambiar a español (ES)" },
+    names: { en: "inglés", es: "español" },
+    noticeTitle: "Cambiaste de idioma.",
+    notice: (saved: string) =>
+      `Tu demo en ${saved} está guardada — volvé a ese idioma para continuarla, o empezá acá.`,
+    startOver: (name: string) => `Empezar de nuevo en ${name}`,
   },
   hero: {
     title: "Los trámites de alquiler, revisados por agentes de IA y decididos por reglas claras.",

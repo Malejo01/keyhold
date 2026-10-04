@@ -1,4 +1,5 @@
 import type { FinalDecision, LeaseResponse } from '@/lib/contracts';
+import { findProperty } from '@/lib/agents/catalog';
 import { evaluateTenant } from '@/lib/agents/prequal';
 import { createLeaseDraft } from '@/lib/agents/lease';
 import { applyEvent } from '@/lib/agents/orchestrator';
@@ -29,7 +30,7 @@ export async function POST(request: Request): Promise<Response> {
   // The client-held session is never the source of truth for an approval: re-run the decision here.
   let decision: FinalDecision;
   try {
-    decision = await evaluateTenant(tenantId);
+    decision = await evaluateTenant(tenantId, findProperty(selectedPropertyId)?.priceUsdc);
   } catch (err) {
     logError('lease', err);
     return jsonError('Could not evaluate the application', 502);

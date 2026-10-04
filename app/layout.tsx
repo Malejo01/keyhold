@@ -24,10 +24,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
+      <body className="flex h-dvh flex-col overflow-hidden">
         <div
           role="note"
-          className="bg-foreground text-background text-center text-xs font-medium tracking-wide py-1.5 px-3"
+          className="shrink-0 bg-banner text-banner-foreground text-center text-xs font-medium tracking-wide py-1.5 px-3"
         >
           Demo · Solana devnet · simulated data
         </div>

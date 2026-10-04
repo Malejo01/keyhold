@@ -160,6 +160,10 @@ const program = new Program(idl, provider);
 const methods = program.methods as unknown as Methods;
 const accounts = program.account as unknown as AccountClients;
 const eventParser = new EventParser(program.programId, program.coder);
+/** `RELEASE_GRACE_SECONDS` read from the IDL, so the tests follow the program constant. */
+const GRACE = Number(
+  (idl.constants ?? []).find((k) => k.name === "RELEASE_GRACE_SECONDS")?.value ?? Number.NaN,
+);
 const allEvents: DecodedEvent[] = [];
 const memosSent: string[] = [];
 /** Max compute units seen per program instruction (printed at the end, for docs/onchain.md). */
@@ -445,6 +449,12 @@ async function newLease(
   await send([await createIx(params, landlord.publicKey, agency.publicKey)], [landlord, agency]);
   if (opts.deposit ?? true) await send([await depositIx(c)], [tenant]);
   return c;
+}
+
+/** A due date for month 0 that is already past the release grace period (tenant in default). */
+async function overdueDue(): Promise<number> {
+  assert.ok(Number.isFinite(GRACE) && GRACE > 0, "RELEASE_GRACE_SECONDS in the IDL");
+  return (await clockNow()) - GRACE - 86_400;
 }
 
 async function pay(c: Ctx, month: number): Promise<string> {
@@ -854,11 +864,9 @@ describe("rental_escrow", () => {
       const before = await snapshot(keys);
       await expectFail(send([await payIx(c, 0, U64_MAX, { landlordToken: ata(X.publicKey) })], [T]), [
         "ConstraintTokenOwner",
-        "ConstraintAssociated",
       ]);
       await expectFail(send([await payIx(c, 0, U64_MAX, { landlordToken: ata(T.publicKey) })], [T]), [
         "ConstraintTokenOwner",
-        "ConstraintAssociated",
         "ConstraintDuplicateMutableAccount",
       ]);
       assert.deepEqual(await snapshot(keys), before);
@@ -872,7 +880,6 @@ describe("rental_escrow", () => {
       ]);
       await expectFail(send([await payIx(a, 0, U64_MAX, { landlordToken: ata(L2.publicKey) })], [T]), [
         "ConstraintTokenOwner",
-        "ConstraintAssociated",
       ]);
     });
 
@@ -972,7 +979,8 @@ describe("rental_escrow", () => {
       ["T+A", "T", "A"],
     ] as const) {
       it(`R-08 2-of-3 happy path ${label} (async, separate txs)`, async () => {
-        const c = await newLease();
+        // Without the tenant's vote (L+A) the tenant must be in default (objection 10 gate, R-20).
+        const c = await newLease(label === "L+A" ? { due: await overdueDue() } : {});
         const who = { T: c.tenant, L: c.landlord, A: c.agency };
         const t = terms(600_000_000, 400_000_000, label);
         const tb = await tokenBalance(ata(c.tenant.publicKey));
@@ -984,8 +992,8 @@ describe("rental_escrow", () => {
       });
     }
 
-    it("R-08 atomic: L and A vote in one tx", async () => {
-      const c = await newLease();
+    it("R-08 atomic: L and A vote in one tx (tenant in default)", async () => {
+      const c = await newLease({ due: await overdueDue() });
       const t = terms(250_000_000, 750_000_000, "atomic");
       const tb = await tokenBalance(ata(T.publicKey));
       const lb = await tokenBalance(ata(L.publicKey));
@@ -999,7 +1007,7 @@ describe("rental_escrow", () => {
       await vote(c, T, t);
       await vote(c, L, t);
       const tb = await tokenBalance(ata(T.publicKey));
-      await expectFail(vote(c, A, t), ["LeaseNotActive", "AccountNotInitialized"]);
+      await expectFail(vote(c, A, t), ["AccountNotInitialized"]); // the vault is closed
       assert.equal(await tokenBalance(ata(T.publicKey)), tb);
     });
 
@@ -1017,8 +1025,9 @@ describe("rental_escrow", () => {
       await checkReleased(c, t1, tb, lb, sig);
     });
 
-    it("R-11 griefing: T re-votes in a loop, L and A still release", async () => {
-      const c = await newLease();
+    it("R-11 griefing at the end of the term: T re-votes in a loop, L and A still release", async () => {
+      const c = await newLease({ params: { termMonths: 1 } });
+      await pay(c, 0);
       const fair = terms(800_000_000, 200_000_000, "fair");
       await vote(c, L, fair);
       for (let i = 0; i < 3; i++) await vote(c, T, terms(DEPOSIT, 0, `grief-${i}`));
@@ -1044,7 +1053,7 @@ describe("rental_escrow", () => {
       await vote(c, T, t);
       const before = await snapshot([ata(X.publicKey)]);
       const ix = await voteIx(c, L.publicKey, t, { tenantToken: ata(X.publicKey) });
-      await expectFail(send([ix], [L]), ["ConstraintTokenOwner", "ConstraintAssociated"]);
+      await expectFail(send([ix], [L]), ["ConstraintTokenOwner"]);
       assert.deepEqual(await snapshot([ata(X.publicKey)]), before);
     });
 
@@ -1056,7 +1065,6 @@ describe("rental_escrow", () => {
       for (const over of overs) {
         await expectFail(send([await voteIx(c, L.publicKey, t, over)], [L]), [
           "ConstraintTokenOwner",
-          "ConstraintAssociated",
           "ConstraintDuplicateMutableAccount",
         ]);
       }
@@ -1129,7 +1137,7 @@ describe("rental_escrow", () => {
         [0, DEPOSIT],
         [DEPOSIT, 0],
       ]) {
-        const c = await newLease();
+        const c = await newLease({ due: await overdueDue() });
         const t = terms(tt, tl, `r19-${tt}`);
         const tb = await tokenBalance(ata(T.publicKey));
         const lb = await tokenBalance(ata(L.publicKey));
@@ -1139,14 +1147,47 @@ describe("rental_escrow", () => {
       }
     });
 
-    it("R-20 landlord + agency can release at month 0 without the tenant (documented, intended)", async () => {
-      const c = await newLease();
-      const t = terms(0, DEPOSIT, "r20");
+    it("R-20 landlord + agency cannot release while the tenant is current (before due, or late within the grace)", async () => {
+      for (const due of [(await clockNow()) + 86_400, (await clockNow()) - 3600]) {
+        const c = await newLease({ due });
+        const t = terms(0, DEPOSIT, `r20-${due}`);
+        await vote(c, L, t);
+        const keys = [c.lease, c.vault, ata(L.publicKey)];
+        const before = await snapshot(keys);
+        await expectFail(vote(c, A, t), ["ReleaseNeedsTenant"]);
+        await expectFail(send([await voteIx(c, A.publicKey, t), await voteIx(c, L.publicKey, t)], [A, L]), [
+          "ReleaseNeedsTenant",
+        ]);
+        assert.deepEqual(await snapshot(keys), before, "no payout, lease unchanged");
+        assert.equal(statusOf(await fetchLease(c.lease)), "active");
+        // With the tenant's vote the same terms go through (mutual early exit).
+        const tb = await tokenBalance(ata(T.publicKey));
+        const lb = await tokenBalance(ata(L.publicKey));
+        const sig = await vote(c, T, t);
+        await checkReleased(c, t, tb, lb, sig);
+      }
+    });
+
+    it("R-23 past the grace period landlord + agency release an abandoned lease; paying the overdue month restores the veto", async () => {
+      // Abandoned: month 0 is overdue by more than the grace period.
+      const c = await newLease({ due: await overdueDue() });
+      const t = terms(0, DEPOSIT, "r23-abandoned");
+      const tb = await tokenBalance(ata(T.publicKey));
+      const lb = await tokenBalance(ata(L.publicKey));
       await vote(c, L, t);
-      await vote(c, A, t);
-      const l = await fetchLease(c.lease);
-      assert.equal(l.monthsPaid, 0);
-      assert.equal(statusOf(l), "closed");
+      const sig = await vote(c, A, t);
+      await checkReleased(c, t, tb, lb, sig);
+      assert.equal((await fetchLease(c.lease)).monthsPaid, 0);
+
+      // Month 0 was due one period ago (past the grace) and is paid late: month 1 is due about now,
+      // so the tenant is current again and landlord + agency are blocked.
+      const d = await newLease({ due: (await clockNow()) - PERIOD });
+      await pay(d, 0);
+      assert.equal((await fetchRecord(d.lease, 0)).onTime, false);
+      const u = terms(0, DEPOSIT, "r23-cured");
+      await vote(d, L, u);
+      await expectFail(vote(d, A, u), ["ReleaseNeedsTenant"]);
+      assert.equal(await tokenBalance(d.vault), BigInt(DEPOSIT));
     });
     it("R-21 a party moves its ATA's owner away; the other two still release into a fresh account it owns", async () => {
       // Tenant side, at the end of the term (the tenant holds the deposit hostage).
@@ -1230,9 +1271,20 @@ describe("rental_escrow", () => {
       await expectFail(send([await payIx(tokenAsLease, 1)], [T]), ["AccountOwnedByWrongProgram"]);
     });
 
-    it("X-04 static: no UncheckedAccount / AccountInfo fields, no init_if_needed, overflow-checks on", () => {
+    it("X-04 static: one pinned UncheckedAccount only, no AccountInfo fields, no init_if_needed, overflow-checks on", () => {
       const src = readFileSync("programs/rental_escrow/src/lib.rs", "utf8");
-      assert.ok(!/UncheckedAccount/.test(src), "no UncheckedAccount");
+      // The only allowed UncheckedAccount is the vault-rent destination of vote_release, pinned to
+      // lease.landlord (qa B4 B1: SystemAccount let the landlord block the release by reassigning its wallet).
+      assert.equal((src.match(/UncheckedAccount/g) ?? []).length, 1, "exactly one UncheckedAccount");
+      const vote = /pub struct VoteRelease<'info> \{[\s\S]*?\n\}/.exec(src)?.[0] ?? "";
+      assert.ok(
+        /\/\/\/ CHECK:[^\n]*\n(?:\s*\/\/\/[^\n]*\n)*\s*#\[account\(mut, address = lease\.landlord\)\]\s*pub landlord: UncheckedAccount<'info>,/.test(
+          vote,
+        ),
+        "VoteRelease.landlord is the UncheckedAccount, with a CHECK comment and `address = lease.landlord`",
+      );
+      assert.ok(vote.includes("has_one = landlord"), "VoteRelease also keeps has_one = landlord");
+      assert.ok(!/associated_token::/.test(src), "recipients accept any token account the party owns (B1)");
       assert.ok(!/:\s*AccountInfo<'info>/.test(src), "no raw AccountInfo fields");
       assert.ok(!/init_if_needed/.test(src), "no init_if_needed");
       const cargo = readFileSync("Cargo.toml", "utf8");

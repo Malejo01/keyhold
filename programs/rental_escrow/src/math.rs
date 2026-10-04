@@ -56,6 +56,34 @@ pub fn quote(rent: u64, usdc_bps: u16, ontime_bps: u16, now: i64, due: i64) -> O
     })
 }
 
+/// Whether landlord + agency may complete a release **without** the tenant's vote (qa objection 10).
+///
+/// Allowed only when the tenant can no longer be hurt by an early exit:
+/// - every month of the term is paid (`months_paid >= term_months`), or
+/// - the first unpaid month is overdue past the grace period: `now > due(months_paid) + grace`.
+///
+/// While the tenant is current, a release needs the tenant's vote. An abandoned lease (the tenant
+/// stops paying) stays releasable by landlord + agency once the grace period has passed.
+/// An unrepresentable deadline means "never overdue" (`false`), never a wrap-around.
+pub fn release_without_tenant_allowed(
+    months_paid: u16,
+    term_months: u16,
+    due_day_ts: i64,
+    period_seconds: i64,
+    grace_seconds: i64,
+    now: i64,
+) -> bool {
+    if months_paid >= term_months {
+        return true;
+    }
+    let deadline =
+        due_ts(due_day_ts, months_paid, period_seconds).and_then(|d| d.checked_add(grace_seconds));
+    match deadline {
+        Some(deadline) => now > deadline,
+        None => false,
+    }
+}
+
 /// Hash that binds a release vote to its full terms:
 /// `sha256(to_tenant_le_u64 || to_landlord_le_u64 || reason_hash || exit_report_hash)`.
 pub fn terms_hash(
@@ -142,6 +170,28 @@ mod tests {
         assert!(!bps_are_valid(5_001, 5_000));
         assert!(!bps_are_valid(u16::MAX, 1)); // would wrap to 0 in u16
         assert!(!bps_are_valid(10_001, 0));
+    }
+
+    #[test]
+    fn r20_r23_release_without_tenant_gate() {
+        let d = 1_000_000;
+        let p = 2_592_000;
+        let g = 864_000;
+        // Tenant current: before the due date, at it, and up to the end of the grace period.
+        assert!(!release_without_tenant_allowed(0, 12, d, p, g, d - 1));
+        assert!(!release_without_tenant_allowed(0, 12, d, p, g, d));
+        assert!(!release_without_tenant_allowed(0, 12, d, p, g, d + g)); // inclusive boundary
+        // Overdue past the grace period.
+        assert!(release_without_tenant_allowed(0, 12, d, p, g, d + g + 1));
+        // Paying the overdue month moves the reference to the next month and restores the veto.
+        assert!(!release_without_tenant_allowed(1, 12, d, p, g, d + g + 1));
+        assert!(release_without_tenant_allowed(1, 12, d, p, g, d + p + g + 1));
+        // Whole term paid.
+        assert!(release_without_tenant_allowed(12, 12, d, p, g, 0));
+        assert!(release_without_tenant_allowed(1, 1, d, p, g, i64::MIN));
+        // Unrepresentable deadline: never overdue, no wrap-around.
+        assert!(!release_without_tenant_allowed(0, 2, i64::MAX - 10, p, g, i64::MAX));
+        assert!(!release_without_tenant_allowed(1, 2, i64::MAX - p, p, g, i64::MAX));
     }
 
     #[test]

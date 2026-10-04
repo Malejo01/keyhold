@@ -31,6 +31,10 @@ pub const ROLE_TENANT: u8 = 0;
 pub const ROLE_LANDLORD: u8 = 1;
 #[constant]
 pub const ROLE_AGENCY: u8 = 2;
+/// Without the tenant's vote, landlord + agency can release only after the full term is paid or
+/// when the first unpaid month is overdue by more than this (10 days). qa objection 10.
+#[constant]
+pub const RELEASE_GRACE_SECONDS: i64 = 864_000;
 
 const EMPTY_VOTE: [u8; 32] = [0u8; 32];
 
@@ -236,6 +240,8 @@ pub mod rental_escrow {
     /// One party (role resolved from the signer, never from an argument) records its vote for the
     /// release terms. Each role owns one slot and can only overwrite its own. When two slots hold
     /// the same terms hash, the vault pays the split, sweeps any excess to the landlord and closes.
+    /// A release the tenant did not vote for also needs the full term paid or the tenant overdue
+    /// past `RELEASE_GRACE_SECONDS` (`ReleaseNeedsTenant`).
     pub fn vote_release(
         ctx: Context<VoteRelease>,
         to_tenant: u64,
@@ -245,6 +251,7 @@ pub mod rental_escrow {
     ) -> Result<()> {
         let voter = ctx.accounts.voter.key();
         let lease_key = ctx.accounts.lease.key();
+        let now = Clock::get()?.unix_timestamp;
 
         let (role, matched, deposit_amount) = {
             let lease = &mut ctx.accounts.lease;
@@ -262,6 +269,20 @@ pub mod rental_escrow {
             lease.votes[usize::from(role)] = terms;
             let matched = (0..3usize)
                 .any(|r| r != usize::from(role) && lease.votes[r] == terms);
+            // qa objection 10: landlord + agency cannot end the lease early while the tenant is current.
+            if matched && lease.votes[usize::from(ROLE_TENANT)] != terms {
+                require!(
+                    math::release_without_tenant_allowed(
+                        lease.months_paid,
+                        lease.term_months,
+                        lease.due_day_ts,
+                        lease.period_seconds,
+                        RELEASE_GRACE_SECONDS,
+                        now,
+                    ),
+                    EscrowError::ReleaseNeedsTenant
+                );
+            }
 
             emit!(ReleaseVoted {
                 lease: lease_key,
@@ -493,11 +514,10 @@ pub struct PayRent<'info> {
     pub mint: Box<Account<'info, Mint>>,
     #[account(mut, token::mint = mint, token::authority = tenant)]
     pub tenant_token: Box<Account<'info, TokenAccount>>,
-    #[account(
-        mut,
-        associated_token::mint = mint,
-        associated_token::authority = lease.landlord,
-    )]
+    /// Any token account of the pinned mint whose current owner is the landlord, not only its ATA:
+    /// classic SPL Token lets the landlord move its ATA's owner, which must not block an on-time
+    /// payment (qa B4 review, B1; test P-13).
+    #[account(mut, token::mint = mint, token::authority = lease.landlord)]
     pub landlord_token: Box<Account<'info, TokenAccount>>,
     #[account(
         init,
@@ -531,21 +551,19 @@ pub struct VoteRelease<'info> {
         token::authority = lease,
     )]
     pub vault: Box<Account<'info, TokenAccount>>,
-    #[account(
-        mut,
-        associated_token::mint = mint,
-        associated_token::authority = lease.tenant,
-    )]
+    /// Any token account of the pinned mint whose current owner is the tenant (B1: an ATA's owner
+    /// can be moved, so pinning the ATA would let one party block every release; test R-21).
+    #[account(mut, token::mint = mint, token::authority = lease.tenant)]
     pub tenant_token: Box<Account<'info, TokenAccount>>,
-    #[account(
-        mut,
-        associated_token::mint = mint,
-        associated_token::authority = lease.landlord,
-    )]
+    /// Same rule for the landlord's share.
+    #[account(mut, token::mint = mint, token::authority = lease.landlord)]
     pub landlord_token: Box<Account<'info, TokenAccount>>,
-    /// Receives the vault's rent-exempt lamports when it closes. Must be `lease.landlord`.
-    #[account(mut)]
-    pub landlord: SystemAccount<'info>,
+    /// CHECK: lamports destination only (the vault's rent when it closes), pinned to `lease.landlord`
+    /// by `address` and by `has_one = landlord` on `lease`. Not `SystemAccount`: the landlord could
+    /// reassign its wallet to another program and block the release (B1; test R-22). Crediting
+    /// lamports to an account owned by any program is allowed; nothing is read from it.
+    #[account(mut, address = lease.landlord)]
+    pub landlord: UncheckedAccount<'info>,
     pub token_program: Program<'info, Token>,
 }
 
@@ -570,11 +588,7 @@ pub struct CancelLease<'info> {
         token::authority = lease,
     )]
     pub vault: Box<Account<'info, TokenAccount>>,
-    #[account(
-        mut,
-        associated_token::mint = mint,
-        associated_token::authority = lease.landlord,
-    )]
+    #[account(mut, token::mint = mint, token::authority = lease.landlord)]
     pub landlord_token: Box<Account<'info, TokenAccount>>,
     pub token_program: Program<'info, Token>,
 }
@@ -772,4 +786,6 @@ pub enum EscrowError {
     ZeroAmount,
     #[msg("The vault holds less than the deposit")]
     VaultShortfall,
+    #[msg("Without the tenant's vote, a release needs the full term paid or rent overdue past the grace period")]
+    ReleaseNeedsTenant,
 }

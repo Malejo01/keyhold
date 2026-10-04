@@ -55,6 +55,7 @@ export async function POST(request: Request): Promise<Response> {
   if (kind === "deposit") {
     if (state.payments.some((p) => p.kind === "deposit")) return jsonError("Deposit already paid", 409);
   } else {
+    if (!state.payments.some((p) => p.kind === "deposit")) return jsonError("Pay the deposit first.", 409);
     const paid = paidRentMonths(state.payments);
     // The next unpaid month, in order. The client cannot choose or skip a month.
     monthIndex = 0;

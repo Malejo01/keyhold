@@ -1,13 +1,14 @@
 // POST /api/pay: the server builds the PaymentIntent from the signed session's lease and sends a real
 // devnet transaction. Amounts, payer and month are never taken from the client.
 import { z } from "zod";
-import type { PayRequest, PayResponse, PaymentKind, PaymentResult, SessionState } from "@/lib/contracts";
+import type { PayRequest, PayResponse, PaymentKind, SessionState } from "@/lib/contracts";
 import { buildPaymentIntent } from "@/lib/agents/lease";
 import { applyEvent } from "@/lib/agents/orchestrator";
 import { jsonError, logError, parseBody, sessionErrorResponse } from "@/lib/db/http";
 import { signedSessionSchema } from "@/lib/db/schemas";
 import { signSession, verifySession } from "@/lib/db/session";
 import { InsufficientFundsError, executePayment } from "@/lib/solana/pay";
+import { nextPaymentSlot } from "@/lib/solana/payment-slot";
 
 export const runtime = "nodejs";
 
@@ -15,17 +16,6 @@ const payRequestSchema: z.ZodType<PayRequest> = z.object({
   kind: z.enum(["deposit", "rent"]),
   session: signedSessionSchema,
 });
-
-/** Month indexes (0-based) already paid, read back from the memos the server itself wrote. */
-function paidRentMonths(payments: PaymentResult[]): Set<number> {
-  const months = new Set<number>();
-  for (const payment of payments) {
-    if (payment.kind !== "rent") continue;
-    const match = /:rent:(\d+):[0-9a-f]{64}$/.exec(payment.memo);
-    if (match) months.add(Number(match[1]));
-  }
-  return months;
-}
 
 /**
  * In-process guard against a double submit of the same session: the session blob is client-held, so
@@ -51,17 +41,9 @@ export async function POST(request: Request): Promise<Response> {
   const lease = state.lease;
   if (!lease) return jsonError("No lease in this session yet", 409);
 
-  let monthIndex: number | undefined;
-  if (kind === "deposit") {
-    if (state.payments.some((p) => p.kind === "deposit")) return jsonError("Deposit already paid", 409);
-  } else {
-    if (!state.payments.some((p) => p.kind === "deposit")) return jsonError("Pay the deposit first.", 409);
-    const paid = paidRentMonths(state.payments);
-    // The next unpaid month, in order. The client cannot choose or skip a month.
-    monthIndex = 0;
-    while (paid.has(monthIndex)) monthIndex += 1;
-    if (monthIndex >= lease.months) return jsonError("All rent months are already paid", 409);
-  }
+  const next = nextPaymentSlot(state, kind);
+  if (!next.ok) return jsonError(next.error, next.status);
+  const monthIndex = next.monthIndex;
 
   const slot = `${state.sessionId}:${kind}:${monthIndex ?? "-"}`;
   if (inFlight.has(slot)) return jsonError("A payment for this item is already in progress", 409);

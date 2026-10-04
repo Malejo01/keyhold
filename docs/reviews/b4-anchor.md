@@ -191,3 +191,128 @@ Owner: solana-program-engineer. Branch `f3-anchor`. Nothing deployed; CI only.
 **Not changed:** non-blocking 2 (stale votes; documented as a known limit), 3 (other multi-name assertions and "unchanged" checks), 4 (README, submission-writer), 6 (period rule, ai-agents), 7 (orphan lease rate limit, sol-client), 8 (upgrade authority in README). Docs updated: `docs/onchain.md` (instruction table, client recipient rule, tenant veto, errors, security notes, known limits, measured CI, deploy) and the status table in `docs/debates/anchor-accounts/qa-tests.md`. The IDL in `target/idl/rental_escrow.json` was regenerated from the CI build.
 
 Ready for qa re-review (B1 scope plus the objection 10 gate).
+
+## Re-gate (qa)
+
+**Verdict: GO for merging the program code** (`programs/rental_escrow/**`, `tests/anchor/**`, `target/idl/rental_escrow.json`, `docs/onchain.md`). B1 is closed. The objection 10 gate is correct and cannot lock the deposit permanently in any realistic lease. Deploying is still out of scope and stays with Mauro.
+
+- Reviewer: qa-security-reviewer. I wrote none of this code. Date: 2026-10-04 (ART, overnight).
+- Target: `f3-anchor` at `79c5794`. Scope: `git diff d8c619d..79c5794` (program, math, tests, IDL, docs).
+- Method:
+  - Line-by-line reading of the diff.
+  - CI logs of both proof runs.
+  - A diff of the CI-built IDL against the committed one.
+- There is no Solana toolchain on this machine, so nothing was built locally and nothing was deployed.
+
+### Evidence
+
+| Check | Command / source | Result |
+|---|---|---|
+| Red on old code | `gh run view 37182143370` (head `4dab390`, tests only, program untouched) | `conclusion: failure`; `ℹ tests 68 / ℹ pass 65 / ℹ fail 3`. The failing tests are exactly P-13, R-21 and R-22. |
+| Green on final code | `gh run view 37182880699` (head `79c5794`) | `conclusion: success`. Jobs test, typecheck, evals, lint, build and anchor-build are all `success`. `ℹ tests 69 / ℹ pass 69 / ℹ fail 0`. Cargo: `test result: ok. 6 passed; 0 failed`. |
+| Compute units (final) | same log | `{"CreateLease":30679,"DepositEscrow":11980,"PayRent":25801,"VoteRelease":19682,"CancelLease":13749}`, far below 200 000. See NB-R3 for the PayRent figure in the docs. |
+| IDL = CI build | `===IDL-BEGIN===`..`===IDL-END===` block of 37182880699 diffed against `target/idl/rental_escrow.json` | Identical except the final `}`, which the log marker cuts off. Contains `RELEASE_GRACE_SECONDS` (constant) and `ReleaseNeedsTenant` (error). The ATA `pda` derivations of `landlord_token` / `tenant_token` are gone, as expected after removing `associated_token::`. |
+| Secrets in the new commits | `git log -p d8c619d..79c5794 \| grep -i -E "secret\|private\|keypair"` | Only doc text (`solana-keygen new --force …`, "never commit") and `Keypair.generate()` in tests. |
+
+### B1 fix: verified
+
+**Recipient token accounts**
+- These four now use `#[account(mut, token::mint = mint, token::authority = lease.<party>)]`:
+  - `PayRent.landlord_token` (`lib.rs:520`)
+  - `VoteRelease.tenant_token` (`lib.rs:556`)
+  - `VoteRelease.landlord_token` (`lib.rs:559`)
+  - `CancelLease.landlord_token` (`lib.rs:592`)
+- No `associated_token::` is left in the program. X-04 asserts this statically.
+
+**Vault rent destination**
+- `VoteRelease.landlord` (`lib.rs:566-567`) is an `UncheckedAccount` with a `/// CHECK` comment and `address = lease.landlord`. The lease keeps `has_one = landlord`.
+- Nothing is read from it. It is only the `close_account` destination.
+- It is the single `UncheckedAccount` in the program (X-04).
+
+**Other places that assume a party account: none at risk**
+- `DepositEscrow.tenant_token` and `PayRent.tenant_token` use `token::authority = tenant`, and `tenant` is the signer. Only the tenant can hurt itself there.
+- `CancelLease.landlord` is the signer and the lamports destination.
+- `PayRent.payer` has no role.
+- No other account is derived from a party key.
+
+**Why "any account the party owns" is safe**
+- Anyone can create a token account owned by a party, without that party's signature.
+- Classic `InitializeAccount` sets no delegate and no close authority. The mint has no freeze authority (checked at create).
+- So the funds can only be moved by that party.
+
+**Duplicate accounts: unchanged**
+- `tenant_token` and `landlord_token` cannot alias: they have different owners, and `tenant != landlord` is enforced at create.
+- The vault cannot be passed as a recipient: its owner is the lease PDA.
+
+**Tests: every original scenario is covered**
+- Scenario 1 (tenant holds the deposit hostage) and its landlord mirror: R-21.
+- Scenario 2 (landlord wallet `assign`ed): R-22. It also checks that the vault rent reaches the reassigned wallet.
+- Scenario 3 (landlord forces a late payment): P-13, with `on_time = true` and streak 1.
+- Each test also asserts that the moved ATA now fails `ConstraintTokenOwner`, so the fallback path is the only one that works.
+
+### Objection 10 gate: verified
+
+Code: `math::release_without_tenant_allowed`, called from `vote_release` at `lib.rs:273-285`.
+
+**When the gate applies**
+- Only when a match completes **and** the tenant's slot does not hold those exact terms.
+- A match the tenant completes skips the gate, because the tenant's own slot was just written.
+- An L or A vote that matches an earlier tenant vote also skips it. That is tenant consent, bound to the full terms hash.
+- A blocked match reverts the whole tx, including the voter's slot write. A later tenant vote still matches the slot that L or A recorded earlier (R-20).
+
+**Clock**
+- `Clock::get()?.unix_timestamp` only. No argument and no account influences `now`.
+
+**Off-by-one**
+- Pricing uses `on_time = now <= due`, so lateness starts at `due + 1`.
+- "More than 10 days late" is `now > due + 864_000`. So `now == due + grace` is still blocked, which matches pricing.
+- `cargo test r20_r23_release_without_tenant_gate` asserts `d-1`, `d`, `d+g` (blocked) and `d+g+1` (allowed).
+
+**"Late" when no rent is due yet**
+- The reference date is `due(months_paid)`, the first **unpaid** month.
+- With `months_paid = 0` and `now < due_day_ts`, nothing is due yet, the tenant is current, and the release is blocked (R-20, first case).
+- After a payment the reference moves to the next month: R-23, second half, and the cargo vector `(1, 12, …, d+g+1)`, which is blocked.
+- Paying early, even the whole term up front, only makes `months_paid >= term_months` true sooner. That favours release, not lock.
+
+**No permanent lock**
+- Without the tenant's vote, the longest wait is bounded:
+  - if the tenant stops paying, by `due(months_paid) + grace`;
+  - if the tenant pays everything, by the last payment, after which `months_paid == term_months` and the release is allowed.
+- The tenant cannot extend the window by paying late within the grace. Each payment moves the reference one period forward, and only `term_months` payments exist.
+- The landlord can no longer block `pay_rent` (B1), so it cannot manufacture "late" either.
+
+**Overflow branch**
+- `create_lease` guarantees that `due(term_months - 1)` is representable, so `due(months_paid)` always is too.
+- The only `None` case is `due + grace` overflowing. That needs `due_day_ts > i64::MAX - 864_000 - (term-1)·period`. See NB-R1.
+
+**Atomicity**
+- R-20 runs the A vote and the A+L batch separately.
+- After each, it checks that a snapshot of `lease`, `vault` and the landlord ATA is unchanged.
+
+### Non-blocking (re-gate)
+
+**NB-R1. Overflow lock**
+- If `due(term-1) + RELEASE_GRACE_SECONDS` overflows i64, a tenant who stops paying locks the deposit forever. "Never overdue" is the designed outcome, and the cargo test asserts it.
+- Only landlord + agency can create such a lease, against themselves, with a `due_day_ts` near `i64::MAX` (around the year 292 billion).
+- Hardening, one line: also check `due_ts(...).and_then(|d| d.checked_add(RELEASE_GRACE_SECONDS))` at create (`lib.rs:73`). Post-hackathon is fine.
+
+**NB-R2. Executable landlord wallet (reasoned only, not tested)**
+- If the landlord turns its own wallet address into an executable program account, the lamports credit in `close_account` may be rejected, depending on runtime features. That would block the release, as scenario 2 did.
+- To do that, the landlord must:
+  1. drain the wallet;
+  2. re-create the address as a loader-owned program account;
+  3. deploy to it.
+- In this demo the platform holds the landlord key. Not worth a change now.
+- If it ever matters: send the vault rent to the agency, or leave it in the lease PDA.
+
+**NB-R3. CU figure**
+- `docs/onchain.md` quotes PayRent at 22 801 CU, from the `f7cd286` run. The final run measured 25 801. Cosmetic.
+
+**Carried over from the first review, still open**
+- Non-blocking 2, 3 (partly), 4, 6, 7 and 8, as listed by sol-program under "Not changed".
+- 4 (README) and 8 (upgrade authority) must be done before the freeze. The README must use the updated custody sentence at `docs/onchain.md:131`.
+
+### Not verified
+
+- Nothing was reproduced locally, and nothing was deployed. All runtime evidence comes from CI runs 37182143370 and 37182880699.
+- NB-R2 is reasoned only.

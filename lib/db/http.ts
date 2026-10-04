@@ -1,6 +1,9 @@
 // Server-only helpers shared by the JSON API routes (chat, lease, verify).
 import type { z } from 'zod';
-import { InvalidSessionError, SessionConfigError } from './session';
+import type { SessionState } from '../contracts';
+import { getDb } from './client';
+import { getStoredVersion } from './store';
+import { ExpiredSessionError, InvalidSessionError, SessionConfigError, StaleSessionError } from './session';
 
 /** Upper bound for a request body. Session blobs carry the chat history and contract text. */
 const MAX_BODY_BYTES = 512 * 1024;
@@ -47,10 +50,30 @@ export async function parseBody<T>(
  * (message kept generic so nothing about the secret leaks). Returns null for other errors.
  */
 export function sessionErrorResponse(err: unknown): Response | null {
+  if (err instanceof ExpiredSessionError) return jsonError('Session expired', 401);
   if (err instanceof InvalidSessionError) return jsonError('Invalid session', 401);
+  if (err instanceof StaleSessionError) return Response.json({ error: err.message, code: 'stale_session' }, { status: 409 });
   if (err instanceof SessionConfigError) {
     console.error('[session] misconfiguration:', err.message);
     return jsonError('Server misconfigured', 500);
+  }
+  return null;
+}
+
+/**
+ * Replay protection for routes that do not pay: with a database, a blob older than the latest stored version
+ * of its session is refused (409). Returns null when persistence is off, when the blob is current, or when the
+ * database is unreachable (these routes fail open and log; /api/pay fails closed).
+ */
+export async function staleSessionResponse(state: SessionState): Promise<Response | null> {
+  const db = getDb();
+  if (!db) return null;
+  try {
+    if ((state.version ?? 0) < (await getStoredVersion(db, state.sessionId))) {
+      return sessionErrorResponse(new StaleSessionError());
+    }
+  } catch (err) {
+    logError('session.stale-check', err);
   }
   return null;
 }

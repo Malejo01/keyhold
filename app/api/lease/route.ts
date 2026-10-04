@@ -1,13 +1,30 @@
-import type { FinalDecision, LeaseResponse } from '@/lib/contracts';
+import type { FinalDecision, LeaseResponse, SessionState } from '@/lib/contracts';
 import { findProperty } from '@/lib/agents/catalog';
 import { evaluateTenant } from '@/lib/agents/prequal';
 import { createLeaseDraft } from '@/lib/agents/lease';
 import { applyEvent } from '@/lib/agents/orchestrator';
 import { leaseRequestSchema } from '@/lib/db/schemas';
 import { signSession, verifySession } from '@/lib/db/session';
-import { jsonError, logError, parseBody, sessionErrorResponse } from '@/lib/db/http';
+import { jsonError, logError, parseBody, sessionErrorResponse, staleSessionResponse } from '@/lib/db/http';
+import { getDb } from '@/lib/db/client';
+import { ensureReferenceData } from '@/lib/db/reference';
+import { recordPrequal, touchSession, upsertLease } from '@/lib/db/store';
 
 export const runtime = 'nodejs';
+
+/** Best effort: the lease also gets upserted by /api/pay, so a database blip here must not break the demo. */
+async function persistLease(state: SessionState, decision: FinalDecision): Promise<void> {
+  const db = getDb();
+  if (!db || !state.lease) return;
+  try {
+    await ensureReferenceData(db);
+    await touchSession(db, state);
+    await upsertLease(db, state, state.lease);
+    await recordPrequal(db, state.sessionId, state.lease.propertyId, decision);
+  } catch (err) {
+    logError('lease.persist', err);
+  }
+}
 
 export async function POST(request: Request): Promise<Response> {
   const body = await parseBody(request, leaseRequestSchema);
@@ -22,6 +39,9 @@ export async function POST(request: Request): Promise<Response> {
     logError('lease', err);
     return jsonError('Internal error', 500);
   }
+
+  const stale = await staleSessionResponse(state);
+  if (stale) return stale;
 
   const { tenantId, selectedPropertyId } = state;
   if (!tenantId) return jsonError('No tenant selected in this session', 400);
@@ -45,7 +65,9 @@ export async function POST(request: Request): Promise<Response> {
   try {
     const lease = createLeaseDraft(tenantId, selectedPropertyId);
     const next = applyEvent(state, { type: 'lease_created', lease });
-    const response: LeaseResponse = { lease, session: signSession(next) };
+    const signed = signSession(next);
+    await persistLease(signed.state, decision);
+    const response: LeaseResponse = { lease, session: signed };
     return Response.json(response);
   } catch (err) {
     logError('lease', err);

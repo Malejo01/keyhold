@@ -224,6 +224,13 @@ export interface SessionState {
   lease?: LeaseDraft;
   payments: PaymentResult[];
   history: ChatTurn[];
+  /**
+   * Optional and backward compatible (blobs issued before AD-11b lack them; treated as version 0, no age check).
+   * `version` increases by one every time the server signs the session; with a database the server keeps the
+   * latest version per sessionId and rejects older blobs. `issuedAt` is server time in ms of the last signing.
+   */
+  version?: number;
+  issuedAt?: number;
 }
 
 export interface SignedSession {

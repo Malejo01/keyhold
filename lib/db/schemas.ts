@@ -67,6 +67,8 @@ const sessionStateSchema: z.ZodType<SessionState> = z.looseObject({
   lease: leaseDraftSchema.optional(),
   payments: z.array(paymentResultSchema).max(100),
   history: z.array(chatTurnSchema).max(500),
+  version: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER).optional(),
+  issuedAt: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER).optional(),
 });
 
 /** Reusable: a client-held session blob. Shape only; the signature is checked by verifySession. */

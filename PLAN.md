@@ -196,7 +196,15 @@ export type IssueCode =
   | 'missing_document' | 'expired_payslip'
   | 'name_mismatch' | 'income_ratio_exceeded';
 
-export interface Issue { code: IssueCode; docType?: DocType; message: string }
+export interface Issue {
+  code: IssueCode; docType?: DocType; message: string;
+  // Optional, added 2026-10-04 (backward compatible). Filled by lib/rules only.
+  evidence?: {
+    field: 'holder_name' | 'payslip_issue_date' | 'rent_to_income';
+    rule: string;                 // e.g. "The name on every document must match the ID."
+    compared: { docType: DocType; label: string; value: string; mismatch?: boolean }[];
+  };
+}
 
 export interface PrequalResult {
   tenantId: TenantId;
@@ -217,6 +225,8 @@ export interface FinalDecision {
   crosscheck: CrosscheckResult;
 }
 ```
+
+`Issue.evidence` lists the values the rule compared, for the UI's side-by-side view. It is set on `name_mismatch` (ID holder name vs. the other document's holder name; `mismatch: true` on the differing document), `expired_payslip` (payslip issue date with its age in days vs. the reference date) and `income_ratio_exceeded` (monthly income vs. rent). The values are simulated demo data. They stay in the API response and are never written on-chain or into a Memo. The decision itself does not read `evidence`.
 
 Design note for Carla, so that AD-01 and AD-02 both hold: prequal's rules check completeness, payslip age and rent-to-income. The name-match rule is deterministic code too, but it runs on **crosscheck's independent per-document extraction**. So prequal approves Carla, crosscheck catches her, and no model decides either outcome.
 

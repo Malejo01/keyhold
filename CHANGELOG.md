@@ -39,5 +39,6 @@ Work before the tag `v0-hackathon-start` or imported via `chore(import)` commits
 - docs(submission): `preselection.md` with counted fields, `pitch-script.md` (2:00), demo script rewritten for the product team; README positioning line no longer claims trustless escrow (submission-writer).
 - docs(validation): honest GTM draft `docs/submission/gtm.md` (plan, no traction), 15 Salta agencies to contact, empty evidence log (market-validation-analyst).
 - docs: the demo and pitch videos are recorded by the product team, not Mauro; no new Gemini key, production stays on `REPLAY=1`; Monday design debates prepared in `docs/debates/` (lead).
+- feat(rules): optional `Issue.evidence` (field, rule, values compared side by side) on name_mismatch, expired_payslip and income_ratio_exceeded, for the UI comparison view; decisions unchanged. The lease template names the product via `APP_NAME`. The rename to "AlquilIA" needs no re-recording: replay keys use the agent id and user input only, never the system prompt. Replay evals and `tsc` pass (ai-agents-engineer).
 
 ## Week 2 — 2026-10-05 → 2026-10-12

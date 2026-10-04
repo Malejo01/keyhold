@@ -32,7 +32,7 @@ export class ExpiredSessionError extends InvalidSessionError {
  */
 export class StaleSessionError extends Error {
   readonly status = 409;
-  constructor(message = 'This session is out of date. Reload the page to continue.') {
+  constructor(message = 'This session is out of date. Start over to continue.') {
     super(message);
     this.name = 'StaleSessionError';
   }

@@ -4,6 +4,7 @@ import {
   getAssociatedTokenAddressSync,
 } from "@solana/spl-token";
 import { type Keypair, PublicKey, Transaction, TransactionInstruction } from "@solana/web3.js";
+import { base58Encode } from "./base58";
 import { getDevnetConnection } from "./connection";
 import { PAYMENT_DECIMALS, getPaymentMint, platformKeypair } from "./keys";
 
@@ -28,11 +29,25 @@ export interface TransferParams {
 }
 
 /**
- * One transaction: [create destination ATA if missing] + transferChecked + Memo.
- * The platform keypair is the fee payer; the owner signs as token authority.
- * Resolves once the tx is confirmed. Returns the signature.
+ * A fully built and signed transfer that has NOT been sent yet. Building has no network side effect (only reads:
+ * the blockhash), so any failure before this object exists means nothing reached the chain. The signature is
+ * known up front, which lets the caller persist it BEFORE sending and reconcile an ambiguous send later.
  */
-export async function sendTokenTransferWithMemo(params: TransferParams): Promise<string> {
+export interface PreparedTransfer {
+  /** Base58 signature of the fee payer (the transaction id). */
+  signature: string;
+  /** Wire-format signed transaction, base64. */
+  serializedTx: string;
+  blockhash: string;
+  /** Last block height at which the blockhash is valid; past it the tx can never land. */
+  lastValidBlockHeight: number;
+}
+
+/**
+ * One transaction: [create destination ATA if missing] + transferChecked + Memo.
+ * The platform keypair is the fee payer; the owner signs as token authority. NOTHING is sent here.
+ */
+export async function buildSignedTransfer(params: TransferParams): Promise<PreparedTransfer> {
   const { owner, destination, amountBaseUnits, memo } = params;
   if (amountBaseUnits <= BigInt(0)) throw new RangeError("amount must be > 0");
 
@@ -54,12 +69,68 @@ export async function sendTokenTransferWithMemo(params: TransferParams): Promise
   tx.feePayer = feePayer.publicKey;
   tx.sign(feePayer, owner);
 
-  const signature = await connection.sendRawTransaction(tx.serialize());
-  const confirmation = await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, "confirmed");
+  const feePayerSignature = tx.signatures[0]?.signature;
+  if (!feePayerSignature) throw new Error("Transaction was not signed by the fee payer.");
+  return {
+    signature: base58Encode(feePayerSignature),
+    serializedTx: tx.serialize().toString("base64"),
+    blockhash,
+    lastValidBlockHeight,
+  };
+}
+
+/**
+ * Sends a prepared transfer and resolves once it is confirmed. A failure here is AMBIGUOUS (the tx may or may not
+ * have landed): never assume it was not sent, check `getTransferStatus` with the stored signature instead.
+ */
+export async function sendPreparedTransfer(prepared: PreparedTransfer): Promise<void> {
+  const connection = await getDevnetConnection();
+  const signature = await connection.sendRawTransaction(Buffer.from(prepared.serializedTx, "base64"));
+  // The stored signature is what reconciliation relies on: it must be the one the cluster knows.
+  if (signature !== prepared.signature) throw new Error("Signature mismatch between the prepared and the sent transaction.");
+  const confirmation = await connection.confirmTransaction(
+    { signature, blockhash: prepared.blockhash, lastValidBlockHeight: prepared.lastValidBlockHeight },
+    "confirmed",
+  );
   if (confirmation.value.err) {
     throw new Error(`Transaction ${signature} failed on chain: ${JSON.stringify(confirmation.value.err)}`);
   }
-  return signature;
+}
+
+/** Build, sign, send and confirm in one go (scripts). Returns the signature. */
+export async function sendTokenTransferWithMemo(params: TransferParams): Promise<string> {
+  const prepared = await buildSignedTransfer(params);
+  await sendPreparedTransfer(prepared);
+  return prepared.signature;
+}
+
+/**
+ * Safety margin (blocks, ~0.4 s each) added to lastValidBlockHeight before a tx is declared dead, so a lagging
+ * RPC node cannot make us release a payment that is about to land.
+ */
+const EXPIRY_MARGIN_BLOCKS = 40;
+
+export type TransferStatus = "confirmed" | "failed" | "pending" | "expired";
+
+/**
+ * Where is a previously stored transfer?
+ *  - confirmed: landed without error (money moved)
+ *  - failed:    landed with an error (no tokens moved)
+ *  - expired:   unknown to the cluster and its blockhash can no longer be used: it can never land
+ *  - pending:   unknown or only processed, and could still land
+ * Throws on RPC errors: the caller must then keep the claim.
+ */
+export async function getTransferStatus(signature: string, lastValidBlockHeight: number): Promise<TransferStatus> {
+  const connection = await getDevnetConnection();
+  const { value } = await connection.getSignatureStatuses([signature], { searchTransactionHistory: true });
+  const status = value[0];
+  if (status) {
+    if (status.err) return "failed";
+    if (status.confirmationStatus === "confirmed" || status.confirmationStatus === "finalized") return "confirmed";
+    return "pending";
+  }
+  const height = await connection.getBlockHeight("confirmed");
+  return height > lastValidBlockHeight + EXPIRY_MARGIN_BLOCKS ? "expired" : "pending";
 }
 
 /** Waits for the confirmed tx's blockTime (unix seconds). Never uses local time. */

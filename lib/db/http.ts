@@ -78,7 +78,25 @@ export async function staleSessionResponse(state: SessionState): Promise<Respons
   return null;
 }
 
-/** Logs only the error message, never request bodies, sessions or env values. */
+/**
+ * What is safe to log about an error. drizzle-orm wraps every failed query in a DrizzleQueryError whose message is
+ * "Failed query: <sql> params: <bound values>": the values (contract text, session id, crosscheck evidence)
+ * must never reach the logs. For those we log only the driver's own code and message (`cause`, e.g.
+ * 23503 "insert or update on table ... violates foreign key constraint ..."), which carries no bound values.
+ */
+export function describeError(err: unknown): string {
+  if (!(err instanceof Error)) return 'unknown error';
+  if (err.name === 'DrizzleQueryError' || err.message.startsWith('Failed query:')) {
+    const cause = err.cause as { code?: unknown; message?: unknown } | undefined;
+    const code = typeof cause?.code === 'string' ? ` (${cause.code})` : '';
+    const detail = typeof cause?.message === 'string' ? `: ${cause.message}` : '';
+    return `database query failed${code}${detail}`;
+  }
+  // Defensive: whatever the type, never print a parameter dump.
+  return err.message.split(/\r?\nparams:/)[0];
+}
+
+/** Logs only a scrubbed error message, never request bodies, sessions, query parameters or env values. */
 export function logError(scope: string, err: unknown): void {
-  console.error(`[${scope}]`, err instanceof Error ? err.message : 'unknown error');
+  console.error(`[${scope}]`, describeError(err));
 }

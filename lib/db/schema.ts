@@ -25,6 +25,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
 
@@ -152,6 +153,11 @@ export const payments = pgTable(
     leaseId: text('lease_id')
       .notNull()
       .references(() => leases.id),
+    /**
+     * Session that opened the claim. With the partial unique index below it enforces "one lease per session may
+     * hold a deposit" even across serverless instances. Null only for rows created before it existed.
+     */
+    sessionId: text('session_id').references(() => sessions.id),
     kind: text('kind').notNull(),
     /** 0-based rent month, or DEPOSIT_MONTH_INDEX (-1) for the deposit. See the note at the top of the file. */
     monthIndex: integer('month_index').notNull(),
@@ -160,7 +166,13 @@ export const payments = pgTable(
      * confirmed: transfer confirmed on chain, signature stored.
      */
     status: text('status').notNull().default('pending'),
+    /**
+     * Known as soon as the tx is signed and stored BEFORE it is sent, so an ambiguous send (timeout, crash) can be
+     * reconciled against the cluster. Pending rows may therefore carry a signature.
+     */
     signature: text('signature'),
+    /** Blockhash validity of the stored signature: past it (plus a margin) the tx can never land. */
+    lastValidBlockHeight: bigint('last_valid_block_height', { mode: 'number' }),
     amountBaseUnits: bigint('amount_base_units', { mode: 'bigint' }),
     discountAppliedBps: integer('discount_applied_bps'),
     /** Unix seconds from the confirmed tx, never from the client. */
@@ -185,5 +197,7 @@ export const payments = pgTable(
       sql`${t.status} <> 'confirmed' or ${t.signature} is not null`,
     ),
     index('payments_lease_idx').on(t.leaseId),
+    // One paid lease per session (deposit is the entry ticket). A released claim is deleted, which frees the slot.
+    uniqueIndex('payments_one_deposit_per_session_uq').on(t.sessionId).where(sql`${t.kind} = 'deposit'`),
   ],
 );

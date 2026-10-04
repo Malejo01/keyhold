@@ -2,40 +2,24 @@
 // See docs/reviews/b3-db.md. The Solana transfer is mocked and counted; the database is PGlite with the
 // committed migrations, so the constraints are real.
 //
-// `it.fails` marks a property the code does NOT have yet (a reviewed finding). When the owner fixes it, the
-// test turns red: drop `.fails` and keep it as a regression test.
+// B3-1, B3-2 and B3-4 were `it.fails` (reviewed findings); they are regression tests since the fixes.
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { eq } from 'drizzle-orm';
 import { createTestDb } from '../db/pglite';
 import { createLeaseDraft } from '../../lib/agents/lease';
-import type { PaymentIntent, PaymentResult, SessionState, SignedSession } from '../../lib/contracts';
+import type { SessionState, SignedSession } from '../../lib/contracts';
 import type { Db } from '../../lib/db/client';
 import { payments } from '../../lib/db/schema';
 import { newSession, signSession } from '../../lib/db/session';
+import { resetSolanaState, type SolanaMockState } from '../helpers/solana-mock';
 
-const solana = vi.hoisted(() => ({ transfers: 0, failWith: [] as Error[] }));
+const solana = vi.hoisted(
+  (): SolanaMockState => ({ transfers: 0, prepares: 0, prepareFail: [], sendFail: [], checks: [], landed: new Set() }),
+);
 
 vi.mock('@/lib/solana/pay', async (importOriginal) => {
-  const original = await importOriginal<typeof import('../../lib/solana/pay')>();
-  return {
-    ...original,
-    executePayment: vi.fn(async (intent: PaymentIntent): Promise<PaymentResult> => {
-      const failure = solana.failWith.shift();
-      if (failure) throw failure;
-      solana.transfers += 1;
-      await new Promise((r) => setTimeout(r, 25));
-      return {
-        kind: intent.kind,
-        signature: `sig-${solana.transfers}-${Math.random().toString(36).slice(2)}`,
-        explorerUrl: 'https://explorer.invalid/tx',
-        blockTime: 1_800_000_000,
-        amountBaseUnits: intent.listAmountBaseUnits,
-        discountAppliedBps: 0,
-        onTime: true,
-        memo: original.buildMemo(intent),
-      };
-    }),
-  };
+  const { solanaMockModule } = await import('../helpers/solana-mock');
+  return solanaMockModule(await importOriginal<typeof import('../../lib/solana/pay')>(), solana);
 });
 
 // Two copies of the route + db client = two serverless instances (separate in-flight guards, same database).
@@ -61,8 +45,7 @@ afterAll(async () => {
   await close();
 });
 beforeEach(() => {
-  solana.transfers = 0;
-  solana.failWith = [];
+  resetSolanaState(solana);
   instanceA.client.setDbForTests(db);
   instanceB.client.setDbForTests(db);
 });
@@ -113,10 +96,10 @@ describe('B3 attacks on /api/pay with a database', () => {
 
   // Finding B3-1: errors raised BEFORE anything is sent (RPC 429 on the balance read, blockhash fetch, missing
   // keypair env) are treated as ambiguous, so the slot stays `pending` forever and the lease cannot be paid.
-  it.fails('a failure before the transfer is sent (RPC 429 on the balance read) does not lock the slot', async () => {
+  it('a failure before the transfer is sent (RPC 429 on the balance read) does not lock the slot', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const issued = blob(leaseSession());
-    solana.failWith = [new Error('429 Too Many Requests')]; // what getAccount() throws on a devnet rate limit
+    solana.prepareFail = [new Error('429 Too Many Requests')]; // what getAccount() throws on a devnet rate limit
     expect((await pay('deposit', issued)).status).toBe(502);
     const retry = await pay('deposit', issued);
     expect(retry.status).toBe(200);
@@ -138,7 +121,7 @@ describe('B3 attacks on /api/pay with a database', () => {
   // Finding B3-4: "one paid lease per session" is a read-then-write check. Across two instances, two leases of
   // the same session can both pass it. Not a money-safety boundary (anyone can open a new session), but the ADR
   // states it as a rule.
-  it.fails('two instances cannot pay deposits for two different leases of the same session', async () => {
+  it('two instances cannot pay deposits for two different leases of the same session', async () => {
     const sessionId = crypto.randomUUID();
     const a = blob(leaseSession(sessionId, 'prop-01'));
     const b = blob(leaseSession(sessionId, 'prop-02'));
@@ -172,7 +155,7 @@ describe('B3 logging', () => {
   // Finding B3-2: logError() logs err.message. drizzle-orm 0.45 wraps every failed query in DrizzleQueryError whose
   // message is "Failed query: <sql>\nparams: <params>", so the bound values (contract text, session id, crosscheck
   // evidence) reach the server logs. The real cause (err.cause) is dropped.
-  it.fails('a failed query does not write bound parameters to the logs', async () => {
+  it('a failed query does not write bound parameters to the logs', async () => {
     const lines: string[] = [];
     vi.spyOn(console, 'error').mockImplementation((...args: unknown[]) => {
       lines.push(args.map(String).join(' '));

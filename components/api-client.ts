@@ -17,6 +17,18 @@ export interface Api {
   verify(req: VerifyRequest): Promise<VerifyResponse>;
 }
 
+/** An API error that keeps the machine-readable `code` of the response body (e.g. "stale_session"). */
+export class ApiError extends Error {
+  readonly code?: string;
+  constructor(message: string, code?: string) {
+    super(message);
+    this.name = "ApiError";
+    this.code = code;
+  }
+}
+
+export const isStaleSession = (err: unknown): boolean => err instanceof ApiError && err.code === "stale_session";
+
 async function post<TReq, TRes>(url: string, body: TReq): Promise<TRes> {
   let res: Response;
   try {
@@ -46,7 +58,11 @@ async function post<TReq, TRes>(url: string, body: TReq): Promise<TRes> {
         : res.status === 409
           ? "That step is not available yet."
           : `Request failed (${res.status}).`;
-    throw new Error(message);
+    const code =
+      data && typeof data === "object" && "code" in data && typeof (data as { code: unknown }).code === "string"
+        ? (data as { code: string }).code
+        : undefined;
+    throw new ApiError(message, code);
   }
   return data as TRes;
 }

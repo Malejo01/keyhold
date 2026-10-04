@@ -2,9 +2,11 @@
 // has no interactive transactions). Idempotency and replay protection come from constraints, not from
 // read-then-write checks:
 //  - sessions.version  : upsert guarded by `WHERE sessions.version <= excluded.version`
-//  - payments          : UNIQUE (lease_id, kind, month_index), claimed with INSERT ... ON CONFLICT DO NOTHING
-import { and, eq, ne, sql } from 'drizzle-orm';
+//  - payments          : UNIQUE (lease_id, kind, month_index), claimed with INSERT ... ON CONFLICT DO NOTHING;
+//                        UNIQUE (session_id) WHERE kind = 'deposit' keeps one paid lease per session
+import { and, eq, isNull, ne, sql } from 'drizzle-orm';
 import type { FinalDecision, LeaseDraft, PaymentKind, PaymentResult, SessionState } from '../contracts';
+import type { PaymentAttempt } from '../solana/pay';
 import type { Db } from './client';
 import { DEMO_AGENCY_ID } from './reference';
 import { DEPOSIT_MONTH_INDEX, leases, payments, prequalDecisions, sessions } from './schema';
@@ -116,31 +118,108 @@ export function monthIndexFor(kind: PaymentKind, monthIndex: number | undefined)
 
 export type ClaimResult =
   | { claimed: true; id: string }
-  | { claimed: false; status: 'pending' | 'confirmed' };
+  | { claimed: false; status: 'pending' | 'confirmed' }
+  /** Another lease of the same session already holds a deposit (UNIQUE (session_id) WHERE kind = 'deposit'). */
+  | { claimed: false; status: 'other_lease_in_session' };
 
 /**
- * Records the payment INTENT before any transfer is sent. The unique constraint makes this the idempotency
+ * Records the payment INTENT before any transfer is sent. The unique constraints make this the idempotency
  * lock: exactly one caller gets `claimed: true` for a (lease, kind, month); everyone else gets the status of
- * the existing row and must NOT send a transfer.
+ * the existing row and must NOT send a transfer. A deposit also claims the session's single deposit slot.
  */
 export async function claimPayment(
   db: Db,
-  input: { leaseId: string; kind: PaymentKind; monthIndex: number | undefined },
+  input: { leaseId: string; sessionId: string; kind: PaymentKind; monthIndex: number | undefined },
 ): Promise<ClaimResult> {
   const monthIndex = monthIndexFor(input.kind, input.monthIndex);
+  // No conflict target: ANY unique violation (lease slot or session deposit slot) turns into "not inserted".
   const inserted = await db
     .insert(payments)
-    .values({ leaseId: input.leaseId, kind: input.kind, monthIndex, status: 'pending' })
-    .onConflictDoNothing({ target: [payments.leaseId, payments.kind, payments.monthIndex] })
+    .values({ leaseId: input.leaseId, sessionId: input.sessionId, kind: input.kind, monthIndex, status: 'pending' })
+    .onConflictDoNothing()
     .returning({ id: payments.id });
   if (inserted[0]) return { claimed: true, id: inserted[0].id };
-  const existing = await db
-    .select({ status: payments.status })
+  const existing = await getPaymentRow(db, input.leaseId, input.kind, input.monthIndex);
+  if (!existing) return { claimed: false, status: 'other_lease_in_session' };
+  return { claimed: false, status: existing.status === 'confirmed' ? 'confirmed' : 'pending' };
+}
+
+export interface PaymentRow {
+  id: string;
+  status: 'pending' | 'confirmed';
+  /** Present once the signed tx was stored (always before it was sent). */
+  attempt: PaymentAttempt | null;
+  /** Seconds since the claim was inserted, measured by the database clock. */
+  ageSeconds: number;
+}
+
+/** The payment row of a slot, with its stored attempt (signature and blockhash validity) when there is one. */
+export async function getPaymentRow(
+  db: Db,
+  leaseId: string,
+  kind: PaymentKind,
+  monthIndex: number | undefined,
+): Promise<PaymentRow | null> {
+  const rows = await db
+    .select({
+      id: payments.id,
+      status: payments.status,
+      signature: payments.signature,
+      lastValidBlockHeight: payments.lastValidBlockHeight,
+      amountBaseUnits: payments.amountBaseUnits,
+      discountAppliedBps: payments.discountAppliedBps,
+      memo: payments.memo,
+      ageSeconds: sql<number>`extract(epoch from (now() - ${payments.createdAt}))`,
+    })
     .from(payments)
     .where(
-      and(eq(payments.leaseId, input.leaseId), eq(payments.kind, input.kind), eq(payments.monthIndex, monthIndex)),
+      and(
+        eq(payments.leaseId, leaseId),
+        eq(payments.kind, kind),
+        eq(payments.monthIndex, monthIndexFor(kind, monthIndex)),
+      ),
     );
-  return { claimed: false, status: existing[0]?.status === 'confirmed' ? 'confirmed' : 'pending' };
+  const row = rows[0];
+  if (!row) return null;
+  const complete =
+    row.signature !== null &&
+    row.lastValidBlockHeight !== null &&
+    row.amountBaseUnits !== null &&
+    row.discountAppliedBps !== null &&
+    row.memo !== null;
+  return {
+    id: row.id,
+    status: row.status === 'confirmed' ? 'confirmed' : 'pending',
+    attempt: complete
+      ? {
+          signature: row.signature as string,
+          lastValidBlockHeight: row.lastValidBlockHeight as number,
+          amountBaseUnits: (row.amountBaseUnits as bigint).toString(),
+          discountAppliedBps: row.discountAppliedBps as number,
+          memo: row.memo as string,
+        }
+      : null,
+    ageSeconds: Number(row.ageSeconds),
+  };
+}
+
+/**
+ * Stores the signed tx's signature and facts on the claimed (pending) row. MUST run before the tx is sent: it is
+ * what lets a later request tell "landed", "failed" and "can never land" apart. Throws when the row is gone.
+ */
+export async function recordAttempt(db: Db, id: string, attempt: PaymentAttempt): Promise<void> {
+  const updated = await db
+    .update(payments)
+    .set({
+      signature: attempt.signature,
+      lastValidBlockHeight: attempt.lastValidBlockHeight,
+      amountBaseUnits: BigInt(attempt.amountBaseUnits),
+      discountAppliedBps: attempt.discountAppliedBps,
+      memo: attempt.memo,
+    })
+    .where(and(eq(payments.id, id), eq(payments.status, 'pending')))
+    .returning({ id: payments.id });
+  if (updated.length === 0) throw new Error('Payment claim is no longer pending');
 }
 
 /** True when a payment row (any status) exists for this lease and kind. */
@@ -170,7 +249,41 @@ export async function confirmPayment(db: Db, id: string, result: PaymentResult):
     .where(eq(payments.id, id));
 }
 
-/** Frees a claim whose transfer was certainly NOT sent (e.g. insufficient token balance). */
+/**
+ * Frees a claim whose transfer was certainly NOT sent (prepare failed, signature could not be stored, wallet
+ * short of tokens). Deleting the row also frees the session's deposit slot.
+ */
 export async function releasePayment(db: Db, id: string): Promise<void> {
   await db.delete(payments).where(and(eq(payments.id, id), eq(payments.status, 'pending')));
+}
+
+/**
+ * Frees a pending claim whose stored signature was proven dead (failed on chain, or blockhash expired).
+ * Guarded by the signature, so a claim that was meanwhile re-claimed with a new attempt is never deleted.
+ */
+export async function releaseAttempt(db: Db, id: string, signature: string): Promise<boolean> {
+  const deleted = await db
+    .delete(payments)
+    .where(and(eq(payments.id, id), eq(payments.status, 'pending'), eq(payments.signature, signature)))
+    .returning({ id: payments.id });
+  return deleted.length > 0;
+}
+
+/**
+ * Frees a pending claim that never stored a signature and is older than `minAgeSeconds` (the request that held it
+ * crashed or timed out before signing; since the signature is stored BEFORE sending, nothing was sent).
+ */
+export async function releaseStaleUnsigned(db: Db, id: string, minAgeSeconds: number): Promise<boolean> {
+  const deleted = await db
+    .delete(payments)
+    .where(
+      and(
+        eq(payments.id, id),
+        eq(payments.status, 'pending'),
+        isNull(payments.signature),
+        sql`${payments.createdAt} < now() - (${minAgeSeconds} * interval '1 second')`,
+      ),
+    )
+    .returning({ id: payments.id });
+  return deleted.length > 0;
 }

@@ -1,39 +1,24 @@
-// Route-level tests for POST /api/pay. The Solana transfer (executePayment) is mocked and counted; the
+// Route-level tests for POST /api/pay. The Solana steps (prepare, send, reconcile check) are mocked and counted; the
 // database is a real Postgres (PGlite) with the committed migrations, so the unique constraints are real.
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { eq } from 'drizzle-orm';
 import { createTestDb } from '../../../tests/db/pglite';
 import { createLeaseDraft } from '../../../lib/agents/lease';
-import type { PaymentIntent, PaymentResult, SessionState, SignedSession } from '../../../lib/contracts';
+import type { SessionState, SignedSession } from '../../../lib/contracts';
 import { setDbForTests, type Db } from '../../../lib/db/client';
 import { ensureReferenceData } from '../../../lib/db/reference';
 import { payments, sessions } from '../../../lib/db/schema';
 import { newSession, signSession } from '../../../lib/db/session';
-import { getStoredVersion, touchSession } from '../../../lib/db/store';
+import { claimPayment, getStoredVersion, touchSession, upsertLease } from '../../../lib/db/store';
+import { resetSolanaState, type SolanaMockState } from '../../../tests/helpers/solana-mock';
 
-const solana = vi.hoisted(() => ({ transfers: 0, failWith: [] as Error[] }));
+const solana = vi.hoisted(
+  (): SolanaMockState => ({ transfers: 0, prepares: 0, prepareFail: [], sendFail: [], checks: [], landed: new Set() }),
+);
 
 vi.mock('@/lib/solana/pay', async (importOriginal) => {
-  const original = await importOriginal<typeof import('../../../lib/solana/pay')>();
-  return {
-    ...original,
-    executePayment: vi.fn(async (intent: PaymentIntent): Promise<PaymentResult> => {
-      const failure = solana.failWith.shift();
-      if (failure) throw failure;
-      solana.transfers += 1;
-      await new Promise((r) => setTimeout(r, 25)); // keep concurrent requests overlapping
-      return {
-        kind: intent.kind,
-        signature: `sig-${solana.transfers}-${Math.random().toString(36).slice(2)}`,
-        explorerUrl: 'https://explorer.invalid/tx',
-        blockTime: 1_800_000_000,
-        amountBaseUnits: intent.listAmountBaseUnits,
-        discountAppliedBps: 0,
-        onTime: true,
-        memo: original.buildMemo(intent),
-      };
-    }),
-  };
+  const { solanaMockModule } = await import('../../../tests/helpers/solana-mock');
+  return solanaMockModule(await importOriginal<typeof import('../../../lib/solana/pay')>(), solana);
 });
 
 // Imported after vi.mock so the route sees the mocked module.
@@ -58,8 +43,7 @@ afterAll(async () => {
   await close();
 });
 beforeEach(() => {
-  solana.transfers = 0;
-  solana.failWith = [];
+  resetSolanaState(solana);
   setDbForTests(db);
 });
 afterEach(() => setDbForTests(undefined));
@@ -190,7 +174,7 @@ describe('POST /api/pay with a database', () => {
 
   it('frees the slot when the tenant wallet cannot pay (nothing was sent) so a retry works', async () => {
     const issued = blob(leaseSession());
-    solana.failWith = [new InsufficientFundsError()];
+    solana.prepareFail = [new InsufficientFundsError()];
     const failed = await pay('deposit', issued);
     expect(failed.status).toBe(409);
     expect(solana.transfers).toBe(0);
@@ -199,18 +183,164 @@ describe('POST /api/pay with a database', () => {
     expect(solana.transfers).toBe(1);
   });
 
-  it('keeps the claim after an ambiguous failure so a retry cannot send a second transfer', async () => {
+  it('B3-1: any failure before the send (RPC 429, blockhash, missing key) frees the claim and a retry pays once', async () => {
     const state = leaseSession();
     const issued = blob(state);
-    solana.failWith = [new Error('RPC timeout while confirming')];
+    solana.prepareFail = [new Error('429 Too Many Requests')];
+    expect((await pay('deposit', issued)).status).toBe(502);
+    expect(await db.select().from(payments).where(eq(payments.leaseId, state.lease!.leaseId))).toHaveLength(0);
+    const retry = await pay('deposit', issued);
+    expect(retry.status).toBe(200);
+    expect(solana.transfers).toBe(1);
+  });
+
+  it('stores the signature on the pending row BEFORE the send result is known', async () => {
+    const state = leaseSession();
+    solana.sendFail = [{ error: new Error('RPC timeout'), landed: false }];
+    const failed = await pay('deposit', blob(state));
+    expect(failed.status).toBe(502);
+    expect(failed.json.code).toBe('pending_confirmation');
+    const [row] = await db.select().from(payments).where(eq(payments.leaseId, state.lease!.leaseId));
+    expect(row.status).toBe('pending');
+    expect(row.signature).toMatch(/^sig-/);
+    expect(row.lastValidBlockHeight).toBe(1000);
+    expect(row.memo).toContain(':deposit:');
+  });
+
+  it('keeps the claim after an ambiguous send and answers in_progress while the tx could still land', async () => {
+    const state = leaseSession();
+    const issued = blob(state);
+    solana.sendFail = [{ error: new Error('RPC timeout while confirming'), landed: false }];
     const failed = await pay('deposit', issued);
     expect(failed.status).toBe(502);
     const [row] = await db.select().from(payments).where(eq(payments.leaseId, state.lease!.leaseId));
     expect(row.status).toBe('pending');
-    const retry = await pay('deposit', issued);
+    const retry = await pay('deposit', issued); // not on chain, blockhash still valid
     expect(retry.status).toBe(409);
     expect(retry.json.code).toBe('in_progress');
     expect(solana.transfers).toBe(0);
+    expect(solana.prepares).toBe(1); // no second transaction was even built
+  });
+
+  it('B3-1 reconcile: the send failed after the tx landed; the retry confirms it, returns the receipt, no second transfer', async () => {
+    const state = leaseSession();
+    const issued = blob(state);
+    solana.sendFail = [{ error: new Error('fetch failed after send'), landed: true }];
+    expect((await pay('deposit', issued)).status).toBe(502);
+    expect(solana.transfers).toBe(1);
+    const retry = await pay('deposit', issued);
+    expect(retry.status).toBe(200);
+    expect(retry.json.result.signature).toMatch(/^sig-1-/);
+    expect(retry.json.session.state.payments).toHaveLength(1);
+    expect(solana.transfers).toBe(1);
+    expect(solana.prepares).toBe(1);
+    const [row] = await db.select().from(payments).where(eq(payments.leaseId, state.lease!.leaseId));
+    expect(row).toMatchObject({ status: 'confirmed', signature: retry.json.result.signature });
+    // The recovered session is usable: rent can follow.
+    const rent = await pay('rent', retry.json.session);
+    expect(rent.status).toBe(200);
+    expect(solana.transfers).toBe(2);
+  });
+
+  it('B3-1 reconcile: not found and the blockhash expired; the retry releases the claim and pays once', async () => {
+    const state = leaseSession();
+    const issued = blob(state);
+    solana.sendFail = [{ error: new Error('socket hang up'), landed: false }];
+    expect((await pay('deposit', issued)).status).toBe(502);
+    solana.checks = ['expired'];
+    const retry = await pay('deposit', issued);
+    expect(retry.status).toBe(200);
+    expect(solana.transfers).toBe(1);
+    expect(solana.prepares).toBe(2);
+    const rows = await db.select().from(payments).where(eq(payments.leaseId, state.lease!.leaseId));
+    expect(rows).toHaveLength(1);
+    expect(rows[0].status).toBe('confirmed');
+  });
+
+  it('B3-1 reconcile: a tx that failed on chain moved no tokens, so the claim is released', async () => {
+    const issued = blob(leaseSession());
+    solana.sendFail = [{ error: new Error('failed on chain'), landed: false }];
+    expect((await pay('deposit', issued)).status).toBe(502);
+    solana.checks = ['failed'];
+    expect((await pay('deposit', issued)).status).toBe(200);
+    expect(solana.transfers).toBe(1);
+  });
+
+  it('B3-1 reconcile: an unreachable RPC keeps the claim (503) instead of guessing', async () => {
+    const state = leaseSession();
+    const issued = blob(state);
+    solana.sendFail = [{ error: new Error('timeout'), landed: true }];
+    expect((await pay('deposit', issued)).status).toBe(502);
+    solana.checks = [new Error('429 Too Many Requests')];
+    const retry = await pay('deposit', issued);
+    expect(retry.status).toBe(503);
+    expect(retry.json.code).toBe('reconcile_unavailable');
+    const [row] = await db.select().from(payments).where(eq(payments.leaseId, state.lease!.leaseId));
+    expect(row.status).toBe('pending');
+    expect(solana.transfers).toBe(1);
+    // RPC is back: it confirms (landed), still no second transfer.
+    expect((await pay('deposit', issued)).status).toBe(200);
+    expect(solana.transfers).toBe(1);
+  });
+
+  it('a pending claim with no signature is released only once it is old enough (the request died before signing)', async () => {
+    const state = leaseSession();
+    const issued = blob(state);
+    // Simulate a crash between the claim and the signature: a bare pending row.
+    await touchSession(db, state);
+    await upsertLease(db, state, state.lease!);
+    const claim = await claimPayment(db, {
+      leaseId: state.lease!.leaseId,
+      sessionId: state.sessionId,
+      kind: 'deposit',
+      monthIndex: undefined,
+    });
+    expect(claim.claimed).toBe(true);
+    const fresh = await pay('deposit', issued);
+    expect(fresh.status).toBe(409);
+    expect(fresh.json.code).toBe('in_progress');
+    await db
+      .update(payments)
+      .set({ createdAt: new Date(Date.now() - 10 * 60_000) })
+      .where(eq(payments.leaseId, state.lease!.leaseId));
+    const later = await pay('deposit', issued);
+    expect(later.status).toBe(200);
+    expect(solana.transfers).toBe(1);
+  });
+
+  it('frees the claim when the signature cannot be stored (nothing was sent)', async () => {
+    const state = leaseSession();
+    // A database that fails on UPDATE only: the claim insert works, storing the attempt does not.
+    const flaky = new Proxy(db, {
+      get(target, prop, receiver) {
+        if (prop === 'update') {
+          return () => {
+            throw new Error('connection reset');
+          };
+        }
+        return Reflect.get(target, prop, receiver);
+      },
+    });
+    setDbForTests(flaky as Db);
+    const res = await pay('deposit', blob(state));
+    expect(res.status).toBe(503);
+    expect(solana.transfers).toBe(0);
+    expect(solana.prepares).toBe(1);
+    setDbForTests(db);
+    expect(await db.select().from(payments).where(eq(payments.leaseId, state.lease!.leaseId))).toHaveLength(0);
+  });
+
+  it('B3-4: two leases of one session cannot both hold a deposit claim (database constraint)', async () => {
+    const sessionId = crypto.randomUUID();
+    const a = leaseSession(sessionId, 'prop-01');
+    const b = leaseSession(sessionId, 'prop-02');
+    await touchSession(db, a);
+    await upsertLease(db, a, a.lease!);
+    await upsertLease(db, b, b.lease!);
+    const first = await claimPayment(db, { leaseId: a.lease!.leaseId, sessionId, kind: 'deposit', monthIndex: undefined });
+    const second = await claimPayment(db, { leaseId: b.lease!.leaseId, sessionId, kind: 'deposit', monthIndex: undefined });
+    expect(first.claimed).toBe(true);
+    expect(second).toEqual({ claimed: false, status: 'other_lease_in_session' });
   });
 
   it('refuses to pay (503) when the database is unreachable instead of paying without the lock', async () => {

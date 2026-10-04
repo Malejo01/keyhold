@@ -5,7 +5,7 @@ import { computePrice } from "../rules/pricing";
 import { explorerTxUrl } from "./explorer";
 import { getDevnetConnection } from "./connection";
 import { getPaymentMint, landlordKeypair, platformKeypair, tenantKeypair } from "./keys";
-import { fetchBlockTime, sendTokenTransferWithMemo } from "./transfer";
+import { buildSignedTransfer, fetchBlockTime, getTransferStatus, sendPreparedTransfer } from "./transfer";
 
 const ID_RE = /^[A-Za-z0-9_-]+$/;
 const HASH_RE = /^[0-9a-f]{64}$/;
@@ -44,29 +44,52 @@ export function buildMemo(intent: Pick<PaymentIntent, "leaseId" | "kind" | "mont
   return `${MEMO_PREFIX}:${leaseId}:rent:${monthIndex}:${contractHash}`;
 }
 
-/**
- * Custodial escrow, real devnet transactions. The platform keypair pays every fee.
- *  - deposit: tenant -> platform custody token account, full list amount.
- *  - rent:    tenant -> landlord, amount quoted by computePrice with server time and method 'usdc'.
- * After confirmation, `onTime` is recomputed from the confirmed tx blockTime.
- */
-export async function executePayment(intent: PaymentIntent): Promise<PaymentResult> {
-  if (!DECIMAL_RE.test(intent.listAmountBaseUnits)) throw new Error("Invalid listAmountBaseUnits.");
-  const memo = buildMemo(intent);
-  const list = BigInt(intent.listAmountBaseUnits);
-  const pricing = {
-    listBaseUnits: list,
+/** What is needed to recognise, and later reconcile, one payment attempt. Stored on the pending DB row. */
+export interface PaymentAttempt {
+  signature: string;
+  /** Past this block height (plus a margin) the signed tx can never land. */
+  lastValidBlockHeight: number;
+  amountBaseUnits: string;
+  discountAppliedBps: number;
+  memo: string;
+}
+
+/** A signed, NOT yet sent payment. Producing it has no side effect on the chain. */
+export interface PreparedPayment extends PaymentAttempt {
+  kind: PaymentIntent["kind"];
+  serializedTx: string;
+  blockhash: string;
+}
+
+function pricingOf(intent: PaymentIntent) {
+  return {
+    listBaseUnits: BigInt(intent.listAmountBaseUnits),
     discountUsdcBps: intent.discountUsdcBps,
     discountOntimeBps: intent.discountOntimeBps,
     dueTs: intent.dueTs,
   };
+}
+
+/**
+ * Step 1 of a payment: validate, quote, check the payer balance, build and sign the transaction. Nothing is sent,
+ * so ANY error thrown here (missing keypair env, RPC 429 on the balance read, blockhash failure, bad memo) means
+ * the transfer provably did not happen and the caller may free its claim.
+ *
+ * Custodial escrow, real devnet transactions. The platform keypair pays every fee.
+ *  - deposit: tenant -> platform custody token account, full list amount.
+ *  - rent:    tenant -> landlord, amount quoted by computePrice with server time and method 'usdc'.
+ */
+export async function preparePayment(intent: PaymentIntent): Promise<PreparedPayment> {
+  if (!DECIMAL_RE.test(intent.listAmountBaseUnits)) throw new Error("Invalid listAmountBaseUnits.");
+  const memo = buildMemo(intent);
+  const pricing = pricingOf(intent);
 
   let amount: bigint;
   let discountAppliedBps: number;
   let destination: PublicKey;
   if (intent.kind === "deposit") {
     // The deposit is returned in full at move-out: no discounts apply.
-    amount = list;
+    amount = pricing.listBaseUnits;
     discountAppliedBps = 0;
     destination = platformKeypair().publicKey;
   } else {
@@ -79,25 +102,62 @@ export async function executePayment(intent: PaymentIntent): Promise<PaymentResu
   const owner = tenantKeypair(intent.payer);
   if ((await tokenBalance(owner.publicKey)) < amount) throw new InsufficientFundsError();
 
-  const signature = await sendTokenTransferWithMemo({
-    owner,
-    destination,
-    amountBaseUnits: amount,
-    memo,
-  });
-
-  // The record is always based on the chain's clock, never the client's or the server's.
-  const blockTime = await fetchBlockTime(signature);
-  const { onTime } = computePrice({ ...pricing, atTs: blockTime, method: "usdc" });
-
+  const transfer = await buildSignedTransfer({ owner, destination, amountBaseUnits: amount, memo });
   return {
     kind: intent.kind,
-    signature,
-    explorerUrl: explorerTxUrl(signature),
-    blockTime,
+    signature: transfer.signature,
+    serializedTx: transfer.serializedTx,
+    blockhash: transfer.blockhash,
+    lastValidBlockHeight: transfer.lastValidBlockHeight,
     amountBaseUnits: amount.toString(),
     discountAppliedBps,
-    onTime,
     memo,
   };
+}
+
+/** The record is always based on the chain's clock, never the client's or the server's. */
+async function resultFromChain(intent: PaymentIntent, attempt: PaymentAttempt): Promise<PaymentResult> {
+  const blockTime = await fetchBlockTime(attempt.signature);
+  const { onTime } = computePrice({ ...pricingOf(intent), atTs: blockTime, method: "usdc" });
+  return {
+    kind: intent.kind,
+    signature: attempt.signature,
+    explorerUrl: explorerTxUrl(attempt.signature),
+    blockTime,
+    amountBaseUnits: attempt.amountBaseUnits,
+    discountAppliedBps: attempt.discountAppliedBps,
+    onTime,
+    memo: attempt.memo,
+  };
+}
+
+/**
+ * Step 2: send, wait for confirmation and read the chain's blockTime. A failure here is AMBIGUOUS: the
+ * transfer may have landed. Do not assume otherwise; reconcile with `checkPayment` and the stored signature.
+ */
+export async function submitPayment(intent: PaymentIntent, prepared: PreparedPayment): Promise<PaymentResult> {
+  await sendPreparedTransfer(prepared);
+  return resultFromChain(intent, prepared);
+}
+
+export type PaymentCheck =
+  | { state: "confirmed"; result: PaymentResult }
+  /** Landed with an error or can never land: no tokens moved, the claim can be freed. */
+  | { state: "failed" | "expired" }
+  /** Might still land: keep the claim. */
+  | { state: "pending" };
+
+/**
+ * Reconciliation of a stored attempt (after an ambiguous failure, a crash or a lost response). Throws on RPC
+ * errors: the caller must then keep the claim.
+ */
+export async function checkPayment(intent: PaymentIntent, attempt: PaymentAttempt): Promise<PaymentCheck> {
+  const state = await getTransferStatus(attempt.signature, attempt.lastValidBlockHeight);
+  if (state === "confirmed") return { state, result: await resultFromChain(intent, attempt) };
+  return { state };
+}
+
+/** Prepare + send in one call (scripts, tests against devnet). The API route uses the two steps separately. */
+export async function executePayment(intent: PaymentIntent): Promise<PaymentResult> {
+  return submitPayment(intent, await preparePayment(intent));
 }

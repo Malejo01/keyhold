@@ -48,3 +48,29 @@ describe('staleSessionResponse (chat and lease replay guard)', () => {
     expect(await staleSessionResponse({ ...newSession('ana'), version: 1 })).toBeNull();
   });
 });
+
+describe('describeError / logError (no bound parameters in logs)', () => {
+  it('logs the driver cause of a failed query, never its SQL parameters', async () => {
+    const lines: string[] = [];
+    vi.spyOn(console, 'error').mockImplementation((...args: unknown[]) => {
+      lines.push(args.map(String).join(' '));
+    });
+    const { upsertLease } = await import('./store');
+    const { createLeaseDraft } = await import('../agents/lease');
+    const { logError } = await import('./http');
+    const lease = createLeaseDraft('ana', 'prop-01');
+    const state = { ...newSession('ana'), lease };
+    await upsertLease(db, state, lease).catch((err) => logError('lease.persist', err)); // FK: no session row
+    const out = lines.join('\n');
+    expect(out).toContain('database query failed');
+    expect(out).toContain('foreign key');
+    expect(out).not.toContain(state.sessionId);
+    expect(out).not.toContain(lease.contractText.slice(0, 30));
+  });
+
+  it('cuts a parameter dump from any other error message', async () => {
+    const { describeError } = await import('./http');
+    expect(describeError(new Error('boom\nparams: secret-value'))).toBe('boom');
+    expect(describeError('x')).toBe('unknown error');
+  });
+});

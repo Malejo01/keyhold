@@ -1,0 +1,19 @@
+{
+  "key": "795cc7d37306a8c08a52b1cce78cf4e7b15b3c0ca2b585608bd677cb721e9f6e",
+  "agent": "listings@f0-1",
+  "kind": "chat_step",
+  "label": "en-chip-search",
+  "model": "gemini-3.5-flash-lite",
+  "output": {
+    "stopReason": "end_turn",
+    "content": [
+      {
+        "type": "text",
+        "text": "Here are 2 matching properties from our simulated demo catalog:\n\n1. **prop-01** ($420/mo): Bright 2-bedroom apartment near Tres Cerritos park. Features a balcony, open kitchen, and welcomes pets. Great location near cafes.\n2. **prop-02** ($480/mo): Pet-friendly 2-bedroom duplex in Tres Cerritos. Includes a small private patio ideal for pets, a half bath, and covered parking in a quiet residential block.\n\nWould you like to schedule a visit for one of these?"
+      }
+    ]
+  },
+  "provider": "gemini",
+  "source": "recorded",
+  "recordedAt": "2026-10-04T04:42:55.663Z"
+}

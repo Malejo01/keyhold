@@ -1,12 +1,19 @@
 import { ImageResponse } from "next/og";
-import { APP_NAME, APP_TAGLINE } from "@/lib/config/brand";
+import { APP_NAME } from "@/lib/config/brand";
+import { LANGS, getDict, isLang } from "@/lib/i18n";
 
-export const alt = `${APP_NAME}: ${APP_TAGLINE}`;
+export const alt = APP_NAME;
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-// Static asset: uses the light palette from styles/tokens.css as literals (the image renderer cannot read CSS variables).
-export default function Image() {
+export function generateStaticParams() {
+  return LANGS.map((lang) => ({ lang }));
+}
+
+// Static asset per language: uses the light palette from styles/tokens.css as literals (the image renderer cannot read CSS variables).
+export default async function Image({ params }: { params: Promise<{ lang: string }> }) {
+  const { lang: raw } = await params;
+  const t = getDict(isLang(raw) ? raw : "en");
   return new ImageResponse(
     (
       <div
@@ -38,14 +45,12 @@ export default function Image() {
           <div style={{ fontSize: 48, fontWeight: 700, display: "flex" }}>{APP_NAME}</div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-          <div style={{ fontSize: 68, fontWeight: 700, lineHeight: 1.1, maxWidth: 900 }}>
-            Rental paperwork, checked by AI agents and decided by clear rules.
-          </div>
-          <div style={{ fontSize: 30, color: "#6b5646" }}>{`${APP_TAGLINE}. Built for Salta, Argentina.`}</div>
+          <div style={{ fontSize: 68, fontWeight: 700, lineHeight: 1.1, maxWidth: 1000 }}>{t.meta.ogHeadline}</div>
+          <div style={{ fontSize: 30, color: "#6b5646" }}>{`${t.meta.tagline}. ${t.meta.ogLocation}`}</div>
         </div>
         <div style={{ display: "flex", gap: 16, fontSize: 24 }}>
           <div style={{ background: "#0f6b73", color: "#ffffff", padding: "8px 20px", borderRadius: 999 }}>
-            Demo · Solana devnet · simulated data
+            {t.banner}
           </div>
         </div>
       </div>

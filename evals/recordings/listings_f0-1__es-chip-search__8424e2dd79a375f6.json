@@ -1,0 +1,19 @@
+{
+  "key": "8424e2dd79a375f69ed106198292dad81e52e815d6332a723edb8735504bb1cb",
+  "agent": "listings@f0-1",
+  "kind": "chat_step",
+  "label": "es-chip-search",
+  "model": "gemini-3.5-flash-lite",
+  "output": {
+    "stopReason": "end_turn",
+    "content": [
+      {
+        "type": "text",
+        "text": "¡Hola! Encontré estas opciones en Tres Cerritos que aceptan mascotas y cuestan menos de 500 USDC (recordá que es un catálogo de demostración):\n\n1. **prop-01**: Departamento luminoso de 2 dormitorios cerca del parque, con balcón y cocina integrada. Precio: 420 USDC.\n2. **prop-02**: Dúplex de 2 dormitorios con pequeño patio privado y cochera cubierta. Precio: 480 USDC.\n\n¿Te interesa alguna para coordinar una visita?"
+      }
+    ]
+  },
+  "provider": "gemini",
+  "source": "recorded",
+  "recordedAt": "2026-10-04T04:42:57.416Z"
+}

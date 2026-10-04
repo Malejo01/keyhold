@@ -105,7 +105,7 @@ const handAuthored: AiProvider = {
 async function main(): Promise<void> {
   setProvider(handAuthored);
   console.log('Writing hand-authored recordings...');
-  const files = await recordAllScenarios();
+  const files = await recordAllScenarios({ only: ['en-not-in-catalog'] });
   console.log(`Wrote ${files.length} hand-authored recordings to evals/recordings.`);
 }
 

@@ -1,6 +1,7 @@
 import { mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import type { Recording } from '../../lib/ai/types';
+import { RECORDINGS } from '../recordings';
 
 export const RECORDINGS_DIR = path.resolve(process.cwd(), 'evals', 'recordings');
 
@@ -10,8 +11,16 @@ function fileNameFor(rec: Recording): string {
   return `${agent}${label}__${rec.key.slice(0, 16)}.json`;
 }
 
-/** Replaces every recording with `recordings` and regenerates the static index used by lib/ai/replay.ts. */
-export function writeRecordings(recordings: Recording[]): string[] {
+/**
+ * Replaces every recording with `recordings` and regenerates the static index used by lib/ai/replay.ts.
+ * `merge: true` keeps the existing recordings and only adds or overwrites the given ones (by key), so a partial
+ * re-record (e.g. only the listings scenarios) does not spend live calls on the rest.
+ */
+export function writeRecordings(recordings: Recording[], opts: { merge?: boolean } = {}): string[] {
+  if (opts.merge) {
+    const fresh = new Set(recordings.map((r) => r.key));
+    recordings = [...RECORDINGS.filter((r) => !fresh.has(r.key)), ...recordings];
+  }
   mkdirSync(RECORDINGS_DIR, { recursive: true });
   for (const f of readdirSync(RECORDINGS_DIR)) {
     if (f.endsWith('.json')) rmSync(path.join(RECORDINGS_DIR, f));

@@ -20,7 +20,7 @@ export interface QueueCase {
 }
 
 export interface QueueSnapshot {
-  property: { id: string; title: string; priceUsdc: number };
+  property: { id: string; title: string; titleEs?: string; priceUsdc: number };
   /** Applications that need information (NEEDS_INFO) or were rejected, in a stable order. */
   cases: QueueCase[];
   /** Demo tenants whose application was approved without a flag. */
@@ -78,7 +78,7 @@ export function loadQueue(): Promise<QueueSnapshot> {
     const cases = decisions.filter(([, d]) => d.status !== "APPROVED").map(([id, d]) => toCase(id, d));
     const approved = decisions.filter(([, d]) => d.status === "APPROVED").map(([id]) => tenantDisplayName(id));
     return {
-      property: { id: property.id, title: property.title, priceUsdc: property.priceUsdc },
+      property: { id: property.id, title: property.title, titleEs: property.titleEs, priceUsdc: property.priceUsdc },
       cases,
       approved,
       simulated: true as const,

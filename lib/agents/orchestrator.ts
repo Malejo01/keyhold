@@ -2,6 +2,7 @@ import type {
   ChatTurn,
   FinalDecision,
   Issue,
+  Lang,
   LeaseDraft,
   PaymentKind,
   PaymentResult,
@@ -12,8 +13,8 @@ import type {
   UiCard,
 } from '../contracts';
 import { computePrice } from '../rules/pricing';
-import { findProperty, loadCatalog } from './catalog';
-import { detectLanguage, formatUsdc, type Lang } from './language';
+import { findProperty, loadCatalog, propertyTitle } from './catalog';
+import { formatUsdc, resolveLanguage } from './language';
 import { addMonthsTs, createLeaseDraft } from './lease';
 import { runListingsAgent } from './listings';
 import { evaluateTenant, evaluateUploadedDocuments } from './prequal';
@@ -34,19 +35,26 @@ type StageOutput = { reply: string; cards: UiCard[]; state: SessionState };
 
 // ---------- Intent detection (deterministic) ----------
 
-const SELECT_INTENT =
-  /\b(visit|book|choose|pick|select|take|want|like|interested|go with|schedule|quiero|quisiera|visitar|elijo|me interesa|reservar|agendar|me quedo)\b/i;
-const UPLOAD_INTENT =
-  /\b(upload|uploading|uploaded|attach|attaching|attached|sending|send|here are|documents?|docs|papers|subo|subiendo|adjunto|adjunté|envío|envio|mando|documentos|documentación|documentacion)\b/i;
-const NEGATIVE_INTENT = /\b(no|not now|cancel|another|other one|otra|cancelar|cambiar)\b/i;
-const RENT_INTENT = /\b(rent|first month|alquiler|primer mes|cuota)\b/i;
-const MOVE_OUT_INTENT = /\b(move out|move-out|moving out|end the lease|terminate|mudanza|mudarme|rescindir|dejar el departamento)\b/i;
+/** Whole-word, accent-aware matcher (JS \b treats accented letters as non-word characters). */
+function intent(words: string): RegExp {
+  return new RegExp(`(?<![\\p{L}\\d])(?:${words})(?![\\p{L}\\d])`, 'iu');
+}
+
+const SELECT_INTENT = intent(
+  'visit|book|choose|pick|select|take|want|like|interested|go with|schedule|quiero|quisiera|visitar|visita|elijo|elegir|me interesa|reservar|reserva|agendar|agendá|me quedo',
+);
+const UPLOAD_INTENT = intent(
+  'upload|uploading|uploaded|attach|attaching|attached|sending|send|here are|documents?|docs|papers|subo|subir|subí|subiendo|cargo|cargar|adjunto|adjunté|envío|envio|mando|documentos|documentación|documentacion',
+);
+const NEGATIVE_INTENT = intent('no|not now|cancel|another|other one|otra|cancelar|cambiar');
+const RENT_INTENT = intent('rent|first month|alquiler|primer mes|cuota');
+const MOVE_OUT_INTENT = intent('move out|move-out|moving out|end the lease|terminate|mudanza|mudarme|rescindir|dejar el departamento');
 
 function referencedProperty(message: string, catalog: Property[]): Property | undefined {
   const id = message.match(/\bprop-\d+\b/i)?.[0]?.toLowerCase();
   if (id) return catalog.find((p) => p.id === id);
   const folded = message.toLowerCase();
-  return catalog.find((p) => folded.includes(p.title.toLowerCase()));
+  return catalog.find((p) => folded.includes(p.title.toLowerCase()) || (p.titleEs !== undefined && folded.includes(p.titleEs.toLowerCase())));
 }
 
 // ---------- Cards ----------
@@ -174,8 +182,8 @@ async function handleSearch(s: SessionState, message: string, lang: Lang): Promi
     const next: SessionState = { ...s, selectedPropertyId: picked.id, stage: 'VISIT' };
     const reply =
       lang === 'es'
-        ? `Buena elección: ${picked.title} (${picked.zone}, ${picked.priceUsdc} USDC/mes). Puedo agendarte una visita ${VISIT_SLOT.es} (agenda simulada). ¿La confirmo?`
-        : `Great choice: ${picked.title} (${picked.zone}, ${picked.priceUsdc} USDC/month). I can book a visit ${VISIT_SLOT.en} (simulated agenda). Shall I confirm it?`;
+        ? `Buena elección: ${propertyTitle(picked, 'es')} (${picked.zone}, ${picked.priceUsdc} USDC/mes). Puedo agendarte una visita ${VISIT_SLOT.es} (agenda simulada). ¿La confirmo?`
+        : `Great choice: ${propertyTitle(picked, 'en')} (${picked.zone}, ${picked.priceUsdc} USDC/month). I can book a visit ${VISIT_SLOT.en} (simulated agenda). Shall I confirm it?`;
     return { reply, cards: [{ type: 'properties', properties: [picked] }], state: next };
   }
   const turn = await runListingsAgent({ message, history: s.history, catalog, lang });
@@ -200,8 +208,8 @@ async function handleVisit(s: SessionState, message: string, lang: Lang): Promis
   const property = s.selectedPropertyId ? findProperty(s.selectedPropertyId) : undefined;
   const confirmed =
     lang === 'es'
-      ? `Visita confirmada ${VISIT_SLOT.es}${property ? ` en ${property.title}` : ''} (agenda simulada).`
-      : `Visit confirmed for ${VISIT_SLOT.en}${property ? ` at ${property.title}` : ''} (simulated agenda).`;
+      ? `Visita confirmada ${VISIT_SLOT.es}${property ? ` en ${propertyTitle(property, 'es')}` : ''} (agenda simulada).`
+      : `Visit confirmed for ${VISIT_SLOT.en}${property ? ` at ${propertyTitle(property, 'en')}` : ''} (simulated agenda).`;
   const next: SessionState = { ...s, stage: 'DOCUMENTS' };
   if (UPLOAD_INTENT.test(message)) {
     const docs = await handleDocuments(next, message, lang);
@@ -253,7 +261,7 @@ async function handleContract(s: SessionState, message: string, lang: Lang): Pro
       return { reply: decisionReply(decision, lang), cards: [{ type: 'prequal', decision }], state: { ...s, stage: 'DOCUMENTS' } };
     }
   }
-  const lease = createLeaseDraft(s.tenantId, s.selectedPropertyId);
+  const lease = createLeaseDraft(s.tenantId, s.selectedPropertyId, lang);
   const next = applyEvent(s, { type: 'lease_created', lease });
   const cards: UiCard[] = [{ type: 'contract', lease }, ...paymentCards(next)];
   const intro =
@@ -293,8 +301,12 @@ function boundedHistory(history: ChatTurn[]): ChatTurn[] {
   return history.slice(-MAX_HISTORY_ENTRIES);
 }
 
-export async function runTurn(state: SessionState, message: string): Promise<TurnResult> {
-  const lang = detectLanguage(message);
+/**
+ * `routeLang` is the route language (es/en) and wins over detection; when absent (old clients, e2e) the language is
+ * detected from the message.
+ */
+export async function runTurn(state: SessionState, message: string, routeLang?: Lang): Promise<TurnResult> {
+  const lang = resolveLanguage(routeLang, message);
   const s: SessionState = { ...state, payments: [...state.payments], history: boundedHistory(state.history) };
 
   let out: StageOutput;
@@ -342,9 +354,10 @@ function filesDigest(docs: readonly UploadedDocument[]): string {
     .digest('hex');
 }
 
-function lastUserLanguage(history: ChatTurn[]): Lang {
+/** Route language when the client sent one; otherwise detected from the last user message (old clients, e2e). */
+function lastUserLanguage(history: ChatTurn[], routeLang?: Lang): Lang {
   const last = [...history].reverse().find((t) => t.role === 'user');
-  return last ? detectLanguage(last.text) : 'en';
+  return resolveLanguage(routeLang, last?.text ?? '');
 }
 
 /**
@@ -352,9 +365,13 @@ function lastUserLanguage(history: ChatTurn[]): Lang {
  * The model only reads the files; approval, expiry, name matching and income ratio come from lib/rules, and the stage
  * moves to CONTRACT here, in code, only on APPROVED. Throws (ReplayMissError, provider errors) for the route to map.
  */
-export async function runDocumentsUpload(state: SessionState, docs: readonly UploadedDocument[]): Promise<TurnResult> {
+export async function runDocumentsUpload(
+  state: SessionState,
+  docs: readonly UploadedDocument[],
+  routeLang?: Lang,
+): Promise<TurnResult> {
   if (state.stage !== 'DOCUMENTS' || !state.tenantId) throw new Error('Documents can only be uploaded in the DOCUMENTS stage.');
-  const lang = lastUserLanguage(state.history);
+  const lang = lastUserLanguage(state.history, routeLang);
   const property = state.selectedPropertyId ? findProperty(state.selectedPropertyId) : undefined;
   const decision = await evaluateUploadedDocuments(state.tenantId, docs, property?.priceUsdc);
 

@@ -1,8 +1,8 @@
 import { randomBytes } from 'node:crypto';
-import type { LeaseDraft, PaymentIntent, PaymentKind, Property, TenantId } from '../contracts';
+import type { Lang, LeaseDraft, PaymentIntent, PaymentKind, Property, TenantId } from '../contracts';
 import { APP_NAME } from '../config/brand';
 import { sha256Hex } from '../solana/hash';
-import { findProperty } from './catalog';
+import { findProperty, propertyTitle } from './catalog';
 import { tenantDisplayName } from './tenants';
 
 /** Lease parameters (not pricing logic): pricing.ts applies them. */
@@ -27,7 +27,8 @@ export function addMonthsTs(baseTs: number, months: number): number {
   return Math.floor(d.getTime() / 1000);
 }
 
-export function renderContract(p: {
+export interface ContractParams {
+  lang?: Lang;
   leaseId: string;
   tenantLabel: string;
   property: Property;
@@ -36,7 +37,10 @@ export function renderContract(p: {
   rentUsdc: number;
   depositUsdc: number;
   dueDate: string;
-}): string {
+}
+
+/** English lease template (demo). */
+function renderContractEn(p: ContractParams): string {
   return [
     'RESIDENTIAL LEASE AGREEMENT (DEMO)',
     '',
@@ -47,7 +51,7 @@ export function renderContract(p: {
     `Tenant: ${p.tenantLabel}`,
     'Landlord: Demo Landlord (simulated)',
     'Intermediary: Demo real-estate agency (simulated)',
-    `Property: ${p.property.title} (catalog id ${p.property.id}), ${p.property.zone}, Salta, Argentina`,
+    `Property: ${propertyTitle(p.property, 'en')} (catalog id ${p.property.id}), ${p.property.zone}, Salta, Argentina`,
     '',
     '1. Term.',
     `   ${p.months} months starting on ${p.startDate}.`,
@@ -71,8 +75,52 @@ export function renderContract(p: {
   ].join('\n');
 }
 
-/** Builds the lease draft from the catalog and a fixed template. Deterministic except leaseId and dates. */
-export function createLeaseDraft(tenantId: TenantId, propertyId: string): LeaseDraft {
+/** Spanish lease template (demo). Same clauses as the English one; the hash is over this exact text. */
+function renderContractEs(p: ContractParams): string {
+  return [
+    'CONTRATO DE LOCACIÓN DE VIVIENDA (DEMO)',
+    '',
+    `CONTRATO DE DEMOSTRACIÓN CON DATOS SIMULADOS. Este texto fue generado por ${APP_NAME} a partir de una plantilla para una demo de hackathon.`,
+    'No es un documento legal ni constituye asesoramiento legal o impositivo. Para una locación real, consulte a un profesional matriculado.',
+    '',
+    `ID de contrato: ${p.leaseId}`,
+    `Locatario: ${p.tenantLabel}`,
+    'Locador: Locador de demostración (simulado)',
+    'Intermediaria: Inmobiliaria de demostración (simulada)',
+    `Inmueble: ${propertyTitle(p.property, 'es')} (id de catálogo ${p.property.id}), ${p.property.zone}, Salta, Argentina`,
+    '',
+    '1. Plazo.',
+    `   ${p.months} meses a partir del ${p.startDate}.`,
+    '2. Alquiler.',
+    `   ${p.rentUsdc} USDC por mes. El primer pago vence el ${p.dueDate}; cada pago siguiente vence el mismo día`,
+    '   de cada mes posterior.',
+    '3. Descuentos.',
+    `   Pagar en USDC reduce el alquiler un ${DISCOUNT_USDC_BPS / 100}%. Pagar en la fecha de vencimiento o antes lo reduce`,
+    `   un ${DISCOUNT_ONTIME_BPS / 100}% adicional. La puntualidad se determina por la hora de confirmación de la transacción`,
+    '   de pago en Solana devnet, nunca por el reloj de un dispositivo.',
+    '4. Depósito en garantía.',
+    `   ${p.depositUsdc} USDC (un mes de alquiler), mantenido en custodia por la plataforma ${APP_NAME} durante la locación (custodia`,
+    '   centralizada en esta demo) y devuelto al finalizar, descontando los importes que acuerden las partes.',
+    '5. Registro de pagos.',
+    '   Cada pago lleva un memo con este ID de contrato y el hash SHA-256 del texto exacto de este contrato. No se escriben',
+    '   datos personales en la blockchain.',
+    '6. Mascotas y uso.',
+    `   Uso exclusivamente residencial. Mascotas: ${p.property.petsAllowed ? 'permitidas' : 'no permitidas'}, según lo indicado en el aviso.`,
+    '',
+    'Firmado electrónicamente por las partes (simulado).',
+  ].join('\n');
+}
+
+/** Renders the lease in `p.lang` (default English). The text, and therefore its SHA-256, differs per language. */
+export function renderContract(p: ContractParams): string {
+  return p.lang === 'es' ? renderContractEs(p) : renderContractEn(p);
+}
+
+/**
+ * Builds the lease draft from the catalog and a fixed template in `lang` (default English). Deterministic except
+ * leaseId and dates. The hash covers the exact text in that language, so ES and EN hashes differ by design.
+ */
+export function createLeaseDraft(tenantId: TenantId, propertyId: string, lang: Lang = 'en'): LeaseDraft {
   const property = findProperty(propertyId);
   if (!property) throw new Error(`Unknown property id: ${propertyId}`);
 
@@ -81,8 +129,9 @@ export function createLeaseDraft(tenantId: TenantId, propertyId: string): LeaseD
   const startDate = isoDate(nowMs);
   const dueTs = Math.floor(nowMs / 1000) + DAY_SECONDS; // tomorrow, so the demo payment is on time
   const contractText = renderContract({
+    lang,
     leaseId,
-    tenantLabel: tenantDisplayName(tenantId),
+    tenantLabel: tenantDisplayName(tenantId, lang),
     property,
     startDate,
     months: LEASE_MONTHS,
@@ -102,6 +151,7 @@ export function createLeaseDraft(tenantId: TenantId, propertyId: string): LeaseD
     dueTs,
     discountUsdcBps: DISCOUNT_USDC_BPS,
     discountOntimeBps: DISCOUNT_ONTIME_BPS,
+    lang,
     contractText,
     contractHash: sha256Hex(contractText),
   };

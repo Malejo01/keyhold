@@ -2,91 +2,111 @@
   {
     "id": "prop-01",
     "title": "Bright 2-bedroom apartment near Tres Cerritos park",
+    "titleEs": "Departamento luminoso de 2 dormitorios cerca del parque Tres Cerritos",
     "zone": "Tres Cerritos",
     "priceUsdc": 420,
     "bedrooms": 2,
     "petsAllowed": true,
-    "description": "Second-floor apartment with a balcony, open kitchen and two bedrooms with built-in wardrobes. Pets welcome. A short walk from the park, cafes and bus lines to downtown. Simulated listing for demo purposes."
+    "description": "Second-floor apartment with a balcony, open kitchen and two bedrooms with built-in wardrobes. Pets welcome. A short walk from the park, cafes and bus lines to downtown. Simulated listing for demo purposes.",
+    "descriptionEs": "Departamento en segundo piso con balcón, cocina integrada y dos dormitorios con placares empotrados. Se aceptan mascotas. A pocos pasos del parque, cafés y líneas de colectivo al centro. Aviso simulado con fines de demostración."
   },
   {
     "id": "prop-02",
     "title": "Pet-friendly 2-bedroom duplex in Tres Cerritos",
+    "titleEs": "Dúplex de 2 dormitorios en Tres Cerritos, apto mascotas",
     "zone": "Tres Cerritos",
     "priceUsdc": 480,
     "bedrooms": 2,
     "petsAllowed": true,
-    "description": "Two-level duplex with a small private patio, ideal for a dog or cat. Two bedrooms, one and a half baths and a covered parking spot. Quiet residential block. Simulated listing for demo purposes."
+    "description": "Two-level duplex with a small private patio, ideal for a dog or cat. Two bedrooms, one and a half baths and a covered parking spot. Quiet residential block. Simulated listing for demo purposes.",
+    "descriptionEs": "Dúplex de dos plantas con un pequeño patio privado, ideal para un perro o un gato. Dos dormitorios, un baño y medio y cochera cubierta. Cuadra residencial tranquila. Aviso simulado con fines de demostración."
   },
   {
     "id": "prop-03",
     "title": "Cozy studio-style 1-bedroom in Centro",
+    "titleEs": "Cómodo departamento de 1 dormitorio estilo monoambiente en Centro",
     "zone": "Centro",
     "priceUsdc": 300,
     "bedrooms": 1,
     "petsAllowed": false,
-    "description": "Compact one-bedroom a few blocks from the main square. Fully tiled, with air conditioning and a laundry corner. No pets allowed. Great for a single professional or student. Simulated listing for demo purposes."
+    "description": "Compact one-bedroom a few blocks from the main square. Fully tiled, with air conditioning and a laundry corner. No pets allowed. Great for a single professional or student. Simulated listing for demo purposes.",
+    "descriptionEs": "Departamento compacto de un dormitorio a pocas cuadras de la plaza principal. Totalmente embaldosado, con aire acondicionado y un rincón de lavadero. No se aceptan mascotas. Ideal para un profesional soltero o un estudiante. Aviso simulado con fines de demostración."
   },
   {
     "id": "prop-04",
     "title": "Spacious 3-bedroom house in Grand Bourg",
+    "titleEs": "Casa amplia de 3 dormitorios en Grand Bourg",
     "zone": "Grand Bourg",
     "priceUsdc": 690,
     "bedrooms": 3,
     "petsAllowed": true,
-    "description": "Detached house with three bedrooms, a large living room, a grill area and a fenced garden. Pets are welcome. Close to schools and supermarkets. Simulated listing for demo purposes."
+    "description": "Detached house with three bedrooms, a large living room, a grill area and a fenced garden. Pets are welcome. Close to schools and supermarkets. Simulated listing for demo purposes.",
+    "descriptionEs": "Casa independiente con tres dormitorios, un living amplio, parrilla y jardín cercado. Se aceptan mascotas. Cerca de escuelas y supermercados. Aviso simulado con fines de demostración."
   },
   {
     "id": "prop-05",
     "title": "Quiet 2-bedroom apartment in San Lorenzo Chico",
+    "titleEs": "Departamento tranquilo de 2 dormitorios en San Lorenzo Chico",
     "zone": "San Lorenzo Chico",
     "priceUsdc": 560,
     "bedrooms": 2,
     "petsAllowed": true,
-    "description": "Ground-floor apartment surrounded by greenery, with two bedrooms, a shared garden and mountain views. Small pets accepted. Easy access to the San Lorenzo road. Simulated listing for demo purposes."
+    "description": "Ground-floor apartment surrounded by greenery, with two bedrooms, a shared garden and mountain views. Small pets accepted. Easy access to the San Lorenzo road. Simulated listing for demo purposes.",
+    "descriptionEs": "Departamento en planta baja rodeado de verde, con dos dormitorios, jardín compartido y vista a la montaña. Se aceptan mascotas pequeñas. Fácil acceso a la ruta de San Lorenzo. Aviso simulado con fines de demostración."
   },
   {
     "id": "prop-06",
     "title": "Modern 1-bedroom loft in Macrocentro",
+    "titleEs": "Loft moderno de 1 dormitorio en Macrocentro",
     "zone": "Macrocentro",
     "priceUsdc": 380,
     "bedrooms": 1,
     "petsAllowed": false,
-    "description": "Open-plan loft with high ceilings, a modern kitchen and a work-from-home nook. Building with elevator and shared rooftop. No pets. Walking distance to shops and restaurants. Simulated listing for demo purposes."
+    "description": "Open-plan loft with high ceilings, a modern kitchen and a work-from-home nook. Building with elevator and shared rooftop. No pets. Walking distance to shops and restaurants. Simulated listing for demo purposes.",
+    "descriptionEs": "Loft de ambiente abierto con techos altos, cocina moderna y un rincón para trabajar desde casa. Edificio con ascensor y terraza compartida. No se aceptan mascotas. A pasos de comercios y restaurantes. Aviso simulado con fines de demostración."
   },
   {
     "id": "prop-07",
     "title": "Family 3-bedroom home in Barrio Tribuno",
+    "titleEs": "Casa familiar de 3 dormitorios en Barrio Tribuno",
     "zone": "Barrio Tribuno",
     "priceUsdc": 520,
     "bedrooms": 3,
     "petsAllowed": false,
-    "description": "Single-level home with three bedrooms, two baths, a covered garage and a small yard. Calm neighbourhood close to local schools and a health center. No pets. Simulated listing for demo purposes."
+    "description": "Single-level home with three bedrooms, two baths, a covered garage and a small yard. Calm neighbourhood close to local schools and a health center. No pets. Simulated listing for demo purposes.",
+    "descriptionEs": "Casa de una sola planta con tres dormitorios, dos baños, cochera cubierta y un patio pequeño. Barrio tranquilo cerca de escuelas y un centro de salud. No se aceptan mascotas. Aviso simulado con fines de demostración."
   },
   {
     "id": "prop-08",
     "title": "2-bedroom apartment with city views in Portezuelo",
+    "titleEs": "Departamento de 2 dormitorios con vista a la ciudad en Portezuelo",
     "zone": "Portezuelo",
     "priceUsdc": 650,
     "bedrooms": 2,
     "petsAllowed": true,
-    "description": "Top-floor apartment with panoramic views, two bedrooms, a large terrace and a shared pool. Pets welcome with a small deposit. Gated complex with 24-hour security. Simulated listing for demo purposes."
+    "description": "Top-floor apartment with panoramic views, two bedrooms, a large terrace and a shared pool. Pets welcome with a small deposit. Gated complex with 24-hour security. Simulated listing for demo purposes.",
+    "descriptionEs": "Departamento en el último piso con vistas panorámicas, dos dormitorios, una terraza amplia y pileta compartida. Se aceptan mascotas con un pequeño depósito adicional. Complejo cerrado con seguridad las 24 horas. Aviso simulado con fines de demostración."
   },
   {
     "id": "prop-09",
     "title": "Affordable 2-bedroom apartment in Limache",
+    "titleEs": "Departamento económico de 2 dormitorios en Limache",
     "zone": "Limache",
     "priceUsdc": 310,
     "bedrooms": 2,
     "petsAllowed": false,
-    "description": "Simple, well-kept two-bedroom apartment with a separate kitchen and a laundry area. Good bus connections to downtown. No pets allowed. Simulated listing for demo purposes."
+    "description": "Simple, well-kept two-bedroom apartment with a separate kitchen and a laundry area. Good bus connections to downtown. No pets allowed. Simulated listing for demo purposes.",
+    "descriptionEs": "Departamento de dos dormitorios simple y bien cuidado, con cocina separada y lavadero. Buena conexión en colectivo con el centro. No se aceptan mascotas. Aviso simulado con fines de demostración."
   },
   {
     "id": "prop-10",
     "title": "Pet-friendly 1-bedroom near Balcarce and Villa San Lorenzo",
+    "titleEs": "Departamento de 1 dormitorio apto mascotas cerca de Balcarce y Villa San Lorenzo",
     "zone": "Balcarce",
     "priceUsdc": 270,
     "bedrooms": 1,
     "petsAllowed": true,
-    "description": "Ground-floor one-bedroom with a small yard, close to the Balcarce area and the road to Villa San Lorenzo. Cats and small dogs are welcome. Furnished kitchen. Simulated listing for demo purposes."
+    "description": "Ground-floor one-bedroom with a small yard, close to the Balcarce area and the road to Villa San Lorenzo. Cats and small dogs are welcome. Furnished kitchen. Simulated listing for demo purposes.",
+    "descriptionEs": "Departamento de un dormitorio en planta baja con un pequeño patio, cerca de la zona de Balcarce y de la ruta a Villa San Lorenzo. Se aceptan gatos y perros pequeños. Cocina amoblada. Aviso simulado con fines de demostración."
   }
 ]

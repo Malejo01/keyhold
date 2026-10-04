@@ -5,6 +5,7 @@ import { z } from 'zod';
 import type {
   ChatRequest,
   LeaseRequest,
+  PayRequest,
   PaymentResult,
   SessionState,
   SignedSession,
@@ -18,6 +19,9 @@ import type {
 export const MAX_MESSAGE_CHARS = 2000;
 
 export const tenantIdSchema = z.enum(['ana', 'bruno', 'carla']);
+
+/** Route language sent by the client; overrides detection from the message text. */
+export const langSchema = z.enum(['es', 'en']);
 
 export const stageSchema = z.enum([
   'SEARCH',
@@ -40,6 +44,7 @@ const leaseDraftSchema: z.ZodType<LeaseDraft> = z.looseObject({
   dueTs: z.number().int(),
   discountUsdcBps: z.number().int().min(0).max(10_000),
   discountOntimeBps: z.number().int().min(0).max(10_000),
+  lang: langSchema.optional(),
   contractText: z.string().max(100_000),
   contractHash: z.string().regex(/^[0-9a-f]{64}$/),
 });
@@ -89,10 +94,18 @@ export const chatRequestSchema: z.ZodType<ChatRequest> = z.object({
   message: z.string().trim().min(1).max(MAX_MESSAGE_CHARS),
   session: signedSessionSchema.optional(),
   tenantId: tenantIdSchema.optional(),
+  lang: langSchema.optional(),
 });
 
 export const leaseRequestSchema: z.ZodType<LeaseRequest> = z.object({
   session: signedSessionSchema,
+  lang: langSchema.optional(),
+});
+
+export const payRequestSchema: z.ZodType<PayRequest> = z.object({
+  kind: z.enum(['deposit', 'rent']),
+  session: signedSessionSchema,
+  lang: langSchema.optional(),
 });
 
 export const verifyRequestSchema: z.ZodType<VerifyRequest> = z.object({

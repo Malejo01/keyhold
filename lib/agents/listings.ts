@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import type { ChatTurn, Property } from '../contracts';
 import { chatStep, toJsonSchema, type AiBlock, type AiMessage, type ToolDefinition } from '../ai';
-import { loadCatalog } from './catalog';
-import { detectLanguage, type Lang } from './language';
-import { LISTINGS_SYSTEM, PROMPT_VERSION } from './prompts';
+import { loadCatalog, localizedProperty, propertyDescription, propertyTitle } from './catalog';
+import { resolveLanguage, type Lang } from './language';
+import { PROMPT_VERSION, listingsSystem } from './prompts';
 
 // ---------- Tools (pure, catalog-only) ----------
 
@@ -62,7 +62,8 @@ interface ToolOutcome {
   properties: Property[];
 }
 
-export function executeListingsTool(catalog: Property[], name: string, rawInput: unknown): ToolOutcome {
+/** `lang` only affects the text the model sees in the tool result; the returned `properties` are catalog objects. */
+export function executeListingsTool(catalog: Property[], name: string, rawInput: unknown, lang: Lang = 'en'): ToolOutcome {
   if (name === 'search_properties') {
     const parsed = SearchPropertiesInput.safeParse(rawInput);
     if (!parsed.success) return { content: 'Invalid search filters.', isError: true, properties: [] };
@@ -70,14 +71,14 @@ export function executeListingsTool(catalog: Property[], name: string, rawInput:
     const content =
       results.length === 0
         ? JSON.stringify({ results: [], note: 'No property in the catalog matches these filters.' })
-        : JSON.stringify({ results });
+        : JSON.stringify({ results: results.map((p) => localizedProperty(p, lang)) });
     return { content, isError: false, properties: results };
   }
   if (name === 'get_property') {
     const parsed = GetPropertyInput.safeParse(rawInput);
     const property = parsed.success ? getProperty(catalog, parsed.data.id) : undefined;
     if (!property) return { content: 'No property with that id exists in the catalog.', isError: true, properties: [] };
-    return { content: JSON.stringify(property), isError: false, properties: [property] };
+    return { content: JSON.stringify(localizedProperty(property, lang)), isError: false, properties: [property] };
   }
   return { content: `Unknown tool "${name}".`, isError: true, properties: [] };
 }
@@ -104,6 +105,10 @@ export function parseSearchCriteria(message: string, catalog: Property[]): Searc
   const beds = text.match(/\b(\d+|one|two|three|four|five|six|un|uno|dos|tres|cuatro|cinco|seis)\s*-?\s*(?:bed(?:room)?s?|br|dormitorios?|habitaciones?|cuartos?)\b/);
   if (beds) criteria.bedrooms = /^\d+$/.test(beds[1]) ? Number(beds[1]) : NUMBER_WORDS[beds[1]];
 
+  // Argentine "N ambientes" counts the living room: N ambientes is about N - 1 bedrooms.
+  const rooms = text.match(/\b(\d+)\s*ambientes?\b/);
+  if (rooms && criteria.bedrooms === undefined && Number(rooms[1]) > 1) criteria.bedrooms = Number(rooms[1]) - 1;
+
   if (/\b(pets?|dogs?|cats?|perros?|gatos?|mascotas?)\b/.test(text) && !/\b(no pets|sin mascotas)\b/.test(text)) {
     criteria.pets = true;
   }
@@ -112,7 +117,7 @@ export function parseSearchCriteria(message: string, catalog: Property[]): Searc
 
 function describe(p: Property, lang: Lang): string {
   const month = lang === 'es' ? 'USDC/mes' : 'USDC/month';
-  return `${p.id} · ${p.title} (${p.zone}, ${p.priceUsdc} ${month})`;
+  return `${p.id} · ${propertyTitle(p, lang)} (${p.zone}, ${p.priceUsdc} ${month})`;
 }
 
 export function fallbackListings(message: string, catalog: Property[], lang: Lang): ListingsTurn {
@@ -130,8 +135,8 @@ export function fallbackListings(message: string, catalog: Property[], lang: Lan
     }
     return {
       reply: lang === 'es'
-        ? `Esto es lo que dice el catálogo de ${describe(property, lang)}: ${property.description} Si buscás un dato que no figura acá, no lo sé.`
-        : `Here is what the catalog says about ${describe(property, lang)}: ${property.description} If you need a detail that isn't listed, I don't know it.`,
+        ? `Esto es lo que dice el catálogo de ${describe(property, lang)}: ${propertyDescription(property, lang)} Si buscás un dato que no figura acá, no lo sé.`
+        : `Here is what the catalog says about ${describe(property, lang)}: ${propertyDescription(property, lang)} If you need a detail that isn't listed, I don't know it.`,
       properties: [property],
       source: 'fallback',
     };
@@ -195,9 +200,11 @@ export async function runListingsAgent(opts: {
   history?: ChatTurn[];
   catalog?: Property[];
   lang?: Lang;
+  /** Recording label (humans only; not part of the replay key). */
+  label?: string;
 }): Promise<ListingsTurn> {
   const catalog = opts.catalog ?? loadCatalog();
-  const lang = opts.lang ?? detectLanguage(opts.message);
+  const lang = resolveLanguage(opts.lang, opts.message);
   const messages: AiMessage[] = [
     ...historyMessages(opts.history ?? []),
     { role: 'user', content: [{ type: 'text', text: opts.message }] },
@@ -210,9 +217,10 @@ export async function runListingsAgent(opts: {
       const res = await chatStep({
         agent: LISTINGS_AGENT,
         role: 'orchestration',
-        system: LISTINGS_SYSTEM,
+        system: listingsSystem(lang),
         messages,
         tools: LISTINGS_TOOLS,
+        label: opts.label,
         maxTokens: 1500,
       });
       source = res.source;
@@ -224,7 +232,7 @@ export async function runListingsAgent(opts: {
         return { reply, properties: shown, source };
       }
       const results: AiBlock[] = toolUses.map((call) => {
-        const outcome = executeListingsTool(catalog, call.name, call.input);
+        const outcome = executeListingsTool(catalog, call.name, call.input, lang);
         if (!outcome.isError) shown = outcome.properties;
         return { type: 'tool_result', toolUseId: call.id, content: outcome.content, isError: outcome.isError || undefined };
       });

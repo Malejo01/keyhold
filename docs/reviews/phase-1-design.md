@@ -104,3 +104,9 @@ Screens checked by eye:
 - **Contrast of non-token colours inside `PropertyArt` SVGs:** decorative, `aria-hidden` assumed.
 - **Unit tests:** vitest is blocked on this machine.
 - **The OG image as rendered by social platforms.**
+
+## Addendum (lead, Sun 04/10 ~01:20 ART): blocking issue closed
+
+- B1 fixed in `2ec4f4a` (Lease line shows `SHA-256 <first 8>…`, matching the contract card); non-blocking items 1–5 fixed in the same commit.
+- Re-run by the lead with this reviewer's scripts against the preview at `2ec4f4a`: API e2e **59/59**; headless-Chrome script run (Ana 1280 light, Bruno/Carla/Ana 375 dark) **0 issues**; Lease line rendered `SHA-256 f2549915…`.
+- Remaining before recording on this branch: Mauro's merge, production deploy, one e2e run on production, one practice take.

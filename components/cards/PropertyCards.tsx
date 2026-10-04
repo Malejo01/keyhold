@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import type { Property } from "@/lib/contracts";
 import { cardIn, stagger } from "@/lib/motion/presets";
 import { formatMonthlyUsdc } from "../format";
+import { PropertyArt } from "../PropertyArt";
 import { BedIcon, Button, CardShell, PawIcon, PinIcon } from "../ui";
 
 export function PropertyCards({
@@ -35,7 +36,10 @@ export function PropertyCards({
     >
       {properties.map((p) => (
         <motion.li key={p.id} variants={cardIn} className="flex">
-          <CardShell className="flex w-full flex-col gap-3" label={p.title}>
+          <CardShell className="flex w-full flex-col gap-3 overflow-hidden" label={p.title}>
+            <div className="-mx-card -mt-card overflow-hidden rounded-t-lg border-b border-border">
+              <PropertyArt id={p.id} bedrooms={p.bedrooms} className="block h-28 w-full" />
+            </div>
             <div>
               <h3 className="font-display text-base font-semibold leading-snug">{p.title}</h3>
               <p className="mt-1 flex items-center gap-1 text-xs text-muted">

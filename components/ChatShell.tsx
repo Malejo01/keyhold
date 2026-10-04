@@ -6,6 +6,8 @@ import type { PaymentKind, Property, SignedSession, Stage, TenantId } from "@/li
 import { itemIn, messageIn, resetFade, stagger, typingDot, loop } from "@/lib/motion/presets";
 import { fixtureApi, realApi, type Api } from "./api-client";
 import { CardRenderer, type CardContext } from "./cards/CardRenderer";
+import { AgentActivity, AgentActivityCompact } from "./AgentActivity";
+import { deriveActivity } from "./deriveAgents";
 import { LeaseTimeline, LeaseTimelineCompact } from "./LeaseTimeline";
 import { APP_NAME } from "@/lib/config/brand";
 import { Logo } from "./Logo";
@@ -234,6 +236,7 @@ export function ChatShell({ useFixtures }: { useFixtures: boolean }) {
     });
   }, [nextChip, reduced, tenantId]);
 
+  const agentRows = useMemo(() => deriveActivity(messages, pending, stage), [messages, pending, stage]);
   const personaName =PERSONAS.find((p) => p.id === tenantId)?.name ?? "";
 
   return (
@@ -250,6 +253,9 @@ export function ChatShell({ useFixtures }: { useFixtures: boolean }) {
 
           <div className="border-b border-border px-gutter py-3 lg:hidden">
             <LeaseTimelineCompact stage={stage} />
+            <div className="mt-3">
+              <AgentActivityCompact rows={agentRows} />
+            </div>
           </div>
 
           <AnimatePresence mode="wait" initial={false}>
@@ -391,6 +397,7 @@ export function ChatShell({ useFixtures }: { useFixtures: boolean }) {
             <p className="mt-1 text-xs text-subtle">Follows your conversation, step by step.</p>
           </div>
           <LeaseTimeline stage={stage} />
+          <AgentActivity rows={agentRows} className="border-t border-border pt-5" />
           <p className="mt-auto text-xs text-subtle">
             Amounts are in USDC (devnet test token). No real money moves.
           </p>

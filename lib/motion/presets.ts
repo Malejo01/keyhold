@@ -152,3 +152,51 @@ export const resetFade: Variants = {
 export function loop(reduced: boolean | null, active: string, idle = "idle"): string {
   return reduced ? idle : active;
 }
+
+// ---------- Landing hero ----------
+
+/** Hero blocks rising in one after another (parent staggers, children use `heroItem`). */
+export const heroStagger: Variants = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.09, delayChildren: 0.05 } },
+};
+
+export const heroItem: Variants = {
+  hidden: { opacity: 0, y: 14 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.5, ease } },
+};
+
+// ---------- Agent activity ----------
+
+/** An agent row: idle is dimmed, working pulses a little, done is full strength. */
+export const agentState: Variants = {
+  idle: { opacity: 0.5, scale: 1 },
+  working: { opacity: 1, scale: [1, 1.04, 1], transition: { duration: 0.9, repeat: Infinity, ease: "easeInOut" } },
+  done: { opacity: 1, scale: 1, transition: spring },
+};
+
+/** Summary line under an agent name, appearing when the agent has acted. */
+export const agentLine: Variants = {
+  hidden: { opacity: 0, y: 4 },
+  show: { opacity: 1, y: 0, transition: quick },
+};
+
+/** Connector between prequal and cross-check: scaleY from the top. */
+export const reviewLink: Variants = {
+  off: { scaleY: 0 },
+  on: { scaleY: 1, transition: { duration: 0.5, ease } },
+};
+
+// ---------- Payment ----------
+
+/** Check mark stroke drawing itself (stroke-dash only, no layout). */
+export const checkDraw: Variants = {
+  hidden: { pathLength: 0, opacity: 0 },
+  show: { pathLength: 1, opacity: 1, transition: { duration: 0.45, ease, delay: 0.15 } },
+};
+
+/** Expanding ring behind a confirmed payment. */
+export const confirmRing: Variants = {
+  hidden: { opacity: 0.6, scale: 0.8 },
+  show: { opacity: 0, scale: 1.8, transition: { duration: 0.9, ease: "easeOut" } },
+};

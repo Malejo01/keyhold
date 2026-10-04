@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, useReducedMotion } from "framer-motion";
-import type { DocType, FinalDecision, Issue, IssueCode, PrequalStatus } from "@/lib/contracts";
+import type { DocType, FinalDecision, Issue, IssueCode, IssueEvidence, PrequalStatus } from "@/lib/contracts";
 import { insightHalo, pop } from "@/lib/motion/presets";
 import { AlertIcon, Badge, Button, CardShell, CheckIcon, CrossIcon, ShieldIcon, cx } from "../ui";
 
@@ -29,6 +29,39 @@ const docLabel: Record<DocType, string> = {
   income_proof: "Income proof",
   guarantee: "Guarantee",
 };
+
+/** Side-by-side values the deterministic rule compared. The breaking value is marked with an icon and text, not only colour. */
+function EvidenceCompare({ evidence }: { evidence: IssueEvidence }) {
+  return (
+    <div className="mt-2">
+      <ul className="grid gap-2 sm:grid-cols-2">
+        {evidence.compared.map((item) => (
+          <li
+            key={`${item.docType}-${item.label}`}
+            className={cx(
+              "rounded-md border p-2.5",
+              item.mismatch ? "border-danger bg-danger-soft" : "border-border bg-surface",
+            )}
+          >
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted">{docLabel[item.docType]}</p>
+            <p className="text-xs text-muted">{item.label}</p>
+            <p className="mt-0.5 break-words font-mono text-sm font-semibold">{item.value}</p>
+            {item.mismatch && (
+              <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-danger">
+                <CrossIcon className="size-3.5" strokeWidth={3} />
+                Does not match
+              </p>
+            )}
+          </li>
+        ))}
+      </ul>
+      <p className="mt-2 text-xs text-muted">
+        <span className="font-semibold text-foreground">Rule: </span>
+        {evidence.rule}
+      </p>
+    </div>
+  );
+}
 
 /** Merge issues from both agents without repeating the same finding. */
 function mergeIssues(decision: FinalDecision): Issue[] {
@@ -162,6 +195,7 @@ export function PrequalCard({
                       {issue.docType ? ` · ${docLabel[issue.docType]}` : ""}
                     </p>
                     <p className="text-muted">{issue.message}</p>
+                    {issue.evidence && <EvidenceCompare evidence={issue.evidence} />}
                   </div>
                 </li>
               ))}

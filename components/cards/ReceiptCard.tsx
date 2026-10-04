@@ -2,9 +2,9 @@
 
 import { motion } from "framer-motion";
 import type { PaymentResult } from "@/lib/contracts";
-import { pop, receiptIn } from "@/lib/motion/presets";
+import { checkDraw, pop, receiptIn } from "@/lib/motion/presets";
 import { formatBps, formatTs, formatUsdc, shortHash } from "../format";
-import { Badge, CardShell, CheckIcon, ClockIcon, ExternalIcon } from "../ui";
+import { Badge, CardShell, ClockIcon, ExternalIcon } from "../ui";
 
 export function ReceiptCard({ result }: { result: PaymentResult }) {
   const title = result.kind === "deposit" ? "Deposit" : "Rent";
@@ -15,7 +15,9 @@ export function ReceiptCard({ result }: { result: PaymentResult }) {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="flex items-center gap-2 font-display text-base font-semibold">
             <span className="flex size-6 items-center justify-center rounded-full bg-success text-primary-foreground">
-              <CheckIcon className="size-4" strokeWidth={3} />
+              <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <motion.path d="M5 12.5l4.5 4.5L19 7.5" variants={checkDraw} initial="hidden" animate="show" />
+              </svg>
             </span>
             Payment confirmed · {title}
           </h3>
@@ -66,7 +68,7 @@ export function ReceiptCard({ result }: { result: PaymentResult }) {
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1.5 self-start text-sm text-muted underline-offset-2 hover:text-foreground hover:underline"
         >
-          View on explorer
+          View on Solana Explorer
           <ExternalIcon className="size-3.5" />
           <span className="sr-only">(opens in a new tab)</span>
         </a>

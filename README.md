@@ -115,7 +115,7 @@ cp .env.example .env.local
 
 Edit `.env.local`:
 
-- `ANTHROPIC_API_KEY`: your own key (only needed for live model calls).
+- `GEMINI_API_KEY`: your own Google Gemini key (only needed for live model calls; without it the app serves recorded responses). `AI_PROVIDER=anthropic` with `ANTHROPIC_API_KEY` is an optional alternative.
 - `SESSION_SECRET`: a random string of 32 or more characters. For example `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`.
 - Leave `ESCROW_MODE=custodial`, `SOLANA_CLUSTER=devnet` and the devnet RPC URL as they are.
 
@@ -177,14 +177,20 @@ Planned, not done:
 
 Cut for the hackathon: embedded wallet, deposit reduction from payment streak, compressed-NFT badge.
 
+## Tools
+
+- **Blockchain:** Solana (devnet), SPL Token, Memo program.
+- **AI model in the product:** Google Gemini (Flash), behind a provider wrapper in `lib/ai/`.
+- **App:** Next.js (App Router), TypeScript, Tailwind CSS, Framer Motion, zod. Hosted on Vercel.
+
 ## Disclosures
 
 Written for the Superteam Earn "Progress & Disclosures" component.
 
 - **Starting point:** tag `v0-hackathon-start` in https://github.com/Malejo01/tuki-rentals. Work before the hackathon window is not claimed. TODO(Mauro): confirm the tag exists on the public repo before submitting.
 - **Pre-existing code imported so far: none.** Any future import will be made in its own commit with the message `chore(import): <module> from <repo>@<sha> (pre-existing)` and will be listed here with that commit.
-- **AI-assisted coding:** the code was co-written with Claude Code (AI-assisted). The architecture, prompts and rules were written by the team. The product itself also uses the Anthropic API at runtime (the model extracts fields from documents).
-- **Third-party open-source components:** Next.js, React, Tailwind CSS, Framer Motion, zod, @solana/web3.js, @solana/spl-token, Anthropic SDK, plus the dev tools in `package.json` (TypeScript, ESLint, Vitest, tsx, dotenv).
+- **AI-assisted coding:** the code was co-written with Claude Code (AI-assisted). The architecture, prompts and rules were written by the team. The product itself uses Google Gemini at runtime (the model extracts fields from documents and answers catalog questions; it never decides an approval).
+- **Third-party open-source components:** Next.js, React, Tailwind CSS, Framer Motion, zod, @solana/web3.js, @solana/spl-token, Google Gen AI SDK (`@google/genai`), Anthropic SDK (optional provider), plus the dev tools in `package.json` (TypeScript, ESLint, Vitest, tsx, dotenv).
 - **Funding:** none.
 - **License:** TODO(Mauro): choose and add a LICENSE file (the plan suggests MIT). No license is claimed until the file exists.
 - **Changelog:** `CHANGELOG.md`, one section per day.

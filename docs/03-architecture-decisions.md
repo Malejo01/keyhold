@@ -62,13 +62,18 @@ Format: decision · context · consequence. Status: **Accepted** unless noted.
   - Versions are verified and pinned on day 1 ([VERIFY] in official docs).
   - Migrating to `@solana/kit` is out of scope.
 
-## AD-09 · AI provider
+## AD-09 · AI provider (revised 2026-10-03: Gemini is the default)
+- **Context:** the team has a Gemini key and no Anthropic key. Mauro's Qué Pinta Salta pipeline already runs on Gemini Flash.
 - **Decision:**
-  - Provider wrapper in `lib/ai/`.
-  - `ANTHROPIC_MODEL=claude-sonnet-5-5` for orchestration and agents.
-  - `EXTRACTION_MODEL=claude-haiku-4-5-20251001` for document extraction (multimodal).
-  - The wrapper can swap in Gemini, so Mauro's QPS extractor can be reused.
-- **Consequence:** `REPLAY=1` records and serves responses for the 3 demo tenants.
+  - One interface in `lib/ai/`: structured JSON generation with a zod schema, and chat with tools.
+  - Provider from env: `AI_PROVIDER=gemini|anthropic`. Default: `gemini`, through Google's official SDK `@google/genai`.
+  - Models from env: `AI_MODEL` for orchestration and chat, `EXTRACTION_MODEL` for document extraction. Default: the currently supported Gemini Flash model.
+  - Structured output through a JSON schema, validated again with zod. Function calling for the orchestrator tools.
+  - Retry with backoff on 429, because the free tier has low rate limits.
+  - Anthropic stays as an optional provider and nothing breaks when its key is missing.
+- **Consequence:**
+  - `REPLAY=1` records and serves responses for the 3 demo tenants, and is the fallback while recording the demo.
+  - Judge-facing texts name Google Gemini as the product model. Claude Code remains declared as the AI coding assistant.
 
 ## AD-10 · Wallets
 - **Phase 0–2:** server-side devnet keypairs from env. Demo only, and stated as such.

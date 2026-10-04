@@ -2,7 +2,7 @@
 
 Status: **F0 approved by Mauro on Sat 2026-10-03.** F2–F7 replanned the same night for his real availability and the approved cuts; their detailed boards are completed on Sunday (F1-05).
 
-Current phase: **F0 — in progress**.
+Current phase: **F0 — gate passed (see `docs/reviews/phase-0.md`, addendum); demo video still to be recorded by Mauro.** Next: F1 on Sun 04/10 09:00.
 
 Legend: **[U]** = long task that can run unattended while Mauro teaches. It still ends in a review by Mauro before merging.
 

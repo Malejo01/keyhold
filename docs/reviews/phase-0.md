@@ -85,3 +85,17 @@ UI and README:
 - **Prompt injection inside a document**: only a chat-message injection was tested. Documents are seeded and cannot be uploaded in F0; the planned document-injection eval belongs to F2.
 - **Session replay double-payment** (issue 1) was confirmed by reading code, not by executing it.
 - Demo video (F0-10) is outside this review.
+
+## Addendum: re-run after the fix (added by the lead, not by the reviewer)
+
+Sat 2026-10-03, 22:40–22:46 ART. Fix applied: `scripts/setup-devnet.ts` now tops tenants up to 1,000,000 tUSDC (commit `149ae46`), and the script was run against devnet. The reviewer's condition was: "re-run the script 3x; if it passes, the verdict becomes GO".
+
+`node tests/e2e/phase0.mjs`, three times back to back against `https://tuki-rentals.vercel.app`:
+
+| Run | Result | Duration | Rent tx |
+| --- | --- | --- | --- |
+| 1 | 56/56 PASS | 10 s | [tx](https://explorer.solana.com/tx/3DBTYDcHrhps5QX9ygGafSW169CtDTXVe1PJGeUUqCvsZ2qCR65m7Tw9hdGTjMc1YkVZZgprXZhiGxjxRwLw5Gv?cluster=devnet) |
+| 2 | 56/56 PASS | 303 s (waited out the `/api/chat` rate limit) | [tx](https://explorer.solana.com/tx/qx9Xk5rrW8NyWx3zpwZHhAZibuAjLYZ2wWCob43QHEcXpyV7gvYfEPYyWRz1RAVGLCV2TKBMxF8kDPeHVJgFHsn?cluster=devnet) |
+| 3 | 56/56 PASS | 11 s | [tx](https://explorer.solana.com/tx/4jEPMQsXp2ctqChbSnhFdmbJskZjidd2C8dnS1X5oWYygrGV7MkUAiAMrXsXA4wWqWa6aguryxi84JojQGLh8rsQ?cluster=devnet) |
+
+**Status: GO under the reviewer's stated condition.** Not done from the reviewer's fix list: a clear 409 from `/api/pay` on low balance (still a generic 502). The AI answers in these runs came from recordings (production has no `GEMINI_API_KEY` yet); live Gemini was verified only by `pnpm evals` locally.

@@ -4,9 +4,9 @@ AI leasing back-office for real-estate agencies in Argentina's interior. Agents 
 
 Built for the Colosseum Crypto World's Fair hackathon, Superteam Argentina track. Team based in Salta, Argentina.
 
-- Live demo: TODO(Mauro) add the public Vercel URL once deployed.
+- Live demo: https://tuki-rentals.vercel.app
 - Demo video (max 3 min): TODO(Mauro) add the link after recording.
-- Devnet transaction links: see [`docs/submission/tx-links.md`](docs/submission/tx-links.md) (TODO(Mauro): the file is filled once real transactions exist).
+- Devnet transaction links: see [`docs/submission/tx-links.md`](docs/submission/tx-links.md).
 - Demo script: [`docs/submission/demo-script.md`](docs/submission/demo-script.md).
 
 ## Status in one paragraph

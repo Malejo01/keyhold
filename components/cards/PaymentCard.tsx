@@ -3,9 +3,10 @@
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useState } from "react";
 import type { PaymentKind, PriceQuoteDto } from "@/lib/contracts";
-import { loop, pop, priceRise, spin, swap } from "@/lib/motion/presets";
+import { checkDraw, confirmRing, loop, priceRise, spin, swap } from "@/lib/motion/presets";
+import { CountUp } from "../CountUp";
 import { formatBps, formatUsdc } from "../format";
-import { Badge, Button, CardShell, CheckIcon, ClockIcon, ShieldIcon, cx } from "../ui";
+import { Badge, Button, CardShell, AlertIcon, ClockIcon, ShieldIcon, cx } from "../ui";
 
 type PayStatus = "idle" | "processing" | "confirmed" | "error";
 
@@ -95,9 +96,13 @@ export function PaymentCard({
           variants={priceRise}
           initial="hidden"
           animate="show"
-          className="mt-1 flex flex-wrap items-baseline gap-x-2 font-display text-4xl font-bold tabular-nums leading-none"
+          className="mt-1 flex flex-wrap items-baseline gap-x-2 font-display text-3xl font-bold tabular-nums leading-none"
         >
-          {formatUsdc(quote.amountBaseUnits)}
+          {isRent && quote.discountBps > 0 ? (
+            <CountUp from={quote.listBaseUnits} to={quote.amountBaseUnits} />
+          ) : (
+            formatUsdc(quote.amountBaseUnits)
+          )}
           <span className="text-base font-semibold text-muted">USDC (devnet test token)</span>
         </motion.p>
       </div>
@@ -137,14 +142,20 @@ export function PaymentCard({
               exit="exit"
               className="flex items-center gap-2 rounded-md bg-success-soft px-3 py-2.5 text-sm font-semibold text-success"
             >
-              <motion.span
-                variants={pop}
-                initial="hidden"
-                animate="show"
-                className="flex size-5 items-center justify-center rounded-full bg-success text-primary-foreground"
-              >
-                <CheckIcon className="size-3.5" strokeWidth={3} />
-              </motion.span>
+              <span className="relative flex size-6 items-center justify-center">
+                <motion.span
+                  aria-hidden="true"
+                  variants={confirmRing}
+                  initial="hidden"
+                  animate="show"
+                  className="absolute inset-0 rounded-full bg-success"
+                />
+                <span className="flex size-6 items-center justify-center rounded-full bg-success text-primary-foreground">
+                  <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <motion.path d="M5 12.5l4.5 4.5L19 7.5" variants={checkDraw} initial="hidden" animate="show" />
+                  </svg>
+                </span>
+              </span>
               Payment confirmed
             </motion.div>
           ) : status === "processing" ? (
@@ -183,7 +194,12 @@ export function PaymentCard({
                   Available after the deposit is paid.
                 </p>
               )}
-              {error && <p className="text-sm text-danger">{error}</p>}
+              {error && (
+                <p className="flex items-start gap-1.5 text-sm text-danger">
+                  <AlertIcon className="mt-0.5 size-4 shrink-0" />
+                  {error}
+                </p>
+              )}
             </motion.div>
           )}
         </AnimatePresence>

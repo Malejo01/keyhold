@@ -51,10 +51,30 @@ export type IssueCode =
   | 'name_mismatch'
   | 'income_ratio_exceeded';
 
+export type IssueEvidenceField = 'holder_name' | 'payslip_issue_date' | 'rent_to_income';
+
+/** One value shown side by side in the UI. Simulated demo data only; never written on-chain. */
+export interface IssueEvidenceItem {
+  docType: DocType;
+  label: string;
+  value: string;
+  /** True on the value that breaks the rule. */
+  mismatch?: boolean;
+}
+
+/** What the deterministic rule compared, so the UI can show it. Filled by lib/rules only. */
+export interface IssueEvidence {
+  field: IssueEvidenceField;
+  rule: string;
+  compared: IssueEvidenceItem[];
+}
+
 export interface Issue {
   code: IssueCode;
   docType?: DocType;
   message: string;
+  /** Optional (backward compatible). Present on name_mismatch, expired_payslip and income_ratio_exceeded. */
+  evidence?: IssueEvidence;
 }
 
 /** Model output of the prequal extraction, validated with zod before any rule runs. */

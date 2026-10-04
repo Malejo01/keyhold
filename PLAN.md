@@ -4,7 +4,7 @@ Status: **F0 approved by Mauro on Sat 2026-10-03.** F2–F7 replanned the same n
 
 Current phase: **F0 — gate passed (see `docs/reviews/phase-0.md`, addendum); demo video still to be recorded by the product team (Ani and teammates; Mauro only does code).** Next: F1 on Sun 04/10 09:00.
 
-F1 status (Sun 04/10, ~02:45 ART): first real-browser run done (headless Chrome, real routes) and its findings fixed on branch `f1-recording-ready`; qa verdict for recording **GO once production is redeployed and `tests/e2e/phase0.mjs` passes there** (`docs/reviews/phase-1-recording.md`). F1-01 drafts done (`preselection.md`, `pitch-script.md`, demo script rewritten for the product team); F1-02 done (`gtm.md`, `docs/validation/agencies-salta.md`: 14 verified, 1 unverified). Open: humans' TODOs in `preselection.md` and README, videos, submit before 15:30. Monday debates prepared in `docs/debates/2026-10-05-prepared.md`, not started.
+F1 status (Sat 03/10, ~23:45 ART): first real-browser run done (headless Chrome, real routes) and its findings fixed on branch `f1-recording-ready`; qa verdict for recording **GO once production is redeployed and `tests/e2e/phase0.mjs` passes there** (`docs/reviews/phase-1-recording.md`). F1-01 drafts done (`preselection.md`, `pitch-script.md`, demo script rewritten for the product team); F1-02 done (`gtm.md`, `docs/validation/agencies-salta.md`: 14 verified, 1 unverified). Open: humans' TODOs in `preselection.md` and README, videos, submit before 15:30. Monday debates prepared in `docs/debates/2026-10-05-prepared.md`, not started.
 
 Legend: **[U]** = long task that can run unattended while Mauro teaches. It still ends in a review by Mauro before merging.
 
@@ -59,6 +59,7 @@ Out of scope for F0: Anchor, scannable QR, embedded wallet, database, real visit
 | F1-03 | Visual fixes found while recording | ui-motion-engineer | 60 | F0-10 |
 | F1-04 | Compliance checklist: English, repo access for `hackathon@superteam.ar`, Disclosures | qa-security-reviewer | 20 | F1-01, F1-03 |
 | F1-05 | Complete the detailed boards for F2–F7 in this file | lead | 30 | — |
+| F1-08 | Design and UX layer for the video on branch `f1-design`: visible name AlquilIA (provisional), light adobe / dark ink palette via tokens, hero with "Try the demo", Agent activity panel, evidence side by side, animated payment and receipt, illustrated property cards, clearer timeline. **Mauro merges it after reviewing the preview; otherwise the video is recorded with `main`.** qa review: `docs/reviews/phase-1-design.md` | ui (+ agents, writer, qa) | — | — |
 | F1-07 | Bilingual UI ES/EN, Spanish default (AD-15): string catalogue for components/**, ES \| EN switch, fixed orchestrator replies follow the chosen language; re-shoot browser test in both. **Start only after the demo is recorded** | ui (+ agents, writer for ES copy, qa) | 150–180 | F1-06 recorded |
 | F1-06 | Record pitch and demo (product team: Ani and teammates), **submit before 15:30**, rehearse the 5 Demo Day questions | Product team (recording), Mauro + Ani (submit) | — | F1-04 |
 
@@ -196,7 +197,15 @@ export type IssueCode =
   | 'missing_document' | 'expired_payslip'
   | 'name_mismatch' | 'income_ratio_exceeded';
 
-export interface Issue { code: IssueCode; docType?: DocType; message: string }
+export interface Issue {
+  code: IssueCode; docType?: DocType; message: string;
+  // Optional, added 2026-10-04 (backward compatible). Filled by lib/rules only.
+  evidence?: {
+    field: 'holder_name' | 'payslip_issue_date' | 'rent_to_income';
+    rule: string;                 // e.g. "The name on every document must match the ID."
+    compared: { docType: DocType; label: string; value: string; mismatch?: boolean }[];
+  };
+}
 
 export interface PrequalResult {
   tenantId: TenantId;
@@ -217,6 +226,8 @@ export interface FinalDecision {
   crosscheck: CrosscheckResult;
 }
 ```
+
+`Issue.evidence` lists the values the rule compared, for the UI's side-by-side view. It is set on `name_mismatch` (ID holder name vs. the other document's holder name; `mismatch: true` on the differing document), `expired_payslip` (payslip issue date with its age in days vs. the reference date) and `income_ratio_exceeded` (monthly income vs. rent). The values are simulated demo data. They stay in the API response and are never written on-chain or into a Memo. The decision itself does not read `evidence`.
 
 Design note for Carla, so that AD-01 and AD-02 both hold: prequal's rules check completeness, payslip age and rent-to-income. The name-match rule is deterministic code too, but it runs on **crosscheck's independent per-document extraction**. So prequal approves Carla, crosscheck catches her, and no model decides either outcome.
 

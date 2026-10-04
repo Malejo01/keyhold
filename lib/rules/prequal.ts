@@ -59,20 +59,38 @@ export function checkPayslipAge(issueDate: string | null, asOf: string): Issue[]
       code: 'expired_payslip',
       docType: 'payslip',
       message: `The payslip was issued on ${issueDate}, ${age} days before ${asOf}. It must be at most ${MAX_PAYSLIP_AGE_DAYS} days old.`,
+      evidence: {
+        field: 'payslip_issue_date',
+        rule: `The payslip must be at most ${MAX_PAYSLIP_AGE_DAYS} days old.`,
+        compared: [
+          { docType: 'payslip', label: 'Payslip issue date', value: `${issueDate} (${age} days old)`, mismatch: true },
+          { docType: 'payslip', label: 'Reference date', value: asOf },
+        ],
+      },
     }];
   }
   return [];
 }
 
-export function checkRentToIncome(monthlyIncomeUsdc: number | null, rentUsdc: number): Issue[] {
+/** `incomeDocType`: the document the income figure was read from (for the evidence only). */
+export function checkRentToIncome(monthlyIncomeUsdc: number | null, rentUsdc: number, incomeDocType: DocType = 'payslip'): Issue[] {
   if (monthlyIncomeUsdc === null || !(monthlyIncomeUsdc > 0)) {
     return [{ code: 'missing_document', docType: 'income_proof', message: 'Monthly income could not be read from the documents.' }];
   }
   const ratio = rentUsdc / monthlyIncomeUsdc;
   if (ratio > MAX_RENT_TO_INCOME) {
+    const pct = (ratio * 100).toFixed(1);
     return [{
       code: 'income_ratio_exceeded',
-      message: `Rent of ${rentUsdc} USDC is ${(ratio * 100).toFixed(1)}% of a monthly income of ${monthlyIncomeUsdc} USDC (max ${MAX_RENT_TO_INCOME * 100}%).`,
+      message: `Rent of ${rentUsdc} USDC is ${pct}% of a monthly income of ${monthlyIncomeUsdc} USDC (max ${MAX_RENT_TO_INCOME * 100}%).`,
+      evidence: {
+        field: 'rent_to_income',
+        rule: `Rent must be at most ${MAX_RENT_TO_INCOME * 100}% of monthly income.`,
+        compared: [
+          { docType: incomeDocType, label: 'Monthly income', value: `${monthlyIncomeUsdc} USDC` },
+          { docType: incomeDocType, label: 'Monthly rent', value: `${rentUsdc} USDC (${pct}% of income)`, mismatch: true },
+        ],
+      },
     }];
   }
   return [];

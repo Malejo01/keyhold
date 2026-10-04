@@ -90,7 +90,7 @@ Not blocking, to close in F2:
 - `scripts/record-demo-txs.ts` rewrites `docs/submission/tx-links.md`; re-add the historical section if it is run again.
 - The custom dev agents in `.claude/agents/` were not registered in this session (it started before the folder existed). They load in a new session.
 
-## Update — Sun 04/10, ~03:15 ART (second session)
+## Update — Sun 04/10, ~00:15 ART (second session)
 
 - First real-browser run done (headless Chrome via CDP); fixes merged to `main` at `c1f2ac0` and deployed. e2e 59/59 on production; recording verdict **GO** (`docs/reviews/phase-1-recording.md`).
 - Videos are recorded by the product team (Ani and teammates); Mauro only does code. No new Gemini key: local uses the current key with `AI_DAILY_CALL_CAP`; production stays `REPLAY=1`.
@@ -98,6 +98,19 @@ Not blocking, to close in F2:
 - Decided AD-15: bilingual UI ES/EN, Spanish by default; task F1-07, **after** the recording.
 - Monday debates prepared, not started: `docs/debates/2026-10-05-prepared.md`.
 - Mauro starts Sunday with the 10-point production checklist (in the session report).
+
+## Visible name "AlquilIA" (Sun 04/10, branch `f1-design`) — pending team decision
+
+- Visible name changed from "Keyhold" to **"AlquilIA"** (alquilar + IA), provisional until the team confirms it. Changed only in `lib/config/brand.ts`, the UI, metadata, favicon/OG, contract template, agent prompts, README and submission docs.
+- **Not renamed:** the GitHub repo (`Malejo01/keyhold`), the Vercel project (`keyhold-app`) and its domain (`keyhold-app.vercel.app`).
+- **Known name conflicts, to be weighed by the team before confirming:** `alquilia.io`, `alquilia.eu`, and an app called "Alquilia" from Salta on the Google Play Store.
+
+## Design branch `f1-design` (Sun 04/10, ~01:15 ART)
+
+- Preview: https://keyhold-app-git-f1-design-lizarraga-mauros-projects.vercel.app (Vercel auth; a 23 h share link was created for headless tests and is not stored in the repo). `main` is untouched until Mauro approves the merge.
+- qa verdict `docs/reviews/phase-1-design.md`: GO for recording on this branch after the Lease-agent hash display fix, merge, production deploy, one e2e run on production and one practice take.
+- Script and brief for the product team: `docs/submission/demo-script.md`, `docs/submission/recording-brief.md`. Before/after screenshots: `docs/reviews/ux/`.
+- F1-07 (bilingual ES/EN) starts after this merge, on its own branch, because it touches the same files.
 
 ## Next 5 steps
 

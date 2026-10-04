@@ -1,56 +1,63 @@
 /*
- * Design tokens (neutral placeholder).
- * The brand package replaces ONLY this file and the logo. Components never hard-code
+ * Design tokens. The brand package replaces ONLY this file and the logo. Components never hard-code
  * colors, fonts, radii or shadows: they use these variables through the Tailwind theme
- * mapped in app/globals.css. This is the only file in the repo allowed to contain hex values.
+ * mapped in app/globals.css. This is the only file in the repo allowed to contain hex values,
+ * with one accepted exception: app/icon.svg (a favicon cannot read CSS variables; keep its two palettes in sync
+ * with --primary / --accent below).
+ *
+ * Light: warm sand with a burnt-orange primary and a teal accent. Dark: ink neutrals with the same hues lightened.
+ * Primary (orange hue) and danger (crimson hue) are kept apart on purpose; danger is always paired with an icon.
+ * Contrast measured (WCAG relative luminance) for the text pairs below: foreground, muted and subtle on background,
+ * surface and sunken; primary, accent, success, warning and danger text on their soft backgrounds; and
+ * primary-foreground on primary. All are at least 4.5:1 in both modes.
  */
 
 :root {
   /* Surfaces and text */
-  --background: #f6f7f9;
-  --foreground: #14181f;
-  --surface: #ffffff;
-  --surface-raised: #ffffff;
-  --surface-sunken: #eceef2;
-  --border: #dfe3ea;
-  --border-strong: #c3cad6;
-  --muted: #5b6575;
-  --subtle: #8a93a3;
+  --background: #f7f0e6;
+  --foreground: #2b1d14;
+  --surface: #fffaf3;
+  --surface-raised: #fffaf3;
+  --surface-sunken: #efe3d2;
+  --border: #e3d3bd;
+  --border-strong: #c9b399;
+  --muted: #6b5646;
+  --subtle: #6f5744;
 
   /* Neutral scale (5+ steps) */
-  --neutral-50: #f6f7f9;
-  --neutral-100: #eceef2;
-  --neutral-200: #dfe3ea;
-  --neutral-300: #c3cad6;
-  --neutral-500: #8a93a3;
-  --neutral-700: #5b6575;
-  --neutral-900: #14181f;
+  --neutral-50: #f7f0e6;
+  --neutral-100: #efe3d2;
+  --neutral-200: #e3d3bd;
+  --neutral-300: #c9b399;
+  --neutral-500: #6f5744;
+  --neutral-700: #6b5646;
+  --neutral-900: #2b1d14;
 
-  /* Brand placeholder */
-  --primary: #3454d1;
-  --primary-hover: #2a45b3;
+  /* Brand: burnt orange */
+  --primary: #a3410a;
+  --primary-hover: #86350a;
   --primary-foreground: #ffffff;
-  --primary-soft: #e8edfb;
+  --primary-soft: #f9e3d0;
 
-  /* Highlight used for the independent cross-check moment */
-  --accent: #7a3fd0;
+  /* Tech accent: teal (cross-check moment, agent links) */
+  --accent: #0f6b73;
   --accent-foreground: #ffffff;
-  --accent-soft: #f1e9fc;
+  --accent-soft: #dcefef;
 
   /* Semantic */
-  --success: #15803d;
-  --success-soft: #e3f5ea;
-  --warning: #b45309;
-  --warning-soft: #fdf0d9;
-  --danger: #c0262d;
-  --danger-soft: #fce7e8;
+  --success: #1a5c32;
+  --success-soft: #e2f0e0;
+  --warning: #7a4106;
+  --warning-soft: #fbebcc;
+  --danger: #a8153a;
+  --danger-soft: #fce4e8;
 
   /* Banner */
-  --banner: #14181f;
-  --banner-foreground: #f6f7f9;
+  --banner: #2b1d14;
+  --banner-foreground: #f7f0e6;
 
   /* Focus ring */
-  --ring: #3454d1;
+  --ring: #0f6b73;
 
   /* Radii */
   --radius-1: 0.375rem;
@@ -60,10 +67,10 @@
   --radius-pill: 9999px;
 
   /* Shadows */
-  --shadow-1: 0 1px 2px rgb(20 24 31 / 0.06);
-  --shadow-2: 0 2px 8px rgb(20 24 31 / 0.08), 0 1px 2px rgb(20 24 31 / 0.05);
-  --shadow-3: 0 12px 32px rgb(20 24 31 / 0.14), 0 2px 6px rgb(20 24 31 / 0.06);
-  --glow: 0 0 0 3px rgb(122 63 208 / 0.22);
+  --shadow-1: 0 1px 2px rgb(43 29 20 / 0.08);
+  --shadow-2: 0 2px 8px rgb(43 29 20 / 0.1), 0 1px 2px rgb(43 29 20 / 0.06);
+  --shadow-3: 0 12px 32px rgb(43 29 20 / 0.16), 0 2px 6px rgb(43 29 20 / 0.08);
+  --glow: 0 0 0 3px rgb(15 107 115 / 0.25);
 
   /* Spacing */
   --space-unit: 0.25rem;
@@ -78,48 +85,48 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0b0e13;
-    --foreground: #eceff4;
-    --surface: #131822;
-    --surface-raised: #1a2030;
-    --surface-sunken: #0f131b;
-    --border: #262e3e;
-    --border-strong: #3a4458;
-    --muted: #a0aabb;
-    --subtle: #727d90;
+    --background: #0a0d12;
+    --foreground: #e8ecf2;
+    --surface: #12161d;
+    --surface-raised: #181d26;
+    --surface-sunken: #0d1015;
+    --border: #232a35;
+    --border-strong: #394353;
+    --muted: #a3adbd;
+    --subtle: #7c8798;
 
-    --neutral-50: #0b0e13;
-    --neutral-100: #0f131b;
-    --neutral-200: #262e3e;
-    --neutral-300: #3a4458;
-    --neutral-500: #727d90;
-    --neutral-700: #a0aabb;
-    --neutral-900: #eceff4;
+    --neutral-50: #0a0d12;
+    --neutral-100: #0d1015;
+    --neutral-200: #232a35;
+    --neutral-300: #394353;
+    --neutral-500: #7c8798;
+    --neutral-700: #a3adbd;
+    --neutral-900: #e8ecf2;
 
-    --primary: #7b93f2;
-    --primary-hover: #93a6f6;
-    --primary-foreground: #0b0e13;
-    --primary-soft: #1b2442;
+    --primary: #f0995c;
+    --primary-hover: #f5b183;
+    --primary-foreground: #0a0d12;
+    --primary-soft: #2c1a10;
 
-    --accent: #b58cf0;
-    --accent-foreground: #0b0e13;
-    --accent-soft: #2a1d44;
+    --accent: #55d0d8;
+    --accent-foreground: #06151a;
+    --accent-soft: #0f2a2e;
 
     --success: #4ade80;
     --success-soft: #11291b;
     --warning: #fbbf5a;
     --warning-soft: #33250e;
-    --danger: #f87178;
-    --danger-soft: #371417;
+    --danger: #ff8099;
+    --danger-soft: #3a1420;
 
-    --banner: #eceff4;
-    --banner-foreground: #0b0e13;
+    --banner: #e8ecf2;
+    --banner-foreground: #0a0d12;
 
-    --ring: #93a6f6;
+    --ring: #55d0d8;
 
     --shadow-1: 0 1px 2px rgb(0 0 0 / 0.4);
     --shadow-2: 0 2px 8px rgb(0 0 0 / 0.45), 0 1px 2px rgb(0 0 0 / 0.3);
     --shadow-3: 0 12px 32px rgb(0 0 0 / 0.55), 0 2px 6px rgb(0 0 0 / 0.35);
-    --glow: 0 0 0 3px rgb(181 140 240 / 0.3);
+    --glow: 0 0 0 3px rgb(85 208 216 / 0.3);
   }
 }

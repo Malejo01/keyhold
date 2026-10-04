@@ -6,12 +6,14 @@ import type { PaymentKind, Property, SignedSession, Stage, TenantId } from "@/li
 import { itemIn, messageIn, resetFade, stagger, typingDot, loop } from "@/lib/motion/presets";
 import { fixtureApi, realApi, type Api } from "./api-client";
 import { CardRenderer, type CardContext } from "./cards/CardRenderer";
+import { AgentActivity, AgentActivityCompact } from "./AgentActivity";
+import { deriveActivity } from "./deriveAgents";
 import { LeaseTimeline, LeaseTimelineCompact } from "./LeaseTimeline";
 import { APP_NAME } from "@/lib/config/brand";
 import { Logo } from "./Logo";
 import { PersonaSwitcher } from "./PersonaSwitcher";
 import { PERSONAS, SUGGESTED_PROMPTS, type ChatMessage, type PersistedDemo } from "./types";
-import { SendIcon, cx } from "./ui";
+import { AlertIcon, SendIcon, cx } from "./ui";
 
 const STORAGE_KEY = "demo.session.v2";
 /** Index into SUGGESTED_PROMPTS of the natural next step for each stage. */
@@ -234,6 +236,7 @@ export function ChatShell({ useFixtures }: { useFixtures: boolean }) {
     });
   }, [nextChip, reduced, tenantId]);
 
+  const agentRows = useMemo(() => deriveActivity(messages, pending, stage), [messages, pending, stage]);
   const personaName =PERSONAS.find((p) => p.id === tenantId)?.name ?? "";
 
   return (
@@ -250,6 +253,9 @@ export function ChatShell({ useFixtures }: { useFixtures: boolean }) {
 
           <div className="border-b border-border px-gutter py-3 lg:hidden">
             <LeaseTimelineCompact stage={stage} />
+            <div className="mt-3">
+              <AgentActivityCompact rows={agentRows} />
+            </div>
           </div>
 
           <AnimatePresence mode="wait" initial={false}>
@@ -295,8 +301,16 @@ export function ChatShell({ useFixtures }: { useFixtures: boolean }) {
                         m.error && "rounded-bl-sm border border-danger bg-danger-soft text-danger",
                       )}
                     >
-                      {m.error && <span className="sr-only">Error: </span>}
-                      {m.text}
+                      {m.error && (
+                        <span className="flex items-start gap-2">
+                          <AlertIcon className="mt-0.5 size-4 shrink-0" />
+                          <span>
+                            <span className="sr-only">Error: </span>
+                            {m.text}
+                          </span>
+                        </span>
+                      )}
+                      {!m.error && m.text}
                     </div>
                     {m.cards && m.cards.length > 0 && (
                       <motion.div
@@ -383,7 +397,7 @@ export function ChatShell({ useFixtures }: { useFixtures: boolean }) {
         </section>
 
         {/* Timeline column (desktop) */}
-        <aside className="hidden min-h-0 flex-col gap-5 overflow-y-auto border-l border-border bg-surface px-6 py-6 lg:flex">
+        <aside className="hidden min-h-0 flex-col gap-4 overflow-y-auto border-l border-border bg-surface px-6 py-5 lg:flex">
           <div>
             <h2 className="font-display text-sm font-semibold uppercase tracking-wide text-muted">
               Lease timeline
@@ -391,6 +405,7 @@ export function ChatShell({ useFixtures }: { useFixtures: boolean }) {
             <p className="mt-1 text-xs text-subtle">Follows your conversation, step by step.</p>
           </div>
           <LeaseTimeline stage={stage} />
+          <AgentActivity rows={agentRows} className="border-t border-border pt-4" />
           <p className="mt-auto text-xs text-subtle">
             Amounts are in USDC (devnet test token). No real money moves.
           </p>

@@ -177,7 +177,7 @@ That makes three local e2e passes on this branch (runs 1-2 before the fix, run 3
 
 **Still not covered:** production (pending deploy), my own real-browser pass, and vitest (blocked on this machine).
 
-## Addendum (lead, Sun 04/10 ~03:10 ART): production condition met
+## Addendum (lead, Sun 04/10 ~00:10 ART): production condition met
 
 Branch merged to `main` (`c1f2ac0`, adds the replay-mode chat limit of 120 per 5 min) and deployed to production (Vercel `dpl_h6kwrvyYqsVoAj82kSpNCZmLX9ha`, READY). Run by the lead with this reviewer's script, not by the reviewer:
 - `node tests/e2e/phase0.mjs` against https://keyhold-app.vercel.app: **59/59 checks passed in 14 s**; deposit `2eTMjt1k…` and rent `5ijcvrVN…` on devnet with `lease:v1:` memos.

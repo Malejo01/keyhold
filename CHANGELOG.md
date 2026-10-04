@@ -34,10 +34,16 @@ Work before the tag `v0-hackathon-start` or imported via `chore(import)` commits
 - fix(ui): rent card locked until the deposit is paid; deposit card shows only the amount; "secured" removed from deposit copy (escrow is custodial); one status term, "Payment confirmed"; next-step chip highlighted and mobile chip row hints that it scrolls (ui-motion-engineer).
 - test: e2e 59/59 and headless-Chrome demo flow pass on production after deploy `c1f2ac0`; recording verdict GO (lead).
 - docs: AD-15, bilingual UI ES/EN with Spanish by default, scheduled after the recording (F1-07); CLAUDE.md language rule updated (lead).
+- chore(brand): visible name AlquilIA (provisional, conflicts noted in HANDOFF); repo and Vercel project not renamed (lead).
+- feat(agents): structured `evidence` on pre-qualification and cross-check issues (compared values and the rule); contract template names the platform (ai-agents-engineer).
+- feat(ui), branch `f1-design`: landing hero with "Try the demo", light adobe / dark ink palette through tokens, Agent activity panel, evidence side by side, animated payment and receipt with "View on Solana Explorer", illustrated property cards, clearer timeline, icon and OG image (ui-motion-engineer).
+- test: E2E_COOKIE support for protected previews; preview e2e 59/59 and browser run 0 issues; design review `docs/reviews/phase-1-design.md` (qa-security-reviewer).
+- docs: demo script and recording brief rewritten for the redesigned UI; before/after screenshots in `docs/reviews/ux/` (submission-writer, lead).
 - fix(api): `/api/chat` rate limit is 120 messages per 5 min per IP in replay mode (no model cost) and stays 30 with live AI (fullstack-engineer).
 - chore(config): Next dev indicator hidden so it does not cover the chat input at 375 px (fullstack-engineer).
 - docs(submission): `preselection.md` with counted fields, `pitch-script.md` (2:00), demo script rewritten for the product team; README positioning line no longer claims trustless escrow (submission-writer).
 - docs(validation): honest GTM draft `docs/submission/gtm.md` (plan, no traction), 15 Salta agencies to contact, empty evidence log (market-validation-analyst).
 - docs: the demo and pitch videos are recorded by the product team, not Mauro; no new Gemini key, production stays on `REPLAY=1`; Monday design debates prepared in `docs/debates/` (lead).
+- feat(rules): optional `Issue.evidence` (field, rule, values compared side by side) on name_mismatch, expired_payslip and income_ratio_exceeded, for the UI comparison view; decisions unchanged. The lease template names the product via `APP_NAME`. The rename to "AlquilIA" needs no re-recording: replay keys use the agent id and user input only, never the system prompt. Replay evals and `tsc` pass (ai-agents-engineer).
 
 ## Week 2 — 2026-10-05 → 2026-10-12

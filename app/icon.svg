@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Palettes mirror --primary / --accent / --background in styles/tokens.css (favicons cannot read CSS variables). -->
+  <style>
+    .bg { fill: #a3410a; }
+    .house { fill: #ffffff; }
+    .dot { fill: #0f6b73; }
+    @media (prefers-color-scheme: dark) {
+      .bg { fill: #f0995c; }
+      .house { fill: #0a0d12; }
+      .dot { fill: #55d0d8; }
+    }
+  </style>
+  <rect class="bg" width="32" height="32" rx="7"/>
+  <path class="house" d="M7 15.5 16 7l9 8.5V25a1 1 0 0 1-1 1h-5v-6h-6v6H8a1 1 0 0 1-1-1v-9.5z"/>
+  <circle class="dot" cx="23.5" cy="8.5" r="3"/>
+</svg>

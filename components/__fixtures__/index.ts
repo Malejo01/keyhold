@@ -93,6 +93,14 @@ function decisionFor(tenantId: TenantId): FinalDecision {
       code: "expired_payslip" as const,
       docType: "payslip" as const,
       message: "The payslip is dated 7 months ago. Documents must be less than 90 days old.",
+      evidence: {
+        field: "payslip_issue_date" as const,
+        rule: "Payslips must be less than 90 days old.",
+        compared: [
+          { docType: "payslip" as const, label: "Issue date", value: "2026-03-02", mismatch: true },
+          { docType: "payslip" as const, label: "Oldest accepted date", value: "2026-07-06" },
+        ],
+      },
     };
     return {
       status: "NEEDS_INFO",
@@ -133,6 +141,14 @@ function decisionFor(tenantId: TenantId): FinalDecision {
             docType: "payslip",
             message:
               "The name on the payslip differs from the name on the ID. Please upload a matching document.",
+            evidence: {
+              field: "holder_name",
+              rule: "The name on every document must match the ID.",
+              compared: [
+                { docType: "dni", label: "Holder name", value: "CARLA BEATRIZ DEMO INVENTADA" },
+                { docType: "payslip", label: "Employee name", value: "Camila Demo Inventada", mismatch: true },
+              ],
+            },
           },
         ],
       },

@@ -24,7 +24,7 @@ export function checkNameConsistency(ext: CrosscheckExtraction): Issue[] {
   const dni = firstOf(ext, 'dni');
   if (!dni) return [];
   if (!dni.holderName) {
-    return [{ code: 'missing_document', docType: 'dni', message: 'The name on the DNI could not be read.' }];
+    return [{ code: 'missing_document', docType: 'dni', message: 'The name on the ID (DNI) could not be read.' }];
   }
   const issues: Issue[] = [];
   for (const doc of ext.documents) {
@@ -33,12 +33,27 @@ export function checkNameConsistency(ext: CrosscheckExtraction): Issue[] {
       issues.push({
         code: 'name_mismatch',
         docType: doc.docType,
-        message: `The ${doc.docType.replace('_', ' ')} is issued to "${doc.holderName}", but the DNI belongs to "${dni.holderName}".`,
+        message: `The ${doc.docType.replace('_', ' ')} is issued to "${doc.holderName}", but the ID (DNI) belongs to "${dni.holderName}".`,
+        evidence: {
+          field: 'holder_name',
+          rule: 'The name on every document must match the ID.',
+          compared: [
+            { docType: 'dni', label: 'Name on ID', value: dni.holderName },
+            { docType: doc.docType, label: `Name on ${DOC_LABEL[doc.docType]}`, value: doc.holderName, mismatch: true },
+          ],
+        },
       });
     }
   }
   return issues;
 }
+
+const DOC_LABEL: Record<DocType, string> = {
+  dni: 'ID',
+  payslip: 'payslip',
+  income_proof: 'income certificate',
+  guarantee: 'guarantee',
+};
 
 /** Crosscheck's own rule pass over its own extraction. */
 export function findCrosscheckIssues(ext: CrosscheckExtraction, ctx: RuleContext): Issue[] {
@@ -46,8 +61,9 @@ export function findCrosscheckIssues(ext: CrosscheckExtraction, ctx: RuleContext
   const issues: Issue[] = [...checkRequiredDocuments(present), ...checkNameConsistency(ext)];
   const payslip = firstOf(ext, 'payslip');
   if (payslip) issues.push(...checkPayslipAge(payslip.issueDate, ctx.asOf));
-  const income = payslip?.monthlyIncomeUsdc ?? firstOf(ext, 'income_proof')?.monthlyIncomeUsdc ?? null;
-  issues.push(...checkRentToIncome(income, ctx.rentUsdc));
+  const fromPayslip = payslip?.monthlyIncomeUsdc ?? null;
+  const income = fromPayslip ?? firstOf(ext, 'income_proof')?.monthlyIncomeUsdc ?? null;
+  issues.push(...checkRentToIncome(income, ctx.rentUsdc, fromPayslip !== null ? 'payslip' : 'income_proof'));
   return issues;
 }
 

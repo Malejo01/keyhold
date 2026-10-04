@@ -129,3 +129,63 @@ Full report: `docs/MORNING_REPORT.md` on `main` and the GitHub issue "Morning re
 3. After the recording: unfreeze `main` and merge PRs #1→#9 in order (decision 1), re-running e2e on production after each risky one (B3, B5, B6).
 4. Mauro: provision Neon via Vercel Marketplace (Preview first), fund a devnet deployer for the Anchor program, optionally set `AGENCY_SECRET_KEY` and a dedicated RPC on Preview.
 5. Lead: wire `ESCROW_MODE=program` to the deployed program (sol-client hand-offs in `docs/onchain.md`), align `addMonthsTs` with the program's fixed period, and fix the B6 marker-funding griefing (`allocateWithSeed`).
+
+## Estado 04/10 10:20
+
+```
+ESTADO — AlquilIA / repo Malejo01/keyhold — dom 04/10, ~10:20 ART
+
+PRODUCCIÓN (https://keyhold-app.vercel.app)
+- main se descongeló y los 9 PRs están mergeados en orden (#1 CI, #3 DB, #4 Solana Pay, #5 Anchor,
+  #6 panel inmobiliaria, #7 uploads, #2 bilingüe, #8 README/submission, #9 validación).
+- También entraron los reviews y docs de #10 (integration/overnight). GitHub muestra #10 como MERGED
+  porque su contenido ya está en main; no se mergeó como bloque. Último commit: b6a56af.
+- Después de CADA merge: deploy de Vercel OK + e2e contra producción 59/59. No hubo ningún revert.
+- Guion completo en Chrome headless contra producción: /en 4 corridas y /es 5 corridas, 0 problemas.
+- REPLAY=1 sigue activo y el flag de Solana Pay sigue apagado.
+
+NEON
+- Proyecto "alquilia" (sa-east-1). DATABASE_URL está en Preview Y en Production.
+- Migraciones corridas en Neon ANTES de mergear #3. Verificado: producción ya escribe pagos
+  (1 depósito + 1 alquiler confirmados de la e2e).
+- No se usó `vercel env pull` (el CLI no está instalado): las migraciones se aplicaron por el MCP de Neon.
+
+ENV DE PRODUCCIÓN
+- Creado DEMO_AGENCY_PIN (sensitive, solo Production). El PIN va por privado, no está en ningún archivo.
+- AGENCY_SECRET_KEY TODAVÍA NO está creada en Production.
+
+QUEDÓ A MEDIAS (se cortó la sesión; nada de esto está en main)
+1. PIN del panel (rama f4-agency-pin): cambios hechos pero SIN commitear, sin tests verificados.
+   Hasta que entre, la liberación del depósito en producción sigue deshabilitada: falta
+   AGENCY_SECRET_KEY y falta el chequeo del PIN.
+   El panel /en/agency SÍ está en producción (cola NEEDS_INFO + ledger on-chain).
+2. Botón ES | EN visible + recordar idioma + no perder progreso (rama f4-lang-toggle):
+   commiteado (ad5d69a) pero SIN pushear ni verificar. En producción hoy ya existe el selector ES|EN
+   de B2 y la redirección por idioma del navegador (/es o /en), pero no la versión "bien visible".
+3. Deploy Anchor (rama f4-anchor-deploy, pusheada, e9cb13c): workflow deploy-devnet.yml listo.
+   Keypairs en .keys/ (no commiteadas). Deployer 7CUVgcDNNfbfFdfzH6GenbjQtXF8KUmefsbp1d2VgsDL
+   fondeado con 4 SOL devnet. Program ID planificado B77PPK8P67vhzbhMNpu4mEJZY2h8wqS6AcAHe7WQCZbF.
+   FALTA EL PERMISO DE MAURO para `gh secret set DEVNET_DEPLOYER_KEYPAIR` (y DEVNET_PROGRAM_KEYPAIR).
+   Después: correr el workflow. NO está desplegado.
+   Línea correcta HOY en README/guiones: "built and tested, not deployed".
+
+PENDIENTE (no arrancado)
+- Actualizar demo-script / pitch-script / recording-brief / checklist con links /en y /es
+  y secciones opcionales "Agency panel + release" y "Language switch".
+- Issue "Preselection form — copy/paste" (los textos y conteos ya están en docs/submission/preselection.md).
+- Issue "READY TO RECORD".
+- Anotar en cada PR las decisiones menores aplicadas.
+
+¿SE PUEDE GRABAR YA?
+Sí, el flujo principal (Bruno → Carla → Ana, pagos, Verify, explorer) en https://keyhold-app.vercel.app/en
+está verificado en producción. Lo único que NO conviene grabar todavía es la liberación de depósito
+con PIN. El botón de idioma "grande" tampoco está. Antes de grabar, alguien tiene que confirmar
+que las etiquetas del guion coinciden con la UI actual (es la versión con hero + panel de agentes).
+
+PRÓXIMOS PASOS PARA LA SESIÓN LEAD
+a) Commitear, testear y pushear f4-agency-pin, crear AGENCY_SECRET_KEY en Production, mergear,
+   y correr la e2e de producción.
+b) Pushear f4-lang-toggle, correr el guion en /en y /es, mergear, y correr la e2e de producción.
+c) Pedir a Mauro el permiso del gh secret set y desplegar Anchor en devnet.
+d) Actualizar guiones y brief, y abrir los issues de preselección y READY TO RECORD.
+```

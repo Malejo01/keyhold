@@ -3,6 +3,7 @@
 //        BASE_URL=http://localhost:3000 node tests/e2e/phase0.mjs
 // Exits 0 when every check passes, 1 otherwise. Prints one line per check plus the tx signatures produced.
 // Note: Ana's run sends two REAL devnet token transfers (deposit + rent) signed server-side with demo keys.
+// F1 (deposit-first): expects one deposit card after the contract, 409 on rent before the deposit, then one rent card.
 
 const BASE_URL = (process.env.BASE_URL ?? 'https://keyhold-app.vercel.app').replace(/\/$/, '');
 const RPC_URL = process.env.RPC_URL ?? 'https://api.devnet.solana.com';
@@ -76,7 +77,8 @@ async function runAna() {
   check('ana: stage reaches PAYMENT', turns.at(-1).stage === 'PAYMENT', stagesOf(turns).join('>'));
   check('ana: contract card present', cardsOf(turns, 'contract').length === 1);
   const payCards = cardsOf(turns, 'payment');
-  check('ana: two payment cards', payCards.length === 2, payCards.map((c) => c.kind).join(','));
+  // Deposit-first rule (F1): after the contract only the deposit card is offered.
+  check('ana: only a deposit card after the contract', payCards.length === 1 && payCards[0].kind === 'deposit', payCards.map((c) => c.kind).join(','));
   const lease = session.state.lease;
   check('ana: signed session carries lease', !!lease?.leaseId && /^[0-9a-f]{64}$/.test(lease?.contractHash ?? ''));
 
@@ -88,6 +90,15 @@ async function runAna() {
   const tDiscount = await post('/api/pay', { kind: 'rent', session: tamper(session, (s) => { s.lease.discountUsdcBps = 9000; }) });
   check('tamper: discount bps edited -> 401', tDiscount.status === 401, `got ${tDiscount.status}`);
 
+  // Rent before the deposit: refused by the server (no tx sent) and not offered by the chat.
+  const rentFirst = await post('/api/pay', { kind: 'rent', session });
+  check('ana: POST /api/pay rent before deposit -> 409', rentFirst.status === 409, `got ${rentFirst.status} ${JSON.stringify(rentFirst.json)}`);
+  const askRent = await post('/api/chat', { message: 'Pay my first rent', tenantId: 'ana', session });
+  const askRentKinds = cardsOf([askRent.json ?? {}], 'payment').map((c) => c.kind).join(',');
+  check('ana: chat "Pay my first rent" before deposit offers only the deposit',
+    askRent.status === 200 && askRentKinds === 'deposit' && /deposit comes first/i.test(askRent.json?.reply ?? ''),
+    `${askRent.status} cards=${askRentKinds}`);
+
   const dep = await post('/api/pay', { kind: 'deposit', session });
   check('ana: deposit 200', dep.status === 200, `got ${dep.status} ${dep.status !== 200 ? JSON.stringify(dep.json) : ''}`);
   if (dep.status !== 200) return null;
@@ -97,7 +108,14 @@ async function runAna() {
   check('ana: deposit memo hash = contractHash', depR.memo.endsWith(lease.contractHash));
   check('ana: deposit amount = depositBaseUnits', depR.amountBaseUnits === lease.depositBaseUnits, `${depR.amountBaseUnits} vs ${lease.depositBaseUnits}`);
 
-  const rent = await post('/api/pay', { kind: 'rent', session: dep.json.session });
+  // After the deposit, the next chat turn offers exactly one rent card (month 1).
+  const next = await post('/api/chat', { message: 'Pay my first rent', tenantId: 'ana', session: dep.json.session });
+  const nextKinds = cardsOf([next.json ?? {}], 'payment').map((c) => c.kind).join(',');
+  check('ana: after deposit the chat offers only the rent card', next.status === 200 && nextKinds === 'rent' && next.json?.stage === 'PAYMENT',
+    `${next.status} stage=${next.json?.stage} cards=${nextKinds}`);
+  const rentSession = next.status === 200 ? next.json.session : dep.json.session;
+
+  const rent = await post('/api/pay', { kind: 'rent', session: rentSession });
   check('ana: rent 200', rent.status === 200, `got ${rent.status} ${rent.status !== 200 ? JSON.stringify(rent.json) : ''}`);
   if (rent.status !== 200) return null;
   const rentR = rent.json.result;

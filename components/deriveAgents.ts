@@ -1,5 +1,6 @@
 import type { Stage, UiCard } from "@/lib/contracts";
 import { shortHash } from "./format";
+import { STAGES, stageIndex } from "./stages";
 import type { ChatMessage } from "./types";
 
 export type AgentId = "orchestrator" | "listings" | "prequal" | "crosscheck" | "lease";
@@ -46,7 +47,7 @@ export function deriveActivity(messages: ChatMessage[], pending: boolean, stage:
     o.state = pending ? "working" : "done";
     o.summary = pending
       ? "Working out the next step"
-      : `Handled your request (stage: ${stage.toLowerCase().replace("_", "-")})`;
+      : `Routed your request · now: ${STAGES[stageIndex(stage)].label}`;
   }
   if (props) {
     const n = props.properties.length;

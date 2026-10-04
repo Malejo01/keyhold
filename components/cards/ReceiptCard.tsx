@@ -22,7 +22,7 @@ export function ReceiptCard({ result }: { result: PaymentResult }) {
             Payment confirmed · {title}
           </h3>
           <motion.div variants={pop} initial="hidden" animate="show" transition={{ delay: 0.25 }}>
-            {result.onTime ? (
+            {result.kind === "deposit" ? null : result.onTime ? (
               <Badge tone="success">
                 <ClockIcon className="size-3.5" />
                 On-time payment

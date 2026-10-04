@@ -6,7 +6,7 @@ import type { PaymentKind, PriceQuoteDto } from "@/lib/contracts";
 import { checkDraw, confirmRing, loop, priceRise, spin, swap } from "@/lib/motion/presets";
 import { CountUp } from "../CountUp";
 import { formatBps, formatUsdc } from "../format";
-import { Badge, Button, CardShell, ClockIcon, ShieldIcon, cx } from "../ui";
+import { Badge, Button, CardShell, AlertIcon, ClockIcon, ShieldIcon, cx } from "../ui";
 
 type PayStatus = "idle" | "processing" | "confirmed" | "error";
 
@@ -96,7 +96,7 @@ export function PaymentCard({
           variants={priceRise}
           initial="hidden"
           animate="show"
-          className="mt-1 flex flex-wrap items-baseline gap-x-2 font-display text-4xl font-bold tabular-nums leading-none"
+          className="mt-1 flex flex-wrap items-baseline gap-x-2 font-display text-3xl font-bold tabular-nums leading-none"
         >
           {isRent && quote.discountBps > 0 ? (
             <CountUp from={quote.listBaseUnits} to={quote.amountBaseUnits} />
@@ -194,7 +194,12 @@ export function PaymentCard({
                   Available after the deposit is paid.
                 </p>
               )}
-              {error && <p className="text-sm text-danger">{error}</p>}
+              {error && (
+                <p className="flex items-start gap-1.5 text-sm text-danger">
+                  <AlertIcon className="mt-0.5 size-4 shrink-0" />
+                  {error}
+                </p>
+              )}
             </motion.div>
           )}
         </AnimatePresence>

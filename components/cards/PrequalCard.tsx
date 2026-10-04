@@ -30,6 +30,12 @@ const docLabel: Record<DocType, string> = {
   guarantee: "Guarantee",
 };
 
+const mismatchTag: Partial<Record<IssueEvidence["field"], string>> = {
+  holder_name: "Does not match",
+  payslip_issue_date: "Over 90 days old",
+  rent_to_income: "Above 35% of income",
+};
+
 /** Side-by-side values the deterministic rule compared. The breaking value is marked with an icon and text, not only colour. */
 function EvidenceCompare({ evidence }: { evidence: IssueEvidence }) {
   return (
@@ -49,7 +55,7 @@ function EvidenceCompare({ evidence }: { evidence: IssueEvidence }) {
             {item.mismatch && (
               <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-danger">
                 <CrossIcon className="size-3.5" strokeWidth={3} />
-                Does not match
+                {mismatchTag[evidence.field] ?? "Fails the rule"}
               </p>
             )}
           </li>

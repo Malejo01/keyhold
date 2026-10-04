@@ -61,7 +61,7 @@ export function LeaseTimeline({ stage, className }: { stage: Stage; className?: 
                 />
                 <motion.span
                   aria-hidden="true"
-                  className="absolute inset-0 rounded-full bg-primary"
+                  className="absolute inset-0 rounded-full bg-primary ring-4 ring-primary-soft"
                   variants={timelineDotFill}
                   initial={false}
                   animate={state === "current" ? "current" : "pending"}
@@ -111,14 +111,28 @@ export function LeaseTimeline({ stage, className }: { stage: Stage; className?: 
               )}
 
               {/* Label */}
-              <motion.div className="min-w-0 pt-0.5" variants={timelineLabel} initial={false} animate={state}>
+              <motion.div
+                className={cx(
+                  "min-w-0 flex-1 pt-0.5",
+                  state === "current" && "-mt-0.5 rounded-md bg-primary-soft px-2.5 py-1.5",
+                )}
+                variants={timelineLabel}
+                initial={false}
+                animate={state}
+              >
                 <p
                   className={cx(
                     "text-sm leading-6",
-                    state === "current" ? "font-semibold text-foreground" : "font-medium text-foreground",
+                    state === "current" ? "font-semibold text-primary" : "font-medium text-foreground",
                   )}
                 >
                   {step.label}
+                  {state === "current" && (
+                    <span aria-hidden="true" className="ml-2 rounded-full bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground">
+                      Now
+                    </span>
+                  )}
+                  {state === "done" && <span aria-hidden="true" className="ml-2 text-xs font-semibold text-success">Done</span>}
                   <span className="sr-only"> ({stateText[state]})</span>
                 </p>
                 <p className="text-xs text-muted">{step.hint}</p>
@@ -159,9 +173,9 @@ export function LeaseTimelineCompact({ stage, className }: { stage: Stage; class
       </div>
       <ol className="flex gap-1" aria-hidden="true">
         {STAGES.map((s, i) => (
-          <li key={s.stage} className="h-1.5 flex-1 overflow-hidden rounded-full bg-border">
+          <li key={s.stage} className="h-2 flex-1 overflow-hidden rounded-full bg-border">
             <motion.div
-              className="h-full w-full origin-left bg-primary"
+              className={cx("h-full w-full origin-left", i < current ? "bg-success" : "bg-primary")}
               variants={timelineConnectorX}
               initial={false}
               animate={i <= current ? "done" : "pending"}

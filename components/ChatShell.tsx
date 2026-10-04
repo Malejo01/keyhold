@@ -13,7 +13,7 @@ import { APP_NAME } from "@/lib/config/brand";
 import { Logo } from "./Logo";
 import { PersonaSwitcher } from "./PersonaSwitcher";
 import { PERSONAS, SUGGESTED_PROMPTS, type ChatMessage, type PersistedDemo } from "./types";
-import { SendIcon, cx } from "./ui";
+import { AlertIcon, SendIcon, cx } from "./ui";
 
 const STORAGE_KEY = "demo.session.v2";
 /** Index into SUGGESTED_PROMPTS of the natural next step for each stage. */
@@ -301,8 +301,16 @@ export function ChatShell({ useFixtures }: { useFixtures: boolean }) {
                         m.error && "rounded-bl-sm border border-danger bg-danger-soft text-danger",
                       )}
                     >
-                      {m.error && <span className="sr-only">Error: </span>}
-                      {m.text}
+                      {m.error && (
+                        <span className="flex items-start gap-2">
+                          <AlertIcon className="mt-0.5 size-4 shrink-0" />
+                          <span>
+                            <span className="sr-only">Error: </span>
+                            {m.text}
+                          </span>
+                        </span>
+                      )}
+                      {!m.error && m.text}
                     </div>
                     {m.cards && m.cards.length > 0 && (
                       <motion.div

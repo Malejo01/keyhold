@@ -6,14 +6,10 @@ import type { PaymentKind, PriceQuoteDto } from "@/lib/contracts";
 import { checkDraw, confirmRing, loop, priceRise, spin, swap } from "@/lib/motion/presets";
 import { CountUp } from "../CountUp";
 import { formatBps, formatUsdc } from "../format";
+import { useI18n } from "../I18nProvider";
 import { Badge, Button, CardShell, AlertIcon, ClockIcon, ShieldIcon, cx } from "../ui";
 
 type PayStatus = "idle" | "processing" | "confirmed" | "error";
-
-const kindCopy: Record<PaymentKind, { title: string; action: string }> = {
-  deposit: { title: "Security deposit", action: "Pay deposit" },
-  rent: { title: "Rent payment", action: "Pay rent" },
-};
 
 function Spinner() {
   const reduced = useReducedMotion();
@@ -43,9 +39,11 @@ export function PaymentCard({
   /** Resolves when the server confirmed the payment; rejects with a readable message otherwise. */
   onPay: (kind: PaymentKind) => Promise<void>;
 }) {
+  const { lang, t } = useI18n();
+  const c = t.cards.payment;
   const [status, setStatus] = useState<PayStatus>(alreadyPaid ? "confirmed" : "idle");
   const [error, setError] = useState<string | null>(null);
-  const copy = kindCopy[kind];
+  const copy = c.kind[kind];
   const isRent = kind === "rent";
   const locked = isRent && !depositSecured;
 
@@ -56,14 +54,14 @@ export function PaymentCard({
       await onPay(kind);
       setStatus("confirmed");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "The payment could not be completed.");
+      setError(err instanceof Error ? err.message : c.failed);
       setStatus("error");
     }
   }
 
   const lines = [
-    { key: "usdc", label: "Paid in USDC", bps: quote.breakdown.usdcBps },
-    { key: "ontime", label: "On-time payment", bps: quote.breakdown.ontimeBps },
+    { key: "usdc", label: c.paidInUsdc, bps: quote.breakdown.usdcBps },
+    { key: "ontime", label: c.onTimePayment, bps: quote.breakdown.ontimeBps },
   ];
 
   return (
@@ -77,10 +75,10 @@ export function PaymentCard({
           (quote.onTime ? (
             <Badge tone="success">
               <ClockIcon className="size-3.5" />
-              On time
+              {c.onTime}
             </Badge>
           ) : (
-            <Badge tone="neutral">After due date</Badge>
+            <Badge tone="neutral">{c.afterDue}</Badge>
           ))}
       </div>
 
@@ -88,8 +86,8 @@ export function PaymentCard({
       <div>
         {isRent && (
           <p className="text-sm text-muted">
-            List price{" "}
-            <span className="tabular-nums line-through decoration-2">{formatUsdc(quote.listBaseUnits)}</span>
+            {c.listPrice}{" "}
+            <span className="tabular-nums line-through decoration-2">{formatUsdc(quote.listBaseUnits, lang)}</span>
           </p>
         )}
         <motion.p
@@ -99,11 +97,11 @@ export function PaymentCard({
           className="mt-1 flex flex-wrap items-baseline gap-x-2 font-display text-3xl font-bold tabular-nums leading-none"
         >
           {isRent && quote.discountBps > 0 ? (
-            <CountUp from={quote.listBaseUnits} to={quote.amountBaseUnits} />
+            <CountUp from={quote.listBaseUnits} to={quote.amountBaseUnits} lang={lang} />
           ) : (
-            formatUsdc(quote.amountBaseUnits)
+            formatUsdc(quote.amountBaseUnits, lang)
           )}
-          <span className="text-base font-semibold text-muted">USDC (devnet test token)</span>
+          <span className="text-base font-semibold text-muted">{c.unit}</span>
         </motion.p>
       </div>
 
@@ -117,14 +115,14 @@ export function PaymentCard({
           >
             <span>{l.label}</span>
             <span className={cx("font-semibold tabular-nums", l.bps > 0 && "text-success")}>
-              {l.bps > 0 ? `−${formatBps(l.bps)}` : "not applied"}
+              {l.bps > 0 ? `−${formatBps(l.bps, lang)}` : c.notApplied}
             </span>
           </li>
         ))}
         <li className="mt-1 flex items-center justify-between gap-3 border-t border-border pt-2 font-semibold">
-          <span>Total discount</span>
+          <span>{c.totalDiscount}</span>
           <span className="tabular-nums">
-            {quote.discountBps > 0 ? `−${formatBps(quote.discountBps)}` : "none"}
+            {quote.discountBps > 0 ? `−${formatBps(quote.discountBps, lang)}` : c.none}
           </span>
         </li>
       </ul>
@@ -156,7 +154,7 @@ export function PaymentCard({
                   </svg>
                 </span>
               </span>
-              Payment confirmed
+              {c.confirmed}
             </motion.div>
           ) : status === "processing" ? (
             <motion.div
@@ -168,7 +166,7 @@ export function PaymentCard({
               className="flex items-center gap-2 rounded-md bg-primary-soft px-3 py-2.5 text-sm font-semibold text-primary"
             >
               <Spinner />
-              Confirming your payment…
+              {c.processing}
             </motion.div>
           ) : (
             <motion.div
@@ -186,12 +184,12 @@ export function PaymentCard({
                 className="w-full sm:w-auto sm:self-start"
               >
                 {status === "error"
-                  ? "Try again"
-                  : `${copy.action} · ${formatUsdc(quote.amountBaseUnits)} USDC`}
+                  ? c.tryAgain
+                  : c.actionWithAmount(copy.action, formatUsdc(quote.amountBaseUnits, lang))}
               </Button>
               {locked && (
                 <p id={`pay-hint-${kind}`} className="text-xs text-muted">
-                  Available after the deposit is paid.
+                  {c.locked}
                 </p>
               )}
               {error && (

@@ -5,6 +5,7 @@ import { useState } from "react";
 import type { LeaseDraft, VerifyResponse } from "@/lib/contracts";
 import { pop, swap } from "@/lib/motion/presets";
 import { formatBps, formatUsdcAmount, shortHash } from "../format";
+import { useI18n } from "../I18nProvider";
 import { Badge, Button, CardShell, CheckIcon, CrossIcon, FileIcon, cx } from "../ui";
 
 type VerifyState =
@@ -23,6 +24,8 @@ export function ContractCard({
   depositSignature: string | undefined;
   onVerify: (contractText: string, signature: string) => Promise<VerifyResponse>;
 }) {
+  const { lang, t } = useI18n();
+  const c = t.cards.contract;
   const [verify, setVerify] = useState<VerifyState>({ status: "idle" });
   const canVerify = Boolean(depositSignature);
 
@@ -33,37 +36,37 @@ export function ContractCard({
       const result = await onVerify(lease.contractText, depositSignature);
       setVerify({ status: "done", result });
     } catch (err) {
-      setVerify({ status: "error", message: err instanceof Error ? err.message : "Verification failed." });
+      setVerify({ status: "error", message: err instanceof Error ? err.message : c.failed });
     }
   }
 
   return (
-    <CardShell label="Lease contract" className="flex flex-col gap-4">
+    <CardShell label={c.region} className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="flex items-center gap-2 font-display text-base font-semibold">
           <FileIcon className="size-5 text-primary" />
-          Lease contract
+          {c.title}
         </h3>
-        <Badge tone="primary">{lease.months} months</Badge>
+        <Badge tone="primary">{c.months(lease.months)}</Badge>
       </div>
 
       <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
         <div>
-          <dt className="text-xs text-muted">Monthly rent</dt>
-          <dd className="font-semibold tabular-nums">{formatUsdcAmount(lease.rentBaseUnits)}</dd>
+          <dt className="text-xs text-muted">{c.rent}</dt>
+          <dd className="font-semibold tabular-nums">{formatUsdcAmount(lease.rentBaseUnits, lang)}</dd>
         </div>
         <div>
-          <dt className="text-xs text-muted">Deposit</dt>
-          <dd className="font-semibold tabular-nums">{formatUsdcAmount(lease.depositBaseUnits)}</dd>
+          <dt className="text-xs text-muted">{c.deposit}</dt>
+          <dd className="font-semibold tabular-nums">{formatUsdcAmount(lease.depositBaseUnits, lang)}</dd>
         </div>
         <div>
-          <dt className="text-xs text-muted">Start date</dt>
+          <dt className="text-xs text-muted">{c.start}</dt>
           <dd className="font-semibold">{lease.startDate}</dd>
         </div>
         <div>
-          <dt className="text-xs text-muted">Discounts</dt>
+          <dt className="text-xs text-muted">{c.discounts}</dt>
           <dd className="font-semibold">
-            −{formatBps(lease.discountUsdcBps)} USDC, −{formatBps(lease.discountOntimeBps)} on time
+            {c.discountsValue(formatBps(lease.discountUsdcBps, lang), formatBps(lease.discountOntimeBps, lang))}
           </dd>
         </div>
       </dl>
@@ -71,14 +74,14 @@ export function ContractCard({
       <div
         tabIndex={0}
         role="region"
-        aria-label="Contract text"
+        aria-label={c.textLabel}
         className="scroll-thin max-h-56 overflow-y-auto whitespace-pre-wrap rounded-md border border-border bg-sunken p-3 font-mono text-xs leading-relaxed"
       >
         {lease.contractText}
       </div>
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
-        <span>Contract fingerprint (SHA-256)</span>
+        <span>{c.fingerprint}</span>
         <code className="rounded bg-sunken px-2 py-1 font-mono text-foreground" title={lease.contractHash}>
           {shortHash(lease.contractHash, 10, 8)}
         </code>
@@ -92,16 +95,16 @@ export function ContractCard({
             disabled={verify.status === "checking"}
             aria-describedby="verify-hint"
           >
-            {verify.status === "checking" ? "Verifying…" : "Verify"}
+            {verify.status === "checking" ? c.verifying : c.verify}
           </Button>
           {!canVerify && (
             <p id="verify-hint" className="text-xs text-muted">
-              Available after the deposit is paid.
+              {c.hintLocked}
             </p>
           )}
           {canVerify && verify.status === "idle" && (
             <p id="verify-hint" className="text-xs text-muted">
-              Checks this text against the fingerprint recorded with your deposit payment.
+              {c.hintReady}
             </p>
           )}
         </div>
@@ -139,17 +142,13 @@ export function ContractCard({
                 </motion.span>
                 <div className="min-w-0">
                   <p className={cx("font-semibold", verify.result.match ? "text-success" : "text-danger")}>
-                    {verify.result.match
-                      ? "Match: this is the contract you paid against"
-                      : "Mismatch: the text was changed"}
+                    {verify.result.match ? c.match : c.mismatch}
                   </p>
                   <p className="mt-1 break-all font-mono text-xs text-muted">
-                    Computed {shortHash(verify.result.computedHash, 10, 8)}
+                    {c.computed} {shortHash(verify.result.computedHash, 10, 8)}
                     <br />
-                    Stored{" "}
-                    {verify.result.memoHash
-                      ? shortHash(verify.result.memoHash, 10, 8)
-                      : "not found on the payment"}
+                    {c.stored}{" "}
+                    {verify.result.memoHash ? shortHash(verify.result.memoHash, 10, 8) : c.notFound}
                   </p>
                 </div>
               </motion.div>

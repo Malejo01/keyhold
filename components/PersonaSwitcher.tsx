@@ -3,23 +3,25 @@
 import { LayoutGroup, motion } from "framer-motion";
 import type { TenantId } from "@/lib/contracts";
 import { spring } from "@/lib/motion/presets";
+import { useI18n } from "./I18nProvider";
 import { PERSONAS } from "./types";
 import { cx } from "./ui";
 
 export function PersonaSwitcher({ value, onChange }: { value: TenantId; onChange: (id: TenantId) => void }) {
+  const { t } = useI18n();
   return (
     <div className="flex items-center gap-2">
       <span
         id="persona-label"
         className="hidden text-xs font-medium uppercase tracking-wide text-muted sm:inline"
       >
-        Demo tenant
+        {t.persona.label}
       </span>
       <LayoutGroup id="persona">
         <div
           role="radiogroup"
           aria-labelledby="persona-label"
-          aria-label="Demo tenant"
+          aria-label={t.persona.label}
           className="inline-flex rounded-full border border-border bg-sunken p-1"
         >
           {PERSONAS.map((p) => {

@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import type { ReactNode } from "react";
 import { agentLine, agentState, reviewLink } from "@/lib/motion/presets";
 import type { AgentId, AgentRow } from "./deriveAgents";
+import { useI18n } from "./I18nProvider";
 import { AlertIcon, CheckIcon, FileIcon, PinIcon, ShieldIcon, cx } from "./ui";
 
 const ICONS: Record<AgentId, (cls: string) => ReactNode> = {
@@ -50,10 +51,11 @@ function Avatar({ row, size }: { row: AgentRow; size: "sm" | "md" }) {
 
 /** Full list for the desktop sidebar. The connector shows the cross-check reviewing pre-qualification. */
 export function AgentActivity({ rows, className }: { rows: AgentRow[]; className?: string }) {
+  const { t } = useI18n();
   const latest = [...rows].reverse().find((r) => r.summary);
   return (
-    <section aria-label="Agent activity" className={className}>
-      <h2 className="font-display text-sm font-semibold uppercase tracking-wide text-muted">Agent activity</h2>
+    <section aria-label={t.agents.title} className={className}>
+      <h2 className="font-display text-sm font-semibold uppercase tracking-wide text-muted">{t.agents.title}</h2>
       <p role="status" aria-live="polite" className="sr-only">
         {latest ? `${latest.name}: ${latest.summary}` : ""}
       </p>
@@ -82,7 +84,7 @@ export function AgentActivity({ rows, className }: { rows: AgentRow[]; className
               <motion.div variants={agentState} initial={false} animate={r.state} className="min-w-0 pt-1">
                 <p className={cx("text-sm font-semibold leading-5", r.state === "idle" && "text-muted")}>
                   {r.name}
-                  {reviewed && <span className="ml-1.5 text-xs font-medium text-accent">reviewed by cross-check</span>}
+                  {reviewed && <span className="ml-1.5 text-xs font-medium text-accent">{t.agents.reviewedBy}</span>}
                 </p>
                 {r.summary ? (
                   <motion.p
@@ -108,16 +110,17 @@ export function AgentActivity({ rows, className }: { rows: AgentRow[]; className
 
 /** Compact strip for small screens: five avatars and the most recent line. */
 export function AgentActivityCompact({ rows }: { rows: AgentRow[] }) {
+  const { t } = useI18n();
   const latest = [...rows].reverse().find((r) => r.summary);
   return (
-    <div aria-label="Agent activity" role="group" className="flex flex-col gap-1.5">
+    <div aria-label={t.agents.title} role="group" className="flex flex-col gap-1.5">
       <ul className="flex items-center gap-2">
         {rows.map((r, i) => (
           <li key={r.id} className="flex items-center gap-2">
             <span title={r.name}>
               <Avatar row={r} size="sm" />
               <span className="sr-only">
-                {r.name}: {r.summary ?? "waiting"}
+                {r.name}: {r.summary ?? t.agents.waiting}
               </span>
             </span>
             {i < rows.length - 1 && (
@@ -130,7 +133,7 @@ export function AgentActivityCompact({ rows }: { rows: AgentRow[] }) {
         ))}
       </ul>
       <p aria-live="polite" className="truncate text-xs text-muted">
-        {latest ? `${latest.name}: ${latest.summary}` : "Agents light up as they work."}
+        {latest ? `${latest.name}: ${latest.summary}` : t.agents.idleHint}
       </p>
     </div>
   );

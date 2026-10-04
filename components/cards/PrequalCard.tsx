@@ -1,43 +1,22 @@
 "use client";
 
 import { motion, useReducedMotion } from "framer-motion";
-import type { DocType, FinalDecision, Issue, IssueCode, IssueEvidence, PrequalStatus } from "@/lib/contracts";
+import type { FinalDecision, Issue, IssueEvidence, PrequalStatus } from "@/lib/contracts";
 import { insightHalo, pop } from "@/lib/motion/presets";
+import { useI18n } from "../I18nProvider";
 import { AlertIcon, Badge, Button, CardShell, CheckIcon, CrossIcon, ShieldIcon, cx } from "../ui";
+import { evidenceLabel, evidenceValue, issueMessage, mismatchTag, ruleText } from "./prequalCopy";
 
-const statusLabel: Record<PrequalStatus, string> = {
-  APPROVED: "Approved",
-  NEEDS_INFO: "More information needed",
-  REJECTED: "Not eligible",
-};
 const statusTone: Record<PrequalStatus, "success" | "warning" | "danger"> = {
   APPROVED: "success",
   NEEDS_INFO: "warning",
   REJECTED: "danger",
 };
 
-const issueLabel: Record<IssueCode, string> = {
-  missing_document: "Missing document",
-  expired_payslip: "Payslip out of date",
-  name_mismatch: "Name does not match",
-  income_ratio_exceeded: "Income too low for this rent",
-};
-
-const docLabel: Record<DocType, string> = {
-  dni: "ID",
-  payslip: "Payslip",
-  income_proof: "Income proof",
-  guarantee: "Guarantee",
-};
-
-const mismatchTag: Partial<Record<IssueEvidence["field"], string>> = {
-  holder_name: "Does not match",
-  payslip_issue_date: "Over 90 days old",
-  rent_to_income: "Above 35% of income",
-};
-
 /** Side-by-side values the deterministic rule compared. The breaking value is marked with an icon and text, not only colour. */
 function EvidenceCompare({ evidence }: { evidence: IssueEvidence }) {
+  const { lang, t } = useI18n();
+  const c = t.cards.prequal;
   return (
     <div className="mt-2">
       <ul className="grid gap-2 sm:grid-cols-2">
@@ -49,21 +28,21 @@ function EvidenceCompare({ evidence }: { evidence: IssueEvidence }) {
               item.mismatch ? "border-danger bg-danger-soft" : "border-border bg-surface",
             )}
           >
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted">{docLabel[item.docType]}</p>
-            <p className="text-xs text-muted">{item.label}</p>
-            <p className="mt-0.5 break-words font-mono text-sm font-semibold">{item.value}</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted">{c.docLabel[item.docType]}</p>
+            <p className="text-xs text-muted">{evidenceLabel(t, item)}</p>
+            <p className="mt-0.5 break-words font-mono text-sm font-semibold">{evidenceValue(t, lang, evidence, item)}</p>
             {item.mismatch && (
               <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-danger">
                 <CrossIcon className="size-3.5" strokeWidth={3} />
-                {mismatchTag[evidence.field] ?? "Fails the rule"}
+                {mismatchTag(t, lang, evidence)}
               </p>
             )}
           </li>
         ))}
       </ul>
       <p className="mt-2 text-xs text-muted">
-        <span className="font-semibold text-foreground">Rule: </span>
-        {evidence.rule}
+        <span className="font-semibold text-foreground">{c.ruleLabel}</span>
+        {ruleText(t, lang, evidence)}
       </p>
     </div>
   );
@@ -95,6 +74,8 @@ export function PrequalCard({
   onGenerateContract: () => void;
 }) {
   const reduced = useReducedMotion();
+  const { lang, t } = useI18n();
+  const c = t.cards.prequal;
   const crosscheckDecided = decision.decidedBy === "crosscheck";
   const issues = mergeIssues(decision);
   const tone = statusTone[decision.status];
@@ -111,7 +92,7 @@ export function PrequalCard({
         />
       )}
       <CardShell
-        label="Pre-qualification result"
+        label={c.region}
         className={cx("flex flex-col gap-4", crosscheckDecided && "border-accent")}
       >
         {/* The aha moment */}
@@ -120,17 +101,15 @@ export function PrequalCard({
             <ShieldIcon className="mt-0.5 size-5 shrink-0" />
             <div>
               <p className="font-display text-sm font-semibold leading-snug">
-                Independent cross-check found a discrepancy
+                {c.bannerTitle}
               </p>
-              <p className="mt-0.5 text-xs opacity-90">
-                A second agent read the same documents on its own and disagreed with the first result.
-              </p>
+              <p className="mt-0.5 text-xs opacity-90">{c.bannerText}</p>
             </div>
           </div>
         )}
 
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="font-display text-base font-semibold">Pre-qualification</h3>
+          <h3 className="font-display text-base font-semibold">{c.title}</h3>
           <motion.div variants={pop} initial="hidden" animate="show">
             <Badge tone={tone}>
               {decision.status === "APPROVED" ? (
@@ -138,7 +117,7 @@ export function PrequalCard({
               ) : (
                 <AlertIcon className="size-3.5" />
               )}
-              {statusLabel[decision.status]}
+              {c.status[decision.status]}
             </Badge>
           </motion.div>
         </div>
@@ -147,24 +126,24 @@ export function PrequalCard({
         {crosscheckDecided && (
           <div className="grid gap-2 text-sm sm:grid-cols-[1fr_auto_1fr] sm:items-center">
             <div className="rounded-md bg-sunken p-3">
-              <p className="text-xs uppercase tracking-wide text-muted">First review</p>
+              <p className="text-xs uppercase tracking-wide text-muted">{c.firstReview}</p>
               <p className="mt-1 flex items-center gap-1.5 font-semibold">
                 {decision.prequal.status === "APPROVED" ? (
                   <CheckIcon className="size-4 text-success" strokeWidth={3} />
                 ) : (
                   <AlertIcon className="size-4 text-warning" />
                 )}
-                {statusLabel[decision.prequal.status]}
+                {c.status[decision.prequal.status]}
               </p>
             </div>
             <span aria-hidden="true" className="hidden text-center text-muted sm:block">
-              vs
+              {c.vs}
             </span>
             <div className="rounded-md bg-accent-soft p-3">
-              <p className="text-xs uppercase tracking-wide text-accent">Cross-check</p>
+              <p className="text-xs uppercase tracking-wide text-accent">{c.crosscheck}</p>
               <p className="mt-1 flex items-center gap-1.5 font-semibold">
                 <CrossIcon className="size-4 text-accent" strokeWidth={3} />
-                Discrepancy found
+                {c.discrepancyFound}
               </p>
             </div>
           </div>
@@ -174,7 +153,7 @@ export function PrequalCard({
         {issues.length > 0 && (
           <div>
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
-              {crosscheckDecided ? "What the cross-check found" : "Why"}
+              {crosscheckDecided ? c.whatFound : c.why}
             </p>
             <ul className="flex flex-col gap-2">
               {issues.map((issue, i) => (
@@ -197,10 +176,10 @@ export function PrequalCard({
                   />
                   <div>
                     <p className="font-semibold">
-                      {issueLabel[issue.code]}
-                      {issue.docType ? ` · ${docLabel[issue.docType]}` : ""}
+                      {c.issueLabel[issue.code]}
+                      {issue.docType ? ` · ${c.docLabel[issue.docType]}` : ""}
                     </p>
-                    <p className="text-muted">{issue.message}</p>
+                    <p className="text-muted">{issueMessage(t, lang, issue)}</p>
                     {issue.evidence && <EvidenceCompare evidence={issue.evidence} />}
                   </div>
                 </li>
@@ -214,13 +193,13 @@ export function PrequalCard({
           <div className="rounded-md bg-success-soft p-3 text-sm">
             <p className="flex items-center gap-2 font-semibold text-success">
               <CheckIcon className="size-4" strokeWidth={3} />
-              All checks passed, and the independent cross-check agrees.
+              {c.allPassed}
             </p>
             {decision.prequal.extracted.documentsPresent.length > 0 && (
               <ul className="mt-2 flex flex-wrap gap-1.5">
                 {decision.prequal.extracted.documentsPresent.map((d) => (
                   <li key={d} className="rounded-full bg-surface px-2.5 py-1 text-xs text-muted">
-                    {docLabel[d]}
+                    {c.docLabel[d]}
                   </li>
                 ))}
               </ul>
@@ -229,14 +208,12 @@ export function PrequalCard({
         )}
 
         {decision.status === "NEEDS_INFO" && (
-          <p className="text-sm text-muted">
-            The agency can continue once the items above are fixed. Upload the updated documents to try again.
-          </p>
+          <p className="text-sm text-muted">{c.needsInfoFooter}</p>
         )}
 
         {canGenerateContract && (
           <Button onClick={generating ? undefined : onGenerateContract} aria-disabled={generating || undefined} className="self-start">
-            {generating ? "Preparing contract…" : "Generate the contract"}
+            {generating ? c.preparing : c.generate}
           </Button>
         )}
       </CardShell>

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PayResponse, PaymentKind, SignedSession } from "@/lib/contracts";
+import { useI18n } from "../I18nProvider";
 import { Button, AlertIcon, ShieldIcon } from "../ui";
 
 /** Feature flag, inlined at build time. Off unless NEXT_PUBLIC_SOLANA_PAY=1. */
@@ -19,14 +20,14 @@ interface Ticket {
 
 type Phase = "closed" | "loading" | "waiting" | "expired" | "error";
 
-async function postJson<T>(url: string, body: unknown): Promise<T> {
+async function postJson<T>(url: string, body: unknown, failed: (status: number) => string): Promise<T> {
   const res = await fetch(url, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
   const data = (await res.json().catch(() => null)) as { error?: string } | null;
-  if (!res.ok) throw new Error(data?.error ?? `Request failed (${res.status}).`);
+  if (!res.ok) throw new Error(data?.error ?? failed(res.status));
   return data as T;
 }
 
@@ -86,6 +87,8 @@ export function SolanaPayQr({
   /** Called once with the server's receipt and the updated signed session. */
   onConfirmed: (res: PayResponse) => void;
 }) {
+  const { t } = useI18n();
+  const sp = t.solanaPay;
   const [phase, setPhase] = useState<Phase>("closed");
   const [ticket, setTicket] = useState<Ticket | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -101,7 +104,7 @@ export function SolanaPayQr({
   const open = useCallback(async () => {
     const session = getSessionRef.current();
     if (!session) {
-      setError("Start the conversation first.");
+      setError(sp.startFirst);
       setPhase("error");
       return;
     }
@@ -109,14 +112,14 @@ export function SolanaPayQr({
     setError(null);
     done.current = false;
     try {
-      const t = await postJson<Ticket>("/api/solana-pay/ticket", { kind, session });
+      const t = await postJson<Ticket>("/api/solana-pay/ticket", { kind, session }, sp.requestFailed);
       setTicket(t);
       setPhase("waiting");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not create the payment QR.");
+      setError(err instanceof Error ? err.message : sp.createFailed);
       setPhase("error");
     }
-  }, [kind]);
+  }, [kind, sp]);
 
   useEffect(() => {
     if (phase !== "waiting" || !ticket) return;
@@ -135,6 +138,7 @@ export function SolanaPayQr({
         const res = await postJson<{ status: "pending" } | ({ status: "confirmed" } & PayResponse)>(
           "/api/solana-pay/status",
           { ticket: ticket.ticket, session },
+          sp.requestFailed,
         );
         if (stopped || done.current) return;
         if (res.status === "confirmed") {
@@ -151,37 +155,35 @@ export function SolanaPayQr({
       stopped = true;
       clearInterval(timer);
     };
-  }, [phase, ticket]);
+  }, [phase, ticket, sp]);
 
   if (phase === "closed") {
     return (
       <Button variant="secondary" onClick={() => void open()} className="w-full sm:w-auto sm:self-start">
         <ShieldIcon className="size-4" />
-        Pay with a Solana wallet (QR)
+        {sp.button}
       </Button>
     );
   }
 
   return (
     <div className="flex flex-col gap-3 rounded-md border border-border bg-sunken p-3">
-      {phase === "loading" && <p className="text-sm text-muted">Creating your payment QR…</p>}
+      {phase === "loading" && <p className="text-sm text-muted">{sp.creating}</p>}
 
       {phase === "waiting" && ticket && (
         <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
-          <QrSvg text={ticket.url} label="Solana Pay QR code for this payment" />
+          <QrSvg text={ticket.url} label={sp.qrLabel} />
           <div className="flex flex-col gap-2 text-sm">
-            <p className="font-semibold">Scan with a Solana wallet</p>
-            <p className="text-muted">
-              Set the wallet to devnet. It needs devnet test USDC; the platform pays the network fee.
-            </p>
+            <p className="font-semibold">{sp.scan}</p>
+            <p className="text-muted">{sp.walletNote}</p>
             <a
               href={ticket.url}
               className="self-start font-semibold text-primary underline-offset-2 hover:underline"
             >
-              Open in wallet app
+              {sp.openWallet}
             </a>
             <p className="text-muted" aria-live="polite">
-              Waiting for the payment to confirm on devnet…
+              {sp.waiting}
             </p>
           </div>
         </div>
@@ -191,10 +193,10 @@ export function SolanaPayQr({
         <div className="flex flex-col gap-2">
           <p className="flex items-start gap-1.5 text-sm text-danger">
             <AlertIcon className="mt-0.5 size-4 shrink-0" />
-            {phase === "expired" ? "This QR expired. Create a new one." : error}
+            {phase === "expired" ? sp.expired : error}
           </p>
           <Button variant="secondary" onClick={() => void open()} className="self-start">
-            New QR
+            {sp.newQr}
           </Button>
         </div>
       )}

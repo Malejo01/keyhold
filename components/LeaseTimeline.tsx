@@ -12,7 +12,8 @@ import {
   timelineDotFill,
   timelineLabel,
 } from "@/lib/motion/presets";
-import { STAGES, stageIndex } from "./stages";
+import { useI18n } from "./I18nProvider";
+import { STAGE_ORDER, stageIndex } from "./stages";
 import { CheckIcon, cx } from "./ui";
 
 type StepState = "pending" | "current" | "done";
@@ -23,26 +24,22 @@ function stateOf(index: number, current: number): StepState {
   return "pending";
 }
 
-const stateText: Record<StepState, string> = {
-  done: "completed",
-  current: "current step",
-  pending: "upcoming",
-};
-
 /** Full vertical stepper (desktop sidebar). */
 export function LeaseTimeline({ stage, className }: { stage: Stage; className?: string }) {
+  const { t } = useI18n();
   const current = stageIndex(stage);
   const reduced = useReducedMotion();
 
   return (
-    <nav aria-label="Lease timeline" className={className}>
+    <nav aria-label={t.timeline.label} className={className}>
       <ol className="flex flex-col">
-        {STAGES.map((step, i) => {
+        {STAGE_ORDER.map((stageKey, i) => {
+          const step = t.stages[stageKey];
           const state = stateOf(i, current);
-          const isLast = i === STAGES.length - 1;
+          const isLast = i === STAGE_ORDER.length - 1;
           return (
             <li
-              key={step.stage}
+              key={stageKey}
               aria-current={state === "current" ? "step" : undefined}
               className={cx("relative flex gap-3", !isLast && "pb-4")}
             >
@@ -129,11 +126,11 @@ export function LeaseTimeline({ stage, className }: { stage: Stage; className?: 
                   {step.label}
                   {state === "current" && (
                     <span aria-hidden="true" className="ml-2 rounded-full bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground">
-                      Now
+                      {t.timeline.now}
                     </span>
                   )}
-                  {state === "done" && <span aria-hidden="true" className="ml-2 text-xs font-semibold text-success">Done</span>}
-                  <span className="sr-only"> ({stateText[state]})</span>
+                  {state === "done" && <span aria-hidden="true" className="ml-2 text-xs font-semibold text-success">{t.timeline.done}</span>}
+                  <span className="sr-only"> ({t.timeline.state[state]})</span>
                 </p>
                 {state === "current" && <p className="text-xs text-muted">{step.hint}</p>}
               </motion.div>
@@ -147,19 +144,21 @@ export function LeaseTimeline({ stage, className }: { stage: Stage; className?: 
 
 /** Compact progress strip for narrow screens. */
 export function LeaseTimelineCompact({ stage, className }: { stage: Stage; className?: string }) {
+  const { t } = useI18n();
   const current = stageIndex(stage);
-  const step = STAGES[current];
+  const stageKey = STAGE_ORDER[current];
+  const step = t.stages[stageKey];
 
   return (
-    <nav aria-label="Lease timeline" className={className}>
+    <nav aria-label={t.timeline.label} className={className}>
       <div className="mb-2 flex items-baseline justify-between gap-3">
         <p className="text-xs font-medium uppercase tracking-wide text-muted">
-          Step {current + 1} of {STAGES.length}
+          {t.timeline.stepOf(current + 1, STAGE_ORDER.length)}
         </p>
         <div className="relative h-5 min-w-0 overflow-hidden text-right">
           <AnimatePresence mode="wait" initial={false}>
             <motion.p
-              key={step.stage}
+              key={stageKey}
               variants={swap}
               initial="initial"
               animate="animate"
@@ -172,8 +171,8 @@ export function LeaseTimelineCompact({ stage, className }: { stage: Stage; class
         </div>
       </div>
       <ol className="flex gap-1" aria-hidden="true">
-        {STAGES.map((s, i) => (
-          <li key={s.stage} className="h-2 flex-1 overflow-hidden rounded-full bg-border">
+        {STAGE_ORDER.map((s, i) => (
+          <li key={s} className="h-2 flex-1 overflow-hidden rounded-full bg-border">
             <motion.div
               className={cx("h-full w-full origin-left", i < current ? "bg-success" : "bg-primary")}
               variants={timelineConnectorX}

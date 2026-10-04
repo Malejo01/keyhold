@@ -11,14 +11,13 @@
 //  - DATABASE_URL unset: the legacy path (HMAC blob + per-instance in-flight guard), plus the storage-free
 //    issuedAt checks inside verifySession.
 import type { PublicKey } from "@solana/web3.js";
-import { z } from "zod";
-import type { PayRequest, PayResponse, PaymentIntent, PaymentKind, PaymentResult, SessionState } from "@/lib/contracts";
+import type { PayResponse, PaymentIntent, PaymentKind, PaymentResult, SessionState } from "@/lib/contracts";
 import { buildPaymentIntent } from "@/lib/agents/lease";
 import { applyEvent } from "@/lib/agents/orchestrator";
 import { getDb, type Db } from "@/lib/db/client";
 import { jsonError, logError, parseBody, sessionErrorResponse } from "@/lib/db/http";
 import { ensureReferenceData } from "@/lib/db/reference";
-import { signedSessionSchema } from "@/lib/db/schemas";
+import { payRequestSchema } from "@/lib/db/schemas";
 import { signSession, verifySession } from "@/lib/db/session";
 import {
   claimPayment,
@@ -43,11 +42,6 @@ import { custodialOnly, solanaPayEnabled, validateParamsFor } from "@/lib/solana
 import { slotReference } from "@/lib/solana/solana-pay-ticket";
 
 export const runtime = "nodejs";
-
-const payRequestSchema: z.ZodType<PayRequest> = z.object({
-  kind: z.enum(["deposit", "rent"]),
-  session: signedSessionSchema,
-});
 
 /**
  * In-process guard against a double submit of the same session: the session blob is client-held, so

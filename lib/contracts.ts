@@ -4,9 +4,9 @@
  *
  * Function entry points each owner must export (signatures are part of the contract):
  *
- *   lib/agents/orchestrator.ts  runTurn(state: SessionState, message: string): Promise<TurnResult>
+ *   lib/agents/orchestrator.ts  runTurn(state: SessionState, message: string, lang?: Lang): Promise<TurnResult>
  *   lib/agents/prequal.ts       evaluateTenant(tenantId: TenantId): Promise<FinalDecision>   // prequal + crosscheck + rules
- *   lib/agents/lease.ts         createLeaseDraft(tenantId: TenantId, propertyId: string): LeaseDraft
+ *   lib/agents/lease.ts         createLeaseDraft(tenantId: TenantId, propertyId: string, lang?: Lang): LeaseDraft
  *                               buildPaymentIntent(lease: LeaseDraft, kind: PaymentKind, monthIndex?: number): PaymentIntent
  *   lib/rules/pricing.ts        computePrice(input: PricingInput): PriceQuote
  *   lib/solana/hash.ts          sha256Hex(text: string): string                              // node:crypto only
@@ -31,14 +31,21 @@ export type Stage =
 
 export type DocType = 'dni' | 'payslip' | 'income_proof' | 'guarantee';
 
+/** UI / agent language. The route language (`lang` on the requests) overrides detection from the message text. */
+export type Lang = 'es' | 'en';
+
 export interface Property {
   id: string;
   title: string;
+  /** Spanish title (optional; English `title` is the fallback). */
+  titleEs?: string;
   zone: string;
   priceUsdc: number;
   bedrooms: number;
   petsAllowed: boolean;
   description: string;
+  /** Spanish description (optional; English `description` is the fallback). */
+  descriptionEs?: string;
 }
 
 // ---------- Prequal / crosscheck ----------
@@ -53,19 +60,47 @@ export type IssueCode =
 
 export type IssueEvidenceField = 'holder_name' | 'payslip_issue_date' | 'rent_to_income';
 
+/** Stable keys of the deterministic rules, for the UI to translate. Set by lib/rules only. */
+export type RuleKey = 'name_must_match_id' | 'payslip_max_90_days' | 'rent_max_35_pct_income';
+
+/** Stable label keys of the compared values (translatable). */
+export type EvidenceLabelKey =
+  | 'name_on_id'
+  | 'name_on_document'
+  | 'payslip_issue_date'
+  | 'reference_date'
+  | 'monthly_income'
+  | 'monthly_rent';
+
 /** One value shown side by side in the UI. Simulated demo data only; never written on-chain. */
 export interface IssueEvidenceItem {
   docType: DocType;
+  /** English label, kept for the API and back-compat. Prefer `labelKey` for rendering. */
   label: string;
+  /** English display value (may contain English words, e.g. "2026-06-05 (120 days old)"). Prefer `raw` plus `IssueEvidence.params`. */
   value: string;
   /** True on the value that breaks the rule. */
   mismatch?: boolean;
+  /** Language-neutral label key. Always set by lib/rules (optional only so older fixtures still type-check). */
+  labelKey?: EvidenceLabelKey;
+  /** Language-neutral value: a name as written, an ISO date (YYYY-MM-DD) or a plain USDC number. */
+  raw?: string;
 }
 
 /** What the deterministic rule compared, so the UI can show it. Filled by lib/rules only. */
 export interface IssueEvidence {
   field: IssueEvidenceField;
+  /** English rule sentence, kept for the API and back-compat. */
   rule: string;
+  /** Language-neutral rule key. Always set by lib/rules (optional only so older fixtures still type-check). */
+  ruleKey?: RuleKey;
+  /**
+   * Language-neutral numbers/strings the UI needs to phrase the reason, by `field`:
+   *   payslip_issue_date: { ageDays, maxAgeDays, asOf }
+   *   rent_to_income:     { rentPct, maxPct }
+   *   holder_name:        none (the names are in `compared[].raw`)
+   */
+  params?: Record<string, string | number>;
   compared: IssueEvidenceItem[];
 }
 
@@ -125,6 +160,11 @@ export interface LeaseDraft {
   dueTs: number;
   discountUsdcBps: number;
   discountOntimeBps: number;
+  /**
+   * Language of `contractText`. The hash is over the exact text in that language, so the same lease
+   * has a different hash in ES and EN. Absent on sessions created before bilingual support (English).
+   */
+  lang?: Lang;
   contractText: string;
   /** sha256 hex of contractText. */
   contractHash: string;
@@ -267,6 +307,8 @@ export interface ChatRequest {
   session?: SignedSession;
   /** Demo persona switcher. Changing it resets the session. */
   tenantId?: TenantId;
+  /** Route language. When present it overrides language detection; absent (old clients, e2e): detected from `message`. */
+  lang?: Lang;
 }
 export interface ChatResponse {
   reply: string;
@@ -278,6 +320,8 @@ export interface ChatResponse {
 /** POST /api/lease — re-runs evaluateTenant on the server; 409 unless APPROVED. */
 export interface LeaseRequest {
   session: SignedSession;
+  /** Language of the generated contract. Absent: English. */
+  lang?: Lang;
 }
 export interface LeaseResponse {
   lease: LeaseDraft;
@@ -288,6 +332,8 @@ export interface LeaseResponse {
 export interface PayRequest {
   kind: PaymentKind;
   session: SignedSession;
+  /** Route language (accepted for symmetry; the payment itself is language-neutral). */
+  lang?: Lang;
 }
 export interface PayResponse {
   result: PaymentResult;

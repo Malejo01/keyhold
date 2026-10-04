@@ -58,3 +58,14 @@ describe('crosscheck rules', () => {
     expect(final).toMatchObject({ status: 'APPROVED', decidedBy: 'prequal' });
   });
 });
+
+describe('name_mismatch evidence keys', () => {
+  it('carries ruleKey, labelKeys and the raw names', () => {
+    const ev = findCrosscheckIssues(docs('Camila Demo Inventada'), ctx)[0]?.evidence;
+    expect(ev?.ruleKey).toBe('name_must_match_id');
+    expect(ev?.compared.map((c) => [c.labelKey, c.raw, Boolean(c.mismatch)])).toEqual([
+      ['name_on_id', 'DEMO INVENTADA, CARLA BEATRIZ', false],
+      ['name_on_document', 'Camila Demo Inventada', true],
+    ]);
+  });
+});

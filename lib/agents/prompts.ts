@@ -1,4 +1,5 @@
 import { APP_NAME } from '../config/brand';
+import type { Lang } from '../contracts';
 import type { SeedDocument } from './tenants';
 import type { UploadedDocument } from './uploads';
 
@@ -69,6 +70,21 @@ Rules:
 - Reply in the user's language (Rioplatense Spanish if they write in Spanish). Keep replies under 90 words.
 
 ${COMMON_RULES}`;
+
+/**
+ * Listings system prompt for the route language. The system prompt is not part of the replay key, so adding the
+ * language line does not invalidate recordings.
+ */
+export function listingsSystem(lang: Lang): string {
+  const language =
+    lang === 'es'
+      ? 'Reply language for this conversation: Rioplatense Spanish (voseo), whatever language the user writes in. ' +
+        'Property titles and descriptions in tool results are already in Spanish. In Argentina "N ambientes" counts the living room, ' +
+        'so "2 ambientes" means about 1 bedroom (do not over-filter on bedrooms; "menos de 500" is a maximum price in USDC).'
+      : 'Reply language for this conversation: English, whatever language the user writes in.';
+  return `${LISTINGS_SYSTEM}
+${language}`;
+}
 
 export function escapeForTag(text: string): string {
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');

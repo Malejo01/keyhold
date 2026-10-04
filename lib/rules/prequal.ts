@@ -68,9 +68,11 @@ export function checkPayslipAge(issueDate: string | null, asOf: string): Issue[]
       evidence: {
         field: 'payslip_issue_date',
         rule: `The payslip must be at most ${MAX_PAYSLIP_AGE_DAYS} days old.`,
+        ruleKey: 'payslip_max_90_days',
+        params: { ageDays: age, maxAgeDays: MAX_PAYSLIP_AGE_DAYS, asOf },
         compared: [
-          { docType: 'payslip', label: 'Payslip issue date', value: `${issueDate} (${age} days old)`, mismatch: true },
-          { docType: 'payslip', label: 'Reference date', value: asOf },
+          { docType: 'payslip', label: 'Payslip issue date', labelKey: 'payslip_issue_date', raw: issueDate, value: `${issueDate} (${age} days old)`, mismatch: true },
+          { docType: 'payslip', label: 'Reference date', labelKey: 'reference_date', raw: asOf, value: asOf },
         ],
       },
     }];
@@ -99,9 +101,11 @@ export function checkRentToIncome(monthlyIncomeUsdc: number | null, rentUsdc: nu
       evidence: {
         field: 'rent_to_income',
         rule: `Rent must be at most ${MAX_RENT_TO_INCOME * 100}% of monthly income.`,
+        ruleKey: 'rent_max_35_pct_income',
+        params: { rentPct: Number(pct), maxPct: MAX_RENT_TO_INCOME * 100 },
         compared: [
-          { docType: incomeDocType, label: 'Monthly income', value: `${monthlyIncomeUsdc} USDC` },
-          { docType: incomeDocType, label: 'Monthly rent', value: `${rentUsdc} USDC (${pct}% of income)`, mismatch: true },
+          { docType: incomeDocType, label: 'Monthly income', labelKey: 'monthly_income', raw: String(monthlyIncomeUsdc), value: `${monthlyIncomeUsdc} USDC` },
+          { docType: incomeDocType, label: 'Monthly rent', labelKey: 'monthly_rent', raw: String(rentUsdc), value: `${rentUsdc} USDC (${pct}% of income)`, mismatch: true },
         ],
       },
     }];

@@ -8,7 +8,7 @@ import {
   toUploadedDocument,
   type UploadedDocument,
 } from '@/lib/agents/uploads';
-import { uploadSessionFieldSchema } from '@/lib/db/schemas';
+import { langSchema, uploadSessionFieldSchema } from '@/lib/db/schemas';
 import { signSession, verifySession } from '@/lib/db/session';
 import { jsonError, logError, sessionErrorResponse } from '@/lib/db/http';
 
@@ -98,6 +98,10 @@ export async function POST(request: Request): Promise<Response> {
   const parsedSession = uploadSessionFieldSchema.safeParse(typeof sessionField === 'string' ? sessionField : '');
   if (!parsedSession.success) return jsonError('Invalid request: missing or malformed session', 400);
 
+  // Route language of the page (optional: old clients fall back to detection from the last chat message).
+  const langField = form.get('lang');
+  const routeLang = langSchema.safeParse(typeof langField === 'string' ? langField : undefined).data;
+
   let state;
   try {
     state = verifySession(parsedSession.data);
@@ -124,7 +128,7 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   try {
-    const turn = await runDocumentsUpload(state, docs);
+    const turn = await runDocumentsUpload(state, docs, routeLang);
     const response: ChatResponse = {
       reply: turn.reply,
       stage: turn.state.stage,

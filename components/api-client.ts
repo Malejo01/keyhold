@@ -9,6 +9,8 @@ import type {
   VerifyRequest,
   VerifyResponse,
 } from "@/lib/contracts";
+import type { Lang } from "@/lib/contracts";
+import type { Dict } from "@/lib/i18n";
 
 /** Typed client for the four API routes. `?fixtures=1` swaps in local fixtures (no backend needed). */
 export interface Api {
@@ -32,7 +34,7 @@ export class ApiError extends Error {
 
 export const isStaleSession = (err: unknown): boolean => err instanceof ApiError && err.code === "stale_session";
 
-async function post<TReq, TRes>(url: string, body: TReq | FormData): Promise<TRes> {
+async function post<TReq, TRes>(url: string, body: TReq | FormData, errors: Dict["errors"]): Promise<TRes> {
   let res: Response;
   try {
     // FormData: the browser sets the multipart content-type (with boundary) itself.
@@ -43,7 +45,7 @@ async function post<TReq, TRes>(url: string, body: TReq | FormData): Promise<TRe
         : { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) },
     );
   } catch {
-    throw new Error("Could not reach the server. Check your connection and try again.");
+    throw new Error(errors.unreachable);
   }
 
   let data: unknown = null;
@@ -61,8 +63,8 @@ async function post<TReq, TRes>(url: string, body: TReq | FormData): Promise<TRe
       typeof (data as { error: unknown }).error === "string"
         ? (data as { error: string }).error
         : res.status === 409
-          ? "That step is not available yet."
-          : `Request failed (${res.status}).`;
+          ? errors.notAvailable
+          : errors.failed(res.status);
     const code =
       data && typeof data === "object" && "code" in data && typeof (data as { code: unknown }).code === "string"
         ? (data as { code: string }).code
@@ -72,18 +74,25 @@ async function post<TReq, TRes>(url: string, body: TReq | FormData): Promise<TRe
   return data as TRes;
 }
 
-export const realApi: Api = {
-  chat: (req) => post("/api/chat", req),
-  lease: (req) => post("/api/lease", req),
-  pay: (req) => post("/api/pay", req),
-  verify: (req) => post("/api/verify", req),
-  upload: ({ files, session }) => {
-    const form = new FormData();
-    form.append("session", JSON.stringify(session));
-    for (const file of files) form.append("files", file, file.name);
-    return post("/api/upload", form);
-  },
-};
+/**
+ * Real client. The route language travels with every request that can depend on it (chat, lease, pay, upload), so
+ * the server answers and writes the contract in the language of the page. Verify is language-neutral.
+ */
+export function createRealApi(lang: Lang, errors: Dict["errors"]): Api {
+  return {
+    chat: (req) => post("/api/chat", { ...req, lang }, errors),
+    lease: (req) => post("/api/lease", { ...req, lang }, errors),
+    pay: (req) => post("/api/pay", { ...req, lang }, errors),
+    verify: (req) => post("/api/verify", req, errors),
+    upload: ({ files, session }) => {
+      const form = new FormData();
+      form.append("session", JSON.stringify(session));
+      form.append("lang", lang);
+      for (const file of files) form.append("files", file, file.name);
+      return post("/api/upload", form, errors);
+    },
+  };
+}
 
 /** Fixtures are loaded lazily so they never ship in the default path. */
 export const fixtureApi: Api = {

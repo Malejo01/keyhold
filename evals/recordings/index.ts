@@ -11,19 +11,25 @@ import r7 from './crosscheck.extract.upload_f2-1__carla-upload__760ee29809413891
 import r8 from './crosscheck.extract_f0-1__ana__76da0bbb096d07f9.json';
 import r9 from './crosscheck.extract_f0-1__bruno__9e12009897168f1d.json';
 import r10 from './crosscheck.extract_f0-1__carla__bf7013af3921a20d.json';
-import r11 from './listings_f0-1__18d2e274fbd9602b.json';
-import r12 from './listings_f0-1__b82cfbb06df106ea.json';
-import r13 from './prequal.extract.upload_f2-1__ana-upload__04b43e497cdb90a5.json';
-import r14 from './prequal.extract.upload_f2-1__ana-upload__2e0b8be94b94d092.json';
-import r15 from './prequal.extract.upload_f2-1__ana-upload__5216a058c1a7b039.json';
-import r16 from './prequal.extract.upload_f2-1__ana-upload__c8b2ba7a3c597861.json';
-import r17 from './prequal.extract.upload_f2-1__bruno-upload__15f5a943fa69b0ad.json';
-import r18 from './prequal.extract.upload_f2-1__bruno-upload__eb6082507e3f8b12.json';
-import r19 from './prequal.extract.upload_f2-1__carla-upload__0fb2182c4c18392b.json';
-import r20 from './prequal.extract.upload_f2-1__carla-upload__1ae3a6a49896595e.json';
-import r21 from './prequal.extract_f0-1__ana__871bdb1ca68373d1.json';
-import r22 from './prequal.extract_f0-1__bruno__6554910251858609.json';
-import r23 from './prequal.extract_f0-1__carla__a93b1cf72e9decdc.json';
+import r11 from './listings_f0-1__en-chip-search__541ed45c29a59f79.json';
+import r12 from './listings_f0-1__en-chip-search__795cc7d37306a8c0.json';
+import r13 from './listings_f0-1__en-not-in-catalog__18d2e274fbd9602b.json';
+import r14 from './listings_f0-1__en-not-in-catalog__b82cfbb06df106ea.json';
+import r15 from './listings_f0-1__es-chip-search__35f419f9a27352e0.json';
+import r16 from './listings_f0-1__es-chip-search__8424e2dd79a375f6.json';
+import r17 from './listings_f0-1__es-not-in-catalog__15fd9119d5fd5498.json';
+import r18 from './listings_f0-1__es-not-in-catalog__627659c2f23889b9.json';
+import r19 from './prequal.extract.upload_f2-1__ana-upload__04b43e497cdb90a5.json';
+import r20 from './prequal.extract.upload_f2-1__ana-upload__2e0b8be94b94d092.json';
+import r21 from './prequal.extract.upload_f2-1__ana-upload__5216a058c1a7b039.json';
+import r22 from './prequal.extract.upload_f2-1__ana-upload__c8b2ba7a3c597861.json';
+import r23 from './prequal.extract.upload_f2-1__bruno-upload__15f5a943fa69b0ad.json';
+import r24 from './prequal.extract.upload_f2-1__bruno-upload__eb6082507e3f8b12.json';
+import r25 from './prequal.extract.upload_f2-1__carla-upload__0fb2182c4c18392b.json';
+import r26 from './prequal.extract.upload_f2-1__carla-upload__1ae3a6a49896595e.json';
+import r27 from './prequal.extract_f0-1__ana__871bdb1ca68373d1.json';
+import r28 from './prequal.extract_f0-1__bruno__6554910251858609.json';
+import r29 from './prequal.extract_f0-1__carla__a93b1cf72e9decdc.json';
 
 export const RECORDINGS: Recording[] = [
   r0 as unknown as Recording,
@@ -50,4 +56,10 @@ export const RECORDINGS: Recording[] = [
   r21 as unknown as Recording,
   r22 as unknown as Recording,
   r23 as unknown as Recording,
+  r24 as unknown as Recording,
+  r25 as unknown as Recording,
+  r26 as unknown as Recording,
+  r27 as unknown as Recording,
+  r28 as unknown as Recording,
+  r29 as unknown as Recording,
 ];

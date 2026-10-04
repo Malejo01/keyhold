@@ -15,15 +15,9 @@ export const PERSONAS: ReadonlyArray<{ id: TenantId; name: string }> = [
   { id: "carla", name: "Carla" },
 ];
 
-/** Suggested prompts. Sent verbatim as the user's message; the server decides what they mean. */
-export const SUGGESTED_PROMPTS: ReadonlyArray<{ label: string; text: string }> = [
-  { label: "Find a place", text: "2-bedroom near Tres Cerritos, under 500 USDC, pets ok" },
-  { label: "Book a visit", text: "Book a visit" },
-  { label: "Upload my documents", text: "Upload my documents" },
-  { label: "Generate the contract", text: "Generate the contract" },
-  { label: "Pay the deposit", text: "Pay the deposit" },
-  { label: "Pay my first rent", text: "Pay my first rent" },
-];
+/** Suggested prompts in demo order. The text sent to the server per language lives in lib/i18n/chips.ts (shared with the evals). */
+export const CHIP_KEYS = ["find", "visit", "docs", "contract", "deposit", "rent"] as const;
+export type ChipKey = (typeof CHIP_KEYS)[number];
 
 export interface PersistedDemo {
   tenantId: TenantId;

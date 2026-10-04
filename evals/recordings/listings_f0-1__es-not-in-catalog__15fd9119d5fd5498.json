@@ -1,0 +1,19 @@
+{
+  "key": "15fd9119d5fd549845b2e31e9a26725f1dd0be4257595a2a8c51412b0c2b82a0",
+  "agent": "listings@f0-1",
+  "kind": "chat_step",
+  "label": "es-not-in-catalog",
+  "model": "gemini-3.5-flash-lite",
+  "output": {
+    "stopReason": "end_turn",
+    "content": [
+      {
+        "type": "text",
+        "text": "El catálogo no tiene ninguna propiedad con 6 dormitorios, pileta privada y helipuerto. Tené en cuenta que esto es una demo con datos simulados y nuestra oferta actual es más acotada. ¿Te gustaría buscar otro tipo de propiedad?"
+      }
+    ]
+  },
+  "provider": "gemini",
+  "source": "recorded",
+  "recordedAt": "2026-10-04T04:42:53.936Z"
+}

@@ -4,20 +4,24 @@ import { AnimatePresence, MotionConfig, motion, useReducedMotion } from "framer-
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PayResponse, PaymentKind, Property, SignedSession, Stage, TenantId } from "@/lib/contracts";
 import { itemIn, messageIn, resetFade, stagger, typingDot, loop } from "@/lib/motion/presets";
-import { fixtureApi, isStaleSession, realApi, type Api } from "./api-client";
+import { createRealApi, fixtureApi, isStaleSession, type Api } from "./api-client";
 import { CardRenderer, type CardContext } from "./cards/CardRenderer";
 import { AgentActivity, AgentActivityCompact } from "./AgentActivity";
 import { deriveActivity } from "./deriveAgents";
+import { useI18n } from "./I18nProvider";
+import { LanguageSwitcher } from "./LanguageSwitcher";
+import { CHIP_TEXT, BOOK_VISIT_FOR } from "@/lib/i18n/chips";
 import { LeaseTimeline, LeaseTimelineCompact } from "./LeaseTimeline";
 import { APP_NAME } from "@/lib/config/brand";
 import { Logo } from "./Logo";
 import { PersonaSwitcher } from "./PersonaSwitcher";
 import { UploadDocuments } from "./UploadDocuments";
-import { PERSONAS, SUGGESTED_PROMPTS, type ChatMessage, type PersistedDemo } from "./types";
+import { CHIP_KEYS, PERSONAS, type ChatMessage, type PersistedDemo } from "./types";
 import { AlertIcon, SendIcon, cx } from "./ui";
 
-const STORAGE_KEY = "demo.session.v2";
-/** Index into SUGGESTED_PROMPTS of the natural next step for each stage. */
+/** One saved conversation per language: the contract text (and its hash) is language-specific. */
+const storageKey = (lang: string) => `demo.session.v2.${lang}`;
+/** Index into CHIP_KEYS of the natural next step for each stage. */
 const NEXT_CHIP: Record<Stage, number> = {
   SEARCH: 0,
   VISIT: 1,
@@ -30,19 +34,19 @@ const NEXT_CHIP: Record<Stage, number> = {
 let idCounter = 0;
 const newId = () => `m${Date.now().toString(36)}${(idCounter++).toString(36)}`;
 
-function readPersisted(): PersistedDemo | null {
+function readPersisted(key: string): PersistedDemo | null {
   try {
-    const raw = window.sessionStorage.getItem(STORAGE_KEY);
+    const raw = window.sessionStorage.getItem(key);
     return raw ? (JSON.parse(raw) as PersistedDemo) : null;
   } catch {
     return null;
   }
 }
 
-function writePersisted(value: PersistedDemo | null) {
+function writePersisted(key: string, value: PersistedDemo | null) {
   try {
-    if (value) window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(value));
-    else window.sessionStorage.removeItem(STORAGE_KEY);
+    if (value) window.sessionStorage.setItem(key, JSON.stringify(value));
+    else window.sessionStorage.removeItem(key);
   } catch {
     // Storage can be unavailable (private mode); the demo still works in memory.
   }
@@ -50,6 +54,7 @@ function writePersisted(value: PersistedDemo | null) {
 
 function TypingIndicator() {
   const reduced = useReducedMotion();
+  const { t } = useI18n();
   return (
     <motion.div
       variants={messageIn}
@@ -57,7 +62,7 @@ function TypingIndicator() {
       animate="show"
       className="flex w-fit items-center gap-1.5 rounded-2xl rounded-bl-sm border border-border bg-surface px-4 py-3"
       role="status"
-      aria-label={`${APP_NAME} is typing`}
+      aria-label={t.chat.typing(APP_NAME)}
     >
       {[0, 1, 2].map((i) => (
         <motion.span
@@ -73,9 +78,11 @@ function TypingIndicator() {
   );
 }
 
-export function ChatShell({ useFixtures }: { useFixtures: boolean }) {
-  const api: Api = useFixtures ? fixtureApi : realApi;
+export function ChatShell({ useFixtures, query = "" }: { useFixtures: boolean; query?: string }) {
+  const { lang, t } = useI18n();
+  const api: Api = useMemo(() => (useFixtures ? fixtureApi : createRealApi(lang, t.errors)), [useFixtures, lang, t]);
   const reduced = useReducedMotion();
+  const storeKey = storageKey(lang);
 
   const [tenantId, setTenantId] = useState<TenantId>("ana");
   const [session, setSession] = useState<SignedSession | undefined>(undefined);
@@ -98,7 +105,7 @@ export function ChatShell({ useFixtures }: { useFixtures: boolean }) {
   // Restore from sessionStorage after mount (reading it during render would cause hydration mismatches).
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    const saved = readPersisted();
+    const saved = readPersisted(storeKey);
     if (saved) {
       setTenantId(saved.tenantId);
       tenantRef.current = saved.tenantId;
@@ -108,13 +115,13 @@ export function ChatShell({ useFixtures }: { useFixtures: boolean }) {
       setStage(saved.stage);
     }
     setHydrated(true);
-  }, []);
+  }, [storeKey]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     if (!hydrated) return;
-    writePersisted({ tenantId, session, messages, stage });
-  }, [hydrated, tenantId, session, messages, stage]);
+    writePersisted(storeKey, { tenantId, session, messages, stage });
+  }, [hydrated, storeKey, tenantId, session, messages, stage]);
 
   // Keep the newest message in view.
   useEffect(() => {
@@ -140,13 +147,13 @@ export function ChatShell({ useFixtures }: { useFixtures: boolean }) {
     epochRef.current += 1;
     sessionRef.current = undefined;
     setSession(undefined);
-    setMessages([{ id: newId(), role: "assistant", error: true, text: "This session was out of date, so it was reset. Start again from the beginning." }]);
+    setMessages([{ id: newId(), role: "assistant", error: true, text: t.chat.staleReset }]);
     setStage("SEARCH");
     setPending(false);
     generatingRef.current = false;
     setGenerating(false);
     setDraft("");
-  }, []);
+  }, [t]);
 
   const send = useCallback(
     async (text: string) => {
@@ -171,13 +178,13 @@ export function ChatShell({ useFixtures }: { useFixtures: boolean }) {
         append({
           role: "assistant",
           error: true,
-          text: err instanceof Error ? err.message : "Something went wrong. Please try again.",
+          text: err instanceof Error ? err.message : t.chat.genericError,
         });
       } finally {
         if (epoch === epochRef.current) setPending(false);
       }
     },
-    [api, append, applySession, pending, resetStaleSession],
+    [api, append, applySession, pending, resetStaleSession, t],
   );
 
   /** Real files for the DOCUMENTS stage: same turn lifecycle as `send`, via /api/upload. */
@@ -186,7 +193,7 @@ export function ChatShell({ useFixtures }: { useFixtures: boolean }) {
       const current = sessionRef.current;
       if (files.length === 0 || pending || !current) return;
       const epoch = epochRef.current;
-      append({ role: "user", text: `Uploaded: ${files.map((f) => f.name).join(", ")}` });
+      append({ role: "user", text: t.chat.uploaded(files.map((f) => f.name).join(", ")) });
       setPending(true);
       try {
         const res = await api.upload({ files, session: current });
@@ -199,13 +206,13 @@ export function ChatShell({ useFixtures }: { useFixtures: boolean }) {
         append({
           role: "assistant",
           error: true,
-          text: err instanceof Error ? err.message : "Something went wrong. Please try again.",
+          text: err instanceof Error ? err.message : t.chat.genericError,
         });
       } finally {
         if (epoch === epochRef.current) setPending(false);
       }
     },
-    [api, append, applySession, pending],
+    [api, append, applySession, pending, t],
   );
 
   const changePersona = useCallback((id: TenantId) => {
@@ -230,17 +237,17 @@ export function ChatShell({ useFixtures }: { useFixtures: boolean }) {
       setStage(res.session.state.stage);
       append({
         role: "assistant",
-        text: res.result.kind === "deposit" ? "Deposit payment confirmed." : "Rent payment confirmed.",
+        text: res.result.kind === "deposit" ? t.chat.depositConfirmed : t.chat.rentConfirmed,
         cards: [{ type: "receipt", result: res.result }],
       });
     },
-    [append, applySession],
+    [append, applySession, t],
   );
 
   const pay = useCallback(
     async (kind: PaymentKind) => {
       const current = sessionRef.current;
-      if (!current) throw new Error("Start the conversation first.");
+      if (!current) throw new Error(t.chat.startFirst);
       const epoch = epochRef.current;
       let res;
       try {
@@ -255,7 +262,7 @@ export function ChatShell({ useFixtures }: { useFixtures: boolean }) {
       if (epoch !== epochRef.current) return;
       applyPaid(res);
     },
-    [api, applyPaid, resetStaleSession],
+    [api, applyPaid, resetStaleSession, t],
   );
 
   // Same path as the "Generate the contract" chip, so the reply carries contract + deposit cards.
@@ -265,12 +272,12 @@ export function ChatShell({ useFixtures }: { useFixtures: boolean }) {
     generatingRef.current = true;
     setGenerating(true);
     try {
-      await send("Generate the contract");
+      await send(CHIP_TEXT[lang][3]);
     } finally {
       generatingRef.current = false;
       if (epoch === epochRef.current) setGenerating(false);
     }
-  }, [pending, send]);
+  }, [pending, send, lang]);
 
   const ctx: CardContext = useMemo(
     () => ({
@@ -278,21 +285,21 @@ export function ChatShell({ useFixtures }: { useFixtures: boolean }) {
       hasLease: Boolean(session?.state.lease),
       busy: pending,
       generatingContract: generating,
-      onVisit: (p: Property) => void send(`Book a visit for ${p.title}`),
+      onVisit: (p: Property) => void send(`${BOOK_VISIT_FOR[lang]} ${lang === "es" ? (p.titleEs ?? p.title) : p.title}`),
       onPay: pay,
       getSession: () => sessionRef.current,
       onPaid: applyPaid,
       onVerify: (contractText, signature) => api.verify({ contractText, signature }),
       onGenerateContract: () => void generateContract(),
     }),
-    [session, pending, generating, send, pay, applyPaid, generateContract, api],
+    [session, pending, generating, send, pay, applyPaid, generateContract, api, lang],
   );
 
   // Highlight the chip for the natural next step and keep it reachable in the scrolling mobile row.
   const depositPaid = (session?.state.payments ?? []).some((p) => p.kind === "deposit");
   const nextChip = Math.min(
     stage === "PAYMENT" && depositPaid ? 5 : NEXT_CHIP[stage],
-    SUGGESTED_PROMPTS.length - 1,
+    CHIP_KEYS.length - 1,
   );
   useEffect(() => {
     const row = chipsRef.current;
@@ -304,18 +311,21 @@ export function ChatShell({ useFixtures }: { useFixtures: boolean }) {
     });
   }, [nextChip, reduced, tenantId]);
 
-  const agentRows = useMemo(() => deriveActivity(messages, pending, stage), [messages, pending, stage]);
-  const personaName =PERSONAS.find((p) => p.id === tenantId)?.name ?? "";
+  const agentRows = useMemo(() => deriveActivity(messages, pending, stage, t), [messages, pending, stage, t]);
+  const personaName = PERSONAS.find((p) => p.id === tenantId)?.name ?? "";
 
   return (
     <MotionConfig reducedMotion="user">
       <div className="grid min-h-0 w-full flex-1 grid-rows-1 lg:grid-cols-[minmax(0,1fr)_22rem]">
         {/* Chat column */}
-        <section aria-label="Chat" className="flex min-h-0 min-w-0 flex-col">
+        <section aria-label={t.chat.region} className="flex min-h-0 min-w-0 flex-col">
           <header className="border-b border-border px-gutter py-3">
             <div className="mx-auto flex w-full max-w-3xl flex-wrap items-center justify-between gap-x-4 gap-y-2">
               <Logo />
-              <PersonaSwitcher value={tenantId} onChange={changePersona} />
+              <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2">
+                <PersonaSwitcher value={tenantId} onChange={changePersona} />
+                <LanguageSwitcher query={query} />
+              </div>
             </div>
           </header>
 
@@ -337,17 +347,14 @@ export function ChatShell({ useFixtures }: { useFixtures: boolean }) {
               role="log"
               aria-live="polite"
               aria-relevant="additions"
-              aria-label="Conversation"
+              aria-label={t.chat.conversation}
               className="scroll-thin min-h-0 flex-1 overflow-y-auto px-gutter py-5"
             >
               <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col gap-4">
                 {messages.length === 0 && (
                   <div className="my-auto mx-auto max-w-md py-8 text-center">
-                    <p className="font-display text-xl font-semibold">Hi {personaName}, I&apos;m {APP_NAME}.</p>
-                    <p className="mt-2 text-sm text-muted">
-                      I find rentals, check your documents, prepare the contract and take the deposit.
-                      Tell me what you are looking for, or pick a suggestion below.
-                    </p>
+                    <p className="font-display text-xl font-semibold">{t.chat.greeting(personaName, APP_NAME)}</p>
+                    <p className="mt-2 text-sm text-muted">{t.chat.intro}</p>
                   </div>
                 )}
 
@@ -373,7 +380,7 @@ export function ChatShell({ useFixtures }: { useFixtures: boolean }) {
                         <span className="flex items-start gap-2">
                           <AlertIcon className="mt-0.5 size-4 shrink-0" />
                           <span>
-                            <span className="sr-only">Error: </span>
+                            <span className="sr-only">{t.chat.errorPrefix}</span>
                             {m.text}
                           </span>
                         </span>
@@ -408,17 +415,17 @@ export function ChatShell({ useFixtures }: { useFixtures: boolean }) {
                 variants={stagger}
                 initial="hidden"
                 animate="show"
-                aria-label="Suggested prompts"
+                aria-label={t.chat.suggested}
                 ref={chipsRef}
                 className="no-scrollbar mb-3 flex gap-2 overflow-x-auto pb-1 pr-8 [mask-image:linear-gradient(to_right,black_88%,transparent)] sm:flex-wrap sm:overflow-visible sm:pr-0 sm:[mask-image:none]"
               >
-                {SUGGESTED_PROMPTS.map((p, i) => (
-                  <motion.li key={p.label} variants={itemIn} className="shrink-0">
+                {CHIP_KEYS.map((key, i) => (
+                  <motion.li key={key} variants={itemIn} className="shrink-0">
                     <button
                       type="button"
                       disabled={pending}
-                      onClick={() => void send(p.text)}
-                      title={p.text}
+                      onClick={() => void send(CHIP_TEXT[lang][i])}
+                      title={CHIP_TEXT[lang][i]}
                       data-next={i === nextChip ? "true" : undefined}
                       className={cx(
                         "rounded-full border bg-surface px-3 py-1.5 text-xs font-medium transition-colors hover:bg-primary-soft hover:text-primary disabled:cursor-not-allowed disabled:opacity-50",
@@ -427,7 +434,7 @@ export function ChatShell({ useFixtures }: { useFixtures: boolean }) {
                           : "border-border-strong text-foreground",
                       )}
                     >
-                      {p.label}
+                      {t.chips[key].label}
                     </button>
                   </motion.li>
                 ))}
@@ -441,7 +448,7 @@ export function ChatShell({ useFixtures }: { useFixtures: boolean }) {
                 className="flex items-center gap-2"
               >
                 <label htmlFor="chat-input" className="sr-only">
-                  Message
+                  {t.chat.inputLabel}
                 </label>
                 <input
                   id="chat-input"
@@ -449,7 +456,7 @@ export function ChatShell({ useFixtures }: { useFixtures: boolean }) {
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
                   autoComplete="off"
-                  placeholder="Type your message"
+                  placeholder={t.chat.placeholder}
                   className="min-w-0 flex-1 rounded-full border border-border-strong bg-surface px-4 py-2.5 text-sm placeholder:text-subtle"
                 />
                 <button
@@ -458,7 +465,7 @@ export function ChatShell({ useFixtures }: { useFixtures: boolean }) {
                   className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <SendIcon className="size-5" />
-                  <span className="sr-only">Send</span>
+                  <span className="sr-only">{t.chat.send}</span>
                 </button>
               </form>
             </div>
@@ -469,15 +476,13 @@ export function ChatShell({ useFixtures }: { useFixtures: boolean }) {
         <aside className="hidden min-h-0 flex-col gap-4 overflow-y-auto border-l border-border bg-surface px-6 py-5 lg:flex">
           <div>
             <h2 className="font-display text-sm font-semibold uppercase tracking-wide text-muted">
-              Lease timeline
+              {t.chat.timelineTitle}
             </h2>
-            <p className="mt-1 text-xs text-subtle">Follows your conversation, step by step.</p>
+            <p className="mt-1 text-xs text-subtle">{t.chat.timelineHint}</p>
           </div>
           <LeaseTimeline stage={stage} />
           <AgentActivity rows={agentRows} className="border-t border-border pt-4" />
-          <p className="mt-auto text-xs text-subtle">
-            Amounts are in USDC (devnet test token). No real money moves.
-          </p>
+          <p className="mt-auto text-xs text-subtle">{t.chat.footnote}</p>
         </aside>
       </div>
     </MotionConfig>

@@ -1,4 +1,5 @@
 import { ChatShell } from "@/components/ChatShell";
+import { APP_NAME } from "@/lib/config/brand";
 
 export default async function Home({ searchParams }: PageProps<"/">) {
   const params = await searchParams;
@@ -7,7 +8,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
 
   return (
     <main className="flex min-h-0 flex-1 flex-col">
-      <h1 className="sr-only">Tuki, your rental assistant</h1>
+      <h1 className="sr-only">{APP_NAME}, your rental assistant</h1>
       <ChatShell useFixtures={useFixtures} />
     </main>
   );

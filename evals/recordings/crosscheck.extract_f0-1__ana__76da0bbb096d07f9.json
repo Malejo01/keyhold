@@ -1,9 +1,9 @@
 {
-  "key": "b5d017494c5a36c18a1a88ca0a7b7a43eb500bbe3dc6ca589667f81f22ec8c94",
+  "key": "76da0bbb096d07f988d289b51b28a644df210700a35cd287598d2753f58da0c0",
   "agent": "crosscheck.extract@f0-1",
   "kind": "structured",
   "label": "ana",
-  "model": "gemini-3.8-flash",
+  "model": "gemini-3.5-flash-lite",
   "output": {
     "documents": [
       {
@@ -34,5 +34,5 @@
   },
   "provider": "gemini",
   "source": "recorded",
-  "recordedAt": "2026-10-04T01:31:55.310Z"
+  "recordedAt": "2026-10-04T01:59:51.988Z"
 }

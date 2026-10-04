@@ -1,4 +1,6 @@
-# CLAUDE.md — Tuki (AI rental agents + Solana)
+# CLAUDE.md — Keyhold (AI rental agents + Solana)
+
+"Keyhold" is a working name (formerly "Tuki"). The product name lives only in `lib/config/brand.ts`; never hard-code it in code.
 
 Hackathon: **Colosseum Crypto World's Fair · Superteam Argentina track**. Team based in Salta, Argentina.
 Tech lead: Mauro. Product, pitch and brand: Ani, with a design partner.

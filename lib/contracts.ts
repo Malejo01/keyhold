@@ -146,8 +146,9 @@ export type PaymentKind = 'deposit' | 'rent';
 
 /**
  * Memo convention (no PII, ever):
- *   tuki:lease:<leaseId>:deposit:<sha256hex>
- *   tuki:lease:<leaseId>:rent:<monthIndex>:<sha256hex>
+ *   lease:v1:<leaseId>:deposit:<sha256hex>
+ *   lease:v1:<leaseId>:rent:<monthIndex>:<sha256hex>
+ * Transactions sent before 2026-10-04 used the legacy prefix `tuki:lease:`; readMemoHash still accepts it.
  */
 export interface PaymentIntent {
   leaseId: string;

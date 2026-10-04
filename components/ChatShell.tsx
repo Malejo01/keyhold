@@ -7,12 +7,13 @@ import { itemIn, messageIn, resetFade, stagger, typingDot, loop } from "@/lib/mo
 import { fixtureApi, realApi, type Api } from "./api-client";
 import { CardRenderer, type CardContext } from "./cards/CardRenderer";
 import { LeaseTimeline, LeaseTimelineCompact } from "./LeaseTimeline";
+import { APP_NAME } from "@/lib/config/brand";
 import { Logo } from "./Logo";
 import { PersonaSwitcher } from "./PersonaSwitcher";
 import { PERSONAS, SUGGESTED_PROMPTS, type ChatMessage, type PersistedDemo } from "./types";
 import { SendIcon, cx } from "./ui";
 
-const STORAGE_KEY = "tuki.demo.v1";
+const STORAGE_KEY = "demo.session.v2";
 let idCounter = 0;
 const newId = () => `m${Date.now().toString(36)}${(idCounter++).toString(36)}`;
 
@@ -42,7 +43,7 @@ function TypingIndicator() {
       initial="hidden"
       animate="show"
       className="flex w-fit items-center gap-1.5 rounded-2xl rounded-bl-sm border border-border bg-surface px-4 py-3"
-      aria-label="Tuki is typing"
+      aria-label={`${APP_NAME} is typing`}
     >
       {[0, 1, 2].map((i) => (
         <motion.span
@@ -251,7 +252,7 @@ export function ChatShell({ useFixtures }: { useFixtures: boolean }) {
               <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col gap-4">
                 {messages.length === 0 && (
                   <div className="my-auto mx-auto max-w-md py-8 text-center">
-                    <p className="font-display text-xl font-semibold">Hi {personaName}, I am Tuki.</p>
+                    <p className="font-display text-xl font-semibold">Hi {personaName}, I am {APP_NAME}.</p>
                     <p className="mt-2 text-sm text-muted">
                       I find rentals, check your documents, prepare the contract and take a secured deposit.
                       Tell me what you are looking for, or pick a suggestion below.

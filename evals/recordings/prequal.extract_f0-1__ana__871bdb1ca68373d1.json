@@ -3,9 +3,9 @@
   "agent": "prequal.extract@f0-1",
   "kind": "structured",
   "label": "ana",
-  "model": "gemini-3.8-flash",
+  "model": "gemini-3.5-flash-lite",
   "output": {
-    "applicantName": "ANA LUCIA TESTA FICTICIA",
+    "applicantName": "TESTA FICTICIA ANA LUCIA",
     "documentsPresent": [
       "dni",
       "payslip",
@@ -17,5 +17,5 @@
   },
   "provider": "gemini",
   "source": "recorded",
-  "recordedAt": "2026-10-04T01:31:53.743Z"
+  "recordedAt": "2026-10-04T01:59:50.885Z"
 }

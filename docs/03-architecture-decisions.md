@@ -20,7 +20,7 @@ Format: decision · context · consequence. Status: **Accepted** unless noted.
 ## AD-03 · Escrow evolves in two steps
 - **Phase 0–2 (`ESCROW_MODE=custodial`):**
   - The deposit goes to a platform custody wallet on devnet.
-  - Every movement carries a Memo `tuki:lease:<id>:<kind>:<sha256>`.
+  - Every movement carries a neutral, versioned Memo: `lease:v1:<id>:deposit:<sha256>` or `lease:v1:<id>:rent:<month>:<sha256>` (revised 2026-10-04). Transactions sent on 2026-10-03 used the legacy prefix `tuki:lease:`; they stay valid and `readMemoHash` accepts both.
   - This is stated explicitly in the README and video.
 - **Phase 3+ (`ESCROW_MODE=program`):** Anchor `rental_escrow` with a PDA vault.
 - The custodial path stays as a fallback.
@@ -67,7 +67,11 @@ Format: decision · context · consequence. Status: **Accepted** unless noted.
 - **Decision:**
   - One interface in `lib/ai/`: structured JSON generation with a zod schema, and chat with tools.
   - Provider from env: `AI_PROVIDER=gemini|anthropic`. Default: `gemini`, through Google's official SDK `@google/genai`.
-  - Models from env: `AI_MODEL` for orchestration and chat, `EXTRACTION_MODEL` for document extraction. Default: the currently supported Gemini Flash model.
+  - Models from env: `AI_MODEL` for orchestration and chat, `EXTRACTION_MODEL` for document extraction. Default for both: `gemini-3.5-flash-lite`, chosen for cost and latency: the model only extracts fields and answers catalog questions, and every decision lives in `lib/rules`.
+  - Fallback: if the orchestrator fails the evals with Flash-Lite, raise only `AI_MODEL` to `gemini-3.6-flash`.
+  - **Checked on 2026-10-03:** Flash-Lite passes every eval live, 3/3, so both models stay on Flash-Lite. Two things had to be fixed first: the crosscheck prompt now says how to build the full name when an ID card gives names and surname in separate fields (Flash-Lite had dropped the surname, Carla 1/3), and the listings eval now also accepts "no tiene / no cuenta con ningún…" as a not-in-catalog answer.
+  - `AI_DAILY_CALL_CAP` (default 300) caps live calls per day; past it the app serves recordings.
+  - Production stays on `REPLAY=1` until a `GEMINI_API_KEY` from a separate Google project is loaded.
   - Structured output through a JSON schema, validated again with zod. Function calling for the orchestrator tools.
   - Retry with backoff on 429, because the free tier has low rate limits.
   - Anthropic stays as an optional provider and nothing breaks when its key is missing.

@@ -57,9 +57,35 @@ export function aiDescribe(): string {
   return `${p.name} (orchestration ${modelFor('orchestration', p.name)}, extraction ${modelFor('extraction', p.name)})`;
 }
 
+/**
+ * Daily cap on live model calls (AI_DAILY_CALL_CAP, default 300, UTC day). Once reached, the app serves recordings.
+ * Counted in memory, so on serverless it is per warm instance: a cost guard, not an exact quota.
+ */
+const liveCalls = { day: '', count: 0 };
+function dailyCap(): number {
+  const cap = Number.parseInt(process.env.AI_DAILY_CALL_CAP ?? '', 10);
+  return Number.isFinite(cap) && cap >= 0 ? cap : 300;
+}
+function capReached(): boolean {
+  const today = new Date().toISOString().slice(0, 10);
+  if (liveCalls.day !== today) {
+    liveCalls.day = today;
+    liveCalls.count = 0;
+  }
+  return liveCalls.count >= dailyCap();
+}
+/** Wraps one provider request so every attempt, retries included, counts against the cap. */
+function counted<T>(call: () => Promise<T>): () => Promise<T> {
+  return () => {
+    liveCalls.count += 1;
+    return call();
+  };
+}
+
 export function aiMode(): AiMode {
   if (process.env.REPLAY === '1') return 'replay';
-  return provider().isConfigured() ? 'live' : 'replay';
+  if (!provider().isConfigured()) return 'replay';
+  return capReached() ? 'replay' : 'live';
 }
 
 export class ReplayMissError extends Error {
@@ -129,11 +155,11 @@ export async function generateStructured<T>(opts: StructuredOptions<T>): Promise
   let raw: unknown;
   let data: T;
   try {
-    raw = await withRetry(opts.agent, () => p.generateJson(call));
+    raw = await withRetry(opts.agent, counted(() => p.generateJson(call)));
     let parsed = opts.schema.safeParse(raw);
     if (!parsed.success) {
       // One retry: structured outputs should make this rare.
-      raw = await withRetry(opts.agent, () => p.generateJson(call));
+      raw = await withRetry(opts.agent, counted(() => p.generateJson(call)));
       parsed = opts.schema.safeParse(raw);
       if (!parsed.success) throw parsed.error;
     }
@@ -181,14 +207,16 @@ export async function chatStep(opts: ChatStepOptions): Promise<ChatStepResult & 
   const model = modelFor(opts.role, p.name);
   let result: ChatStepResult;
   try {
-    result = await withRetry(opts.agent, () =>
+    result = await withRetry(
+      opts.agent,
+      counted(() =>
       p.chatStep({
         model,
         system: opts.system,
         messages: opts.messages,
         tools: opts.tools,
         maxTokens: opts.maxTokens ?? 4000,
-      }),
+      })),
     );
   } catch (err) {
     const rec = recordingFallback(err, opts.agent, key, 'chat_step');

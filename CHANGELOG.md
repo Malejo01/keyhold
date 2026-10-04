@@ -20,4 +20,13 @@ Work before the tag `v0-hackathon-start` or imported via `chore(import)` commits
 - chore(deploy): Vercel project linked to the repo; production at https://tuki-rentals.vercel.app (lead, F0-08).
 - Known issue: `pnpm test` (vitest) cannot start on the dev machine (Windows Application Control blocks the rolldown native binding); unit tests were checked with ad-hoc tsx scripts only.
 
+### 2026-10-04 (Sun) — Phase 0 close-out
+- chore(brand): working name changed from "Tuki" to "Keyhold" (provisional). Name, tagline and URL now live in `lib/config/brand.ts`; UI, metadata, prompts and docs read from there.
+- feat(solana): Memo prefix is now neutral and versioned, `lease:v1:<id>:deposit:<hash>` and `lease:v1:<id>:rent:<month>:<hash>` (AD-03). Earlier transactions with the `tuki:lease:` prefix stay listed as historical in `docs/submission/tx-links.md`.
+- feat(ai): default model `gemini-3.5-flash-lite` for orchestration and extraction (AD-09); crosscheck prompt clarified for split name fields; recordings regenerated; live and replay evals 3/3; daily cap on live calls (`AI_DAILY_CALL_CAP`, default 300) that falls back to recordings.
+- fix(api): `/api/pay` returns a clear 409 when the demo wallet is out of test tokens; `setup-devnet` tops tenants up to a target balance; `escapeForTag` escapes quotes and ampersands.
+- chore: GitHub repo renamed to `keyhold`; Vercel project renamed to `keyhold-app` (https://keyhold-app.vercel.app; `keyhold.vercel.app` was taken). `tuki-rentals.vercel.app` stays as an alias until Mon 12/10.
+- chore: `.claude/settings.json` enables agent teams and pre-approves routine commands.
+- docs: MIT `LICENSE`, `docs/HANDOFF.md`.
+
 ## Week 2 — 2026-10-05 → 2026-10-12

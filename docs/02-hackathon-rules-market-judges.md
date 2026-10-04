@@ -1,4 +1,4 @@
-# Tuki Inmobiliario — Plan de hackathon, demo de esta noche, mercado y jurado
+# Keyhold — Plan de hackathon, demo de esta noche, mercado y jurado
 
 > Colosseum Crypto World's Fair · Track Superteam Argentina · Armado el 03/10/2026 a las 20:30 ART
 > Leyenda: **[V]** verificado en la fuente · **[S]** viene de un snippet o resumen · **[NV]** no verificado o inferencia propia
@@ -21,7 +21,7 @@
 |---|---|---|
 | **Hoy, antes de dormir** | Cada integrante: cuenta en **arena.colosseum.org** con país **Argentina**. Registrar el proyecto con ubicación Argentina | Todos |
 | Hoy | Inscribirse en el Luma (luma.com/3qmbyb6h) | Todos |
-| Hoy | Google Form (una sola persona por equipo). Pide: email, link de X, usuario de Telegram, y si ya te renombraste en Telegram como **"Nombre Apellido \| Tuki"**. Tiene más páginas que no pude leer **[NV]** | Ani o Mauro |
+| Hoy | Google Form (una sola persona por equipo). Pide: email, link de X, usuario de Telegram, y si ya te renombraste en Telegram como **"Nombre Apellido \| Keyhold"**. Tiene más páginas que no pude leer **[NV]** | Ani o Mauro |
 | Hoy / mañana temprano | Crear la **cuenta de X del proyecto** (construir en público suma puntos) | Ani |
 | **Dom 04/10, antes de las 16:00** | **Preselección** (superteam.ar/colosseum/preseleccion), ver los campos en §1.1 | Mauro + Ani |
 | Dom 04/10, 19:30 | **Demo Day** (pitch en vivo si quedan preseleccionados) | Ani pitchea, Mauro hace la demo |
@@ -81,7 +81,7 @@ Para esta noche: **una tajada vertical que funciona de punta a punta, con transa
 | `prequal` + `crosscheck` con los 3 casos: Ana ✅, Bruno ⚠️ recibo de más de 90 días, Carla ⚠️ nombre distinto entre DNI y recibo | Solana Pay con QR escaneable y polling por `reference` |
 | Contrato desde plantilla + `sha256` + botón **Verify** | Wallet embebida (Privy, Crossmint o Dynamic) |
 | Pantalla de pago: precio normal tachado + precio con descuento (3% + 2%) | Historial on-chain desde PDAs, `release_deposit` 2 de 3 |
-| **2 transacciones reales en devnet:** depósito → wallet de custodia y alquiler → landlord, ambas con **Memo** `tuki:lease:<id>:<kind>:<hash>` y link al explorer | DB persistente (hoy alcanza con estado en memoria o JSON) |
+| **2 transacciones reales en devnet:** depósito → wallet de custodia y alquiler → landlord, ambas con **Memo** `lease:v1:<id>:<kind>:<hash>` y link al explorer | DB persistente (hoy alcanza con estado en memoria o JSON) |
 | Franja visible **"Demo · Solana devnet · simulated data"** | Agentes de mantenimiento y analista (P2) |
 
 ### 3.3 Arquitectura de esta noche
@@ -155,9 +155,9 @@ Lo que tengo registrado de QPS es la **arquitectura del pipeline**:
 
 También tengo que habías decidido orquestar QPS con **agent teams de Claude Code**. **No tengo las definiciones de ese equipo**: los `.claude/agents/*.md`, los prompts, los roles ni el CLAUDE.md. **Adjuntámelos** o conectame la carpeta del repo.
 
-Cómo se traslada el pipeline de QPS a Tuki, aunque todavía no tenga esos archivos:
+Cómo se traslada el pipeline de QPS a Keyhold, aunque todavía no tenga esos archivos:
 
-| QPS | Tuki Inmobiliario |
+| QPS | Keyhold |
 |---|---|
 | Extractor multimodal flyer → JSON | Extractor de DNI / recibo / constancia → JSON (`prequal.ts`) |
 | Filtro determinista título/fecha/hora/lugar | `rules.ts`: antigüedad ≤ 90 días, coincidencia de nombre, relación alquiler/ingreso |
@@ -184,7 +184,7 @@ Cómo se traslada el pipeline de QPS a Tuki, aunque todavía no tenga esos archi
 
 ### 5.2 Competencia indirecta que conviene conocer
 
-- **Fiador.sol** (hackathon de Superteam Brasil): escrow de depósito en stablecoins con rendimiento + sellos de reputación que **bajan el depósito futuro**. 21 instrucciones Anchor y 66 tests [V]. **Es el competidor más parecido: hay que poder explicar en qué se diferencia Tuki.**
+- **Fiador.sol** (hackathon de Superteam Brasil): escrow de depósito en stablecoins con rendimiento + sellos de reputación que **bajan el depósito futuro**. 21 instrucciones Anchor y 66 tests [V]. **Es el competidor más parecido: hay que poder explicar en qué se diferencia Keyhold.**
 - **RentLock** (EE.UU.): escrow de alquiler y depósito en PDAs de Solana, con waitlist [V].
 - **TuNota:** "Veraz de inquilinos" que alimentan las inmobiliarias. Está en Córdoba, Santa Fe, Mendoza, CABA y la Patagonia. **No está en Salta** [V]. Compite con el historial portable.
 - **Hoggax / Finaer / SURA:** garantías y caución, con costo de 3% a 6% del contrato [S]. Hoggax no aparece en Salta. Antecedente: en 2019 la SSN sancionó a Finaer por vender un seguro sin autorización.
@@ -202,7 +202,7 @@ Cómo se traslada el pipeline de QPS a Tuki, aunque todavía no tenga esos archi
 - **Inquilinos:** 70,9% endeudados y un tercio destina alrededor del 50% del ingreso al alquiler (Inquilinos Agrupados, marzo de 2026) [V]. El 72,8% tiene problemas para conseguir garantía (Zonaprop, dato de **2020**) [V].
 - **Stablecoins:** Argentina recibió USD 88.500M en cripto, 2.° en LATAM (Chainalysis, 09/2026) [V]. Pero **USDT 57% contra USDC 14%** de las compras (Bitso 2025) [V]. **Belo soporta USDC en Solana** [V].
 - **Segmentos con dólares en Salta:** profesionales de la minería en la Puna, freelancers que cobran del exterior, y estudiantes del interior con padres que giran plata. UNSa tiene unos 38k alumnos y UCASAL unos 38k [V].
-- **Regulación local:** la Ley 7629 (CUCIS) exige matrícula para intermediar [S]. **Por eso Tuki tiene que ser software *para* inmobiliarias matriculadas, no un intermediario.**
+- **Regulación local:** la Ley 7629 (CUCIS) exige matrícula para intermediar [S]. **Por eso Keyhold tiene que ser software *para* inmobiliarias matriculadas, no un intermediario.**
 
 ### 5.4 Viabilidad (honesta)
 
@@ -230,7 +230,7 @@ Cómo se traslada el pipeline de QPS a Tuki, aunque todavía no tenga esos archi
 
 > **"AI leasing back-office for real-estate agencies in Argentina's interior. Agents pre-qualify tenants and draft contracts; Solana makes the deposit and the payment record trustless and portable."**
 
-1. **B2B primero.** La inmobiliaria es la que opera Tuki y además **actúa como árbitro** en la liberación del depósito.
+1. **B2B primero.** La inmobiliaria es la que opera Keyhold y además **actúa como árbitro** en la liberación del depósito.
 2. **Liberación 2 de 3** (inquilino, propietario, inmobiliaria) en el programa Anchor. Resuelve las disputas sin un oráculo mágico y es un diferencial técnico concreto frente a Fiador.sol y RentLock.
 3. **Pesos como opción por defecto en el roadmap** (on/off-ramp vía Belo u otro proveedor) y **USDC como capa de liquidación y registro**. En la hackathon USDC es el protagonista, pero hay que mostrar cómo encaja el inquilino que paga en pesos.
 4. **El historial reduce el depósito:** con 6 pagos puntuales, el siguiente contrato pide medio depósito. Esto le da un incentivo concreto al inquilino y un dato de riesgo a la inmobiliaria.

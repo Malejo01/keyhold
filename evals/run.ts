@@ -75,7 +75,7 @@ async function listingsEval(): Promise<void> {
   const turn = await runListingsAgent({ message: NOT_IN_CATALOG_QUESTION, history: [] });
   const mentionedIds = turn.reply.match(/\bprop-\d+\b/gi) ?? [];
   const onlyCatalog = turn.properties.every((p) => catalogIds.has(p.id)) && mentionedIds.every((id) => catalogIds.has(id.toLowerCase()));
-  const saysUnknown = /(don't know|do not know|no (matching )?propert|not in (our|the) catalog|no such|couldn't find|could not find|found no|(does not|doesn't|do not|don't) (currently )?have|no tengo|no tenemos|no sé)/i.test(turn.reply);
+  const saysUnknown = /(don't know|do not know|no (matching )?propert|not in (our|the) catalog|no such|couldn't find|could not find|found no|(does not|doesn't|do not|don't) (currently )?have|no tengo|no tenemos|no sé|no (tiene|cuenta con|hay) ning[uú]n)/i.test(turn.reply);
   const noPrice = !/\b\d{3,5}\s*(usdc|usd)\b/i.test(turn.reply);
   check(
     `listings: no hallucination for an out-of-catalog request (${turn.source})`,

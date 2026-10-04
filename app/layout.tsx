@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { APP_NAME, APP_TAGLINE } from "@/lib/config/brand";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -13,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Tuki — AI leasing back-office",
+  title: `${APP_NAME} — ${APP_TAGLINE}`,
   description:
     "AI agents for rental agencies: tenant pre-qualification, contracts and USDC deposit escrow on Solana. Demo on devnet with simulated data.",
 };

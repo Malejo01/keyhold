@@ -1,24 +1,47 @@
+import { TokenAccountNotFoundError, getAccount, getAssociatedTokenAddressSync } from "@solana/spl-token";
 import type { PublicKey } from "@solana/web3.js";
 import type { PaymentIntent, PaymentResult } from "../contracts";
 import { computePrice } from "../rules/pricing";
 import { explorerTxUrl } from "./explorer";
-import { landlordKeypair, platformKeypair, tenantKeypair } from "./keys";
+import { getDevnetConnection } from "./connection";
+import { getPaymentMint, landlordKeypair, platformKeypair, tenantKeypair } from "./keys";
 import { fetchBlockTime, sendTokenTransferWithMemo } from "./transfer";
 
 const ID_RE = /^[A-Za-z0-9_-]+$/;
 const HASH_RE = /^[0-9a-f]{64}$/;
 const DECIMAL_RE = /^[0-9]+$/;
 
+/** Neutral, versioned memo prefix (AD-03). */
+export const MEMO_PREFIX = "lease:v1";
+
+/** The payer does not hold enough test tokens. The route maps it to HTTP 409. */
+export class InsufficientFundsError extends Error {
+  constructor() {
+    super("The tenant wallet does not hold enough test tokens for this payment.");
+    this.name = "InsufficientFundsError";
+  }
+}
+
+async function tokenBalance(owner: PublicKey): Promise<bigint> {
+  const connection = await getDevnetConnection();
+  try {
+    return (await getAccount(connection, getAssociatedTokenAddressSync(getPaymentMint(), owner))).amount;
+  } catch (error) {
+    if (error instanceof TokenAccountNotFoundError) return BigInt(0);
+    throw error;
+  }
+}
+
 /** Memo strings carry only ids, month numbers and a hash. Anything else is rejected, so no PII can leak in. */
 export function buildMemo(intent: Pick<PaymentIntent, "leaseId" | "kind" | "monthIndex" | "contractHash">): string {
   const { leaseId, kind, monthIndex, contractHash } = intent;
   if (!ID_RE.test(leaseId)) throw new Error("Invalid leaseId for memo.");
   if (!HASH_RE.test(contractHash)) throw new Error("Invalid contractHash for memo (expected 64 hex chars).");
-  if (kind === "deposit") return `tuki:lease:${leaseId}:deposit:${contractHash}`;
+  if (kind === "deposit") return `${MEMO_PREFIX}:${leaseId}:deposit:${contractHash}`;
   if (!Number.isInteger(monthIndex) || (monthIndex as number) < 0) {
     throw new Error("monthIndex is required for rent payments.");
   }
-  return `tuki:lease:${leaseId}:rent:${monthIndex}:${contractHash}`;
+  return `${MEMO_PREFIX}:${leaseId}:rent:${monthIndex}:${contractHash}`;
 }
 
 /**
@@ -53,8 +76,11 @@ export async function executePayment(intent: PaymentIntent): Promise<PaymentResu
     destination = landlordKeypair().publicKey;
   }
 
+  const owner = tenantKeypair(intent.payer);
+  if ((await tokenBalance(owner.publicKey)) < amount) throw new InsufficientFundsError();
+
   const signature = await sendTokenTransferWithMemo({
-    owner: tenantKeypair(intent.payer),
+    owner,
     destination,
     amountBaseUnits: amount,
     memo,

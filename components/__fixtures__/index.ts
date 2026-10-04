@@ -257,7 +257,7 @@ export async function fixturePay(req: PayRequest): Promise<PayResponse> {
     amountBaseUnits: QUOTE_BASE.amountBaseUnits,
     discountAppliedBps: QUOTE_BASE.discountBps,
     onTime: true,
-    memo: `tuki:lease:${FIXTURE_LEASE.leaseId}:${kind}:${FIXTURE_CONTRACT_HASH}`,
+    memo: `lease:v1:${FIXTURE_LEASE.leaseId}:${kind === "rent" ? "rent:0" : kind}:${FIXTURE_CONTRACT_HASH}`,
   };
   const state = req.session.state;
   return {

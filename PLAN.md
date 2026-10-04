@@ -1,4 +1,4 @@
-# PLAN.md — Tuki
+# PLAN.md — Keyhold
 
 Status: **F0 approved by Mauro on Sat 2026-10-03.** F2–F7 replanned the same night for his real availability and the approved cuts; their detailed boards are completed on Sunday (F1-05).
 
@@ -124,8 +124,8 @@ Changing any of these after F0-02 needs the lead's approval and a note here.
 ### Memo convention
 
 ```
-tuki:lease:<leaseId>:deposit:<sha256hex>
-tuki:lease:<leaseId>:rent:<monthIndex>:<sha256hex>
+lease:v1:<leaseId>:deposit:<sha256hex>
+lease:v1:<leaseId>:rent:<monthIndex>:<sha256hex>
 ```
 
 - `leaseId`: random opaque id. Never a name, DNI or address.
@@ -285,7 +285,7 @@ Mauro's exact hours within each weekday are still unknown; if his slot is in the
 - [ ] **Mauro:** record the demo.
 - [ ] **Everyone:** Colosseum account (arena.colosseum.org) with country **Argentina**; project location Argentina.
 - [ ] **Everyone:** register on Luma.
-- [ ] **Ani or Mauro:** team Google Form; Telegram renamed to "Name Surname | Tuki".
+- [ ] **Ani or Mauro:** team Google Form; Telegram renamed to "Name Surname | Keyhold".
 - [ ] **Ani:** pitch script, project X account.
 
 ### F1
@@ -309,6 +309,8 @@ Mauro's exact hours within each weekday are still unknown; if his slot is in the
 ---
 
 ## 8. Decisions from Mauro (Sat 03/10)
+
+Later the same night: working name "Keyhold", repo `Malejo01/keyhold`, Vercel project `keyhold-app`, Gemini as AI provider, Memo prefix `lease:v1:`. Session state at handoff: `docs/HANDOFF.md`.
 
 1. Availability: 3.5 h per weekday Mon 05 → Mon 12; up to 7 h on Sat 10 and Sun 11.
 2. Imports: read-only access to `que-pinta-salta` and Tuki municipal (rule in `CLAUDE.md`). Paths are requested when needed. Nothing imported so far.

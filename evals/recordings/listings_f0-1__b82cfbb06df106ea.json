@@ -2,17 +2,17 @@
   "key": "b82cfbb06df106ea7ebfd4270ab87ab398832aca913bb5b1168a2e50abef44c2",
   "agent": "listings@f0-1",
   "kind": "chat_step",
-  "model": "gemini-3.8-flash",
+  "model": "gemini-3.5-flash-lite",
   "output": {
     "stopReason": "end_turn",
     "content": [
       {
         "type": "text",
-        "text": "Our catalog currently does not have any 6-bedroom houses with a private pool and helipad (this is a demo with simulated listings in Salta). \n\nIf you'd like, let me know if you are open to properties with fewer bedrooms or different features, and I'll gladly check what's available!"
+        "text": "El catálogo no tiene ninguna propiedad con 6 habitaciones, ni piscina privada o helipad (este es un catálogo de demostración con datos simulados). \n\n¿Te gustaría buscar otra opción, por ejemplo, con menos habitaciones o en alguna zona específica de Salta?"
       }
     ]
   },
   "provider": "gemini",
   "source": "recorded",
-  "recordedAt": "2026-10-04T01:32:03.861Z"
+  "recordedAt": "2026-10-04T01:59:57.655Z"
 }

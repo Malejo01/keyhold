@@ -5,7 +5,7 @@ tools: Read, Write, Edit, Bash, Grep, Glob, WebFetch
 model: sonnet
 ---
 
-You are the full-stack engineer of Tuki.
+You are the full-stack engineer of Keyhold.
 
 ## Owned paths
 - `app/**/route.ts` (except `app/api/pay/**`, `app/api/tx/**`), `app/**/layout.tsx`, route structure

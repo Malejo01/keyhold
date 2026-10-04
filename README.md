@@ -1,10 +1,12 @@
-# Tuki
+# Keyhold
+
+> "Keyhold" is a working name; the final brand is still to be defined.
 
 AI leasing back-office for real-estate agencies in Argentina's interior. Agents pre-qualify tenants and draft contracts; Solana makes the deposit and the payment record trustless and portable.
 
 Built for the Colosseum Crypto World's Fair hackathon, Superteam Argentina track. Team based in Salta, Argentina.
 
-- Live demo: https://tuki-rentals.vercel.app
+- Live demo: https://keyhold-app.vercel.app
 - Demo video (max 3 min): TODO(Mauro) add the link after recording.
 - Devnet transaction links: see [`docs/submission/tx-links.md`](docs/submission/tx-links.md).
 - Demo script: [`docs/submission/demo-script.md`](docs/submission/demo-script.md).
@@ -21,7 +23,7 @@ In Salta, and in most of Argentina's interior, a rental is still handled by hand
 - The security deposit is held by whoever is in the middle. When there is a dispute about returning it, the tenant has little proof of what was agreed or paid.
 - The payment history of a good tenant stays in the agency's files and is not portable.
 
-Search portals already exist and AI search assistants are becoming common, so Tuki does not compete there. Tuki's effort goes into the back-office steps where agencies spend manual time: pre-qualification, cross-checking, contract, deposit and payment record.
+Search portals already exist and AI search assistants are becoming common, so Keyhold does not compete there. Keyhold's effort goes into the back-office steps where agencies spend manual time: pre-qualification, cross-checking, contract, deposit and payment record.
 
 Note on currency: rents in Salta are mostly priced in pesos. This build settles in USDC (a devnet test token). The next step after the hackathon is to let tenants pay in pesos through an on-ramp and settle in USDC. That is roadmap, not built. See [Roadmap](#roadmap-for-the-week).
 
@@ -78,8 +80,8 @@ Solana is not used to decide anything about the tenant. It is used for the money
 ### Memo convention
 
 ```
-tuki:lease:<leaseId>:deposit:<sha256hex>
-tuki:lease:<leaseId>:rent:<monthIndex>:<sha256hex>
+lease:v1:<leaseId>:deposit:<sha256hex>
+lease:v1:<leaseId>:rent:<monthIndex>:<sha256hex>
 ```
 
 - `leaseId` is a random opaque id. It is never a name, ID number or address.
@@ -149,14 +151,14 @@ This is a demo, and these notes say what is and is not protected.
 - **Agents prepare, code executes.** Product agents emit a payment intent. Only `lib/solana/` builds, signs and confirms transactions.
 - **Known limitations of v0:** the escrow is custodial (see above); sessions are not persisted; there is no authentication or role model; the program has not been written, so nothing has been audited. TODO(Mauro): re-read this section after the QA gate (`docs/reviews/phase-0.md`) and update it with what QA found.
 
-## How Tuki differs from similar projects
+## How Keyhold differs from similar projects
 
 To our reading of their public descriptions (TODO(Ani): re-check before submitting; we have not tested these products):
 
-- **Fiador.sol** (Superteam Brazil hackathon): a stablecoin deposit escrow with yield and reputation seals that lower future deposits. Tuki's focus is the agency back-office (pre-qualification, cross-check, contract) and a planned 2-of-3 release with the agency as arbiter.
-- **RentLock** (United States): rent and deposit escrow in Solana PDAs. Tuki is built for Argentine interior agencies and puts the document checks first.
+- **Fiador.sol** (Superteam Brazil hackathon): a stablecoin deposit escrow with yield and reputation seals that lower future deposits. Keyhold's focus is the agency back-office (pre-qualification, cross-check, contract) and a planned 2-of-3 release with the agency as arbiter.
+- **RentLock** (United States): rent and deposit escrow in Solana PDAs. Keyhold is built for Argentine interior agencies and puts the document checks first.
 
-Both comparisons describe the plan for Tuki's escrow. The 2-of-3 release is not built yet.
+Both comparisons describe the plan for Keyhold's escrow. The 2-of-3 release is not built yet.
 
 ## Questions we expect
 
@@ -187,12 +189,12 @@ Cut for the hackathon: embedded wallet, deposit reduction from payment streak, c
 
 Written for the Superteam Earn "Progress & Disclosures" component.
 
-- **Starting point:** tag `v0-hackathon-start` in https://github.com/Malejo01/tuki-rentals. Work before the hackathon window is not claimed. TODO(Mauro): confirm the tag exists on the public repo before submitting.
+- **Starting point:** tag `v0-hackathon-start` in https://github.com/Malejo01/keyhold. Work before the hackathon window is not claimed.
 - **Pre-existing code imported so far: none.** Any future import will be made in its own commit with the message `chore(import): <module> from <repo>@<sha> (pre-existing)` and will be listed here with that commit.
 - **AI-assisted coding:** the code was co-written with Claude Code (AI-assisted). The architecture, prompts and rules were written by the team. The product itself uses Google Gemini at runtime (the model extracts fields from documents and answers catalog questions; it never decides an approval).
 - **Third-party open-source components:** Next.js, React, Tailwind CSS, Framer Motion, zod, @solana/web3.js, @solana/spl-token, Google Gen AI SDK (`@google/genai`), Anthropic SDK (optional provider), plus the dev tools in `package.json` (TypeScript, ESLint, Vitest, tsx, dotenv).
 - **Funding:** none.
-- **License:** TODO(Mauro): choose and add a LICENSE file (the plan suggests MIT). No license is claimed until the file exists.
+- **License:** MIT (see [`LICENSE`](LICENSE)).
 - **Changelog:** `CHANGELOG.md`, one section per day.
 
 ## Team

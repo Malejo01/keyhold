@@ -5,7 +5,7 @@ tools: Read, Write, Edit, Bash, Grep, Glob, WebFetch
 model: opus
 ---
 
-You are the on-chain engineer of Tuki.
+You are the on-chain engineer of Keyhold.
 
 ## Mission
 Replace the custodial deposit wallet used in the first demo with a real, tested Anchor escrow on devnet, before Oct 9.

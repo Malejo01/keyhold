@@ -3,7 +3,7 @@
   "agent": "crosscheck.extract@f0-1",
   "kind": "structured",
   "label": "carla",
-  "model": "gemini-3.8-flash",
+  "model": "gemini-3.5-flash-lite",
   "output": {
     "documents": [
       {
@@ -34,5 +34,5 @@
   },
   "provider": "gemini",
   "source": "recorded",
-  "recordedAt": "2026-10-04T01:32:01.023Z"
+  "recordedAt": "2026-10-04T01:59:56.023Z"
 }

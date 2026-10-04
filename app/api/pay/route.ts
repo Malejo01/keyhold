@@ -7,7 +7,7 @@ import { applyEvent } from "@/lib/agents/orchestrator";
 import { jsonError, logError, parseBody, sessionErrorResponse } from "@/lib/db/http";
 import { signedSessionSchema } from "@/lib/db/schemas";
 import { signSession, verifySession } from "@/lib/db/session";
-import { executePayment } from "@/lib/solana/pay";
+import { InsufficientFundsError, executePayment } from "@/lib/solana/pay";
 
 export const runtime = "nodejs";
 
@@ -72,6 +72,9 @@ export async function POST(request: Request): Promise<Response> {
     const response: PayResponse = { result, session: signSession(next) };
     return Response.json(response);
   } catch (err) {
+    if (err instanceof InsufficientFundsError) {
+      return jsonError("The demo wallet is out of test tokens. Run `pnpm setup:devnet` to top it up.", 409);
+    }
     logError("pay", err);
     return jsonError("Payment could not be completed", 502);
   } finally {

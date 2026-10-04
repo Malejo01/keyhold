@@ -9,9 +9,11 @@ export function selectedProviderName(): ProviderName {
 
 /**
  * Current stable Flash model per https://ai.google.dev/gemini-api/docs/models (checked 2026-10-03):
- * gemini-3.8-flash is the latest stable Flash, no shutdown announced, and free-tier eligible.
+ * gemini-3.8-flash is the latest stable Flash. The default is the cheaper, faster Flash-Lite (AD-09): the model only
+ * extracts fields and answers catalog questions, decisions live in lib/rules. Fallback if orchestration evals fail:
+ * AI_MODEL=gemini-3.6-flash.
  */
-export const GEMINI_DEFAULT_MODEL = 'gemini-3.8-flash';
+export const GEMINI_DEFAULT_MODEL = 'gemini-3.5-flash-lite';
 export const ANTHROPIC_DEFAULT_MODEL = 'claude-sonnet-5-5';
 export const ANTHROPIC_DEFAULT_EXTRACTION_MODEL = 'claude-haiku-4-5-20251001';
 

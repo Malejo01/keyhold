@@ -9,6 +9,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { randomBytes } from "node:crypto";
 import { config as loadDotenv } from "dotenv";
+import { APP_NAME } from "../lib/config/brand";
 import type { PaymentIntent } from "../lib/contracts";
 import { sha256Hex } from "../lib/solana/hash";
 import { executePayment } from "../lib/solana/pay";
@@ -23,7 +24,7 @@ const TOKEN = BigInt(1_000_000);
 
 async function main() {
   const leaseId = `demo-${randomBytes(6).toString("hex")}`;
-  const contractText = `Tuki demo lease ${leaseId}. Sample text for the hackathon recording; no personal data.`;
+  const contractText = `${APP_NAME} demo lease ${leaseId}. Sample text for the hackathon recording; no personal data.`;
   const contractHash = sha256Hex(contractText);
   const now = Math.floor(Date.now() / 1000);
 

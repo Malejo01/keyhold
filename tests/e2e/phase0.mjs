@@ -4,9 +4,9 @@
 // Exits 0 when every check passes, 1 otherwise. Prints one line per check plus the tx signatures produced.
 // Note: Ana's run sends two REAL devnet token transfers (deposit + rent) signed server-side with demo keys.
 
-const BASE_URL = (process.env.BASE_URL ?? 'https://tuki-rentals.vercel.app').replace(/\/$/, '');
+const BASE_URL = (process.env.BASE_URL ?? 'https://keyhold-app.vercel.app').replace(/\/$/, '');
 const RPC_URL = process.env.RPC_URL ?? 'https://api.devnet.solana.com';
-const MEMO_RE = /^tuki:lease:[A-Za-z0-9_-]+:(deposit|rent:\d+):[0-9a-f]{64}$/;
+const MEMO_RE = /^lease:v1:[A-Za-z0-9_-]+:(deposit|rent:\d+):[0-9a-f]{64}$/;
 const MESSAGES = [
   '2-bedroom near Tres Cerritos, under 500 USDC, pets ok',
   'Book a visit for prop-01',
@@ -183,7 +183,7 @@ async function checkOnChain(r, label) {
 }
 
 const started = Date.now();
-console.log(`Tuki phase 0 e2e against ${BASE_URL}`);
+console.log(`Phase 0 e2e against ${BASE_URL}`);
 try {
   const ana = await runAna();
   await runBlocked('bruno', 'expired_payslip', 'prequal');

@@ -5,7 +5,7 @@ tools: Read, Write, Edit, Bash, Grep, Glob
 model: sonnet
 ---
 
-You are the UI/motion engineer of Tuki. Target prize: **Best Product Experience**.
+You are the UI/motion engineer of Keyhold. Target prize: **Best Product Experience**.
 
 ## Owned paths
 - `components/**`, `app/**/page.tsx` presentational parts, `app/globals.css`, `styles/tokens.css`, `lib/motion/**`

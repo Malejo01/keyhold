@@ -1,20 +1,14 @@
 // POST /api/pay: the server builds the PaymentIntent from the signed session's lease and sends a real
 // devnet transaction. Amounts, payer and month are never taken from the client.
-import { z } from "zod";
-import type { PayRequest, PayResponse, PaymentKind, PaymentResult, SessionState } from "@/lib/contracts";
+import type { PayResponse, PaymentKind, PaymentResult, SessionState } from "@/lib/contracts";
 import { buildPaymentIntent } from "@/lib/agents/lease";
 import { applyEvent } from "@/lib/agents/orchestrator";
 import { jsonError, logError, parseBody, sessionErrorResponse } from "@/lib/db/http";
-import { signedSessionSchema } from "@/lib/db/schemas";
+import { payRequestSchema } from "@/lib/db/schemas";
 import { signSession, verifySession } from "@/lib/db/session";
 import { InsufficientFundsError, executePayment } from "@/lib/solana/pay";
 
 export const runtime = "nodejs";
-
-const payRequestSchema: z.ZodType<PayRequest> = z.object({
-  kind: z.enum(["deposit", "rent"]),
-  session: signedSessionSchema,
-});
 
 /** Month indexes (0-based) already paid, read back from the memos the server itself wrote. */
 function paidRentMonths(payments: PaymentResult[]): Set<number> {

@@ -1,4 +1,4 @@
-import type { TenantId } from '../contracts';
+import type { Lang, TenantId } from '../contracts';
 import tenantsSeed from '../../seed/tenants.json';
 import anaDni from '../../seed/docs/ana/dni.json';
 import anaPayslip from '../../seed/docs/ana/payslip.json';
@@ -44,6 +44,7 @@ export function tenantDocuments(tenantId: TenantId): SeedDocument[] {
   return DOCS[tenantId];
 }
 
-export function tenantDisplayName(tenantId: TenantId): string {
-  return tenantsSeed.tenants.find((t) => t.id === tenantId)?.displayName ?? tenantId;
+export function tenantDisplayName(tenantId: TenantId, lang: Lang = 'en'): string {
+  const tenant = tenantsSeed.tenants.find((t) => t.id === tenantId);
+  return (lang === 'es' ? tenant?.displayNameEs : tenant?.displayName) ?? tenantId;
 }

@@ -60,3 +60,21 @@ describe('evaluatePrequalRules', () => {
     expect(statusFromIssues(evaluatePrequalRules({ ...complete, monthlyIncomeUsdc: 1000 }, { rentUsdc: 700, asOf: AS_OF }).issues)).toBe('REJECTED');
   });
 });
+
+describe('evidence keys (language-neutral rendering)', () => {
+  it('expired payslip carries ruleKey, labelKeys, raw values and params', () => {
+    const ev = checkPayslipAge('2026-06-05', AS_OF)[0]?.evidence;
+    expect(ev?.ruleKey).toBe('payslip_max_90_days');
+    expect(ev?.params).toEqual({ ageDays: 120, maxAgeDays: 90, asOf: AS_OF });
+    expect(ev?.compared.map((c) => [c.labelKey, c.raw])).toEqual([
+      ['payslip_issue_date', '2026-06-05'],
+      ['reference_date', AS_OF],
+    ]);
+  });
+  it('income ratio carries ruleKey and percentages', () => {
+    const ev = checkRentToIncome(1500, 700)[0]?.evidence;
+    expect(ev?.ruleKey).toBe('rent_max_35_pct_income');
+    expect(ev?.params).toEqual({ rentPct: 46.7, maxPct: 35 });
+    expect(ev?.compared.map((c) => c.labelKey)).toEqual(['monthly_income', 'monthly_rent']);
+  });
+});

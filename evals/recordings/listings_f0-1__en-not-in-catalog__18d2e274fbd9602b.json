@@ -1,0 +1,23 @@
+{
+  "key": "18d2e274fbd9602ba34097ee032c6254b0ec3afdd9b9727a5e116e17481b9200",
+  "agent": "listings@f0-1",
+  "kind": "chat_step",
+  "label": "en-not-in-catalog",
+  "model": "gemini-3.5-flash-lite",
+  "output": {
+    "stopReason": "tool_use",
+    "content": [
+      {
+        "type": "tool_use",
+        "id": "call_3859624",
+        "name": "search_properties",
+        "input": {
+          "bedrooms": 6
+        }
+      }
+    ]
+  },
+  "provider": "gemini",
+  "source": "recorded",
+  "recordedAt": "2026-10-04T04:43:16.517Z"
+}

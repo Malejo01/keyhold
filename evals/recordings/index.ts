@@ -3,11 +3,17 @@ import type { Recording } from '../../lib/ai/types';
 import r0 from './crosscheck.extract_f0-1__ana__76da0bbb096d07f9.json';
 import r1 from './crosscheck.extract_f0-1__bruno__9e12009897168f1d.json';
 import r2 from './crosscheck.extract_f0-1__carla__bf7013af3921a20d.json';
-import r3 from './listings_f0-1__18d2e274fbd9602b.json';
-import r4 from './listings_f0-1__b82cfbb06df106ea.json';
-import r5 from './prequal.extract_f0-1__ana__871bdb1ca68373d1.json';
-import r6 from './prequal.extract_f0-1__bruno__6554910251858609.json';
-import r7 from './prequal.extract_f0-1__carla__a93b1cf72e9decdc.json';
+import r3 from './listings_f0-1__en-chip-search__541ed45c29a59f79.json';
+import r4 from './listings_f0-1__en-chip-search__795cc7d37306a8c0.json';
+import r5 from './listings_f0-1__en-not-in-catalog__18d2e274fbd9602b.json';
+import r6 from './listings_f0-1__en-not-in-catalog__b82cfbb06df106ea.json';
+import r7 from './listings_f0-1__es-chip-search__35f419f9a27352e0.json';
+import r8 from './listings_f0-1__es-chip-search__8424e2dd79a375f6.json';
+import r9 from './listings_f0-1__es-not-in-catalog__15fd9119d5fd5498.json';
+import r10 from './listings_f0-1__es-not-in-catalog__627659c2f23889b9.json';
+import r11 from './prequal.extract_f0-1__ana__871bdb1ca68373d1.json';
+import r12 from './prequal.extract_f0-1__bruno__6554910251858609.json';
+import r13 from './prequal.extract_f0-1__carla__a93b1cf72e9decdc.json';
 
 export const RECORDINGS: Recording[] = [
   r0 as unknown as Recording,
@@ -18,4 +24,10 @@ export const RECORDINGS: Recording[] = [
   r5 as unknown as Recording,
   r6 as unknown as Recording,
   r7 as unknown as Recording,
+  r8 as unknown as Recording,
+  r9 as unknown as Recording,
+  r10 as unknown as Recording,
+  r11 as unknown as Recording,
+  r12 as unknown as Recording,
+  r13 as unknown as Recording,
 ];

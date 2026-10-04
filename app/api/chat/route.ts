@@ -49,7 +49,7 @@ export async function POST(request: Request): Promise<Response> {
 
   const body = await parseBody(request, chatRequestSchema);
   if (!body.ok) return body.response;
-  const { message, session, tenantId } = body.data;
+  const { message, session, tenantId, lang } = body.data;
 
   let state;
   try {
@@ -66,7 +66,7 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   try {
-    const turn = await runTurn(state, message);
+    const turn = await runTurn(state, message, lang);
     const response: ChatResponse = {
       reply: turn.reply,
       stage: turn.state.stage,

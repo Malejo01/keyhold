@@ -1,0 +1,26 @@
+{
+  "key": "35f419f9a27352e0a356fa6a1299b32228156102878322bd8084f9bd570d046a",
+  "agent": "listings@f0-1",
+  "kind": "chat_step",
+  "label": "es-chip-search",
+  "model": "gemini-3.5-flash-lite",
+  "output": {
+    "stopReason": "tool_use",
+    "content": [
+      {
+        "type": "tool_use",
+        "id": "call_2209269",
+        "name": "search_properties",
+        "input": {
+          "max_price": 500,
+          "bedrooms": 1,
+          "pets": true,
+          "zone": "Tres Cerritos"
+        }
+      }
+    ]
+  },
+  "provider": "gemini",
+  "source": "recorded",
+  "recordedAt": "2026-10-04T04:42:56.301Z"
+}

@@ -43,7 +43,7 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   try {
-    const lease = createLeaseDraft(tenantId, selectedPropertyId);
+    const lease = createLeaseDraft(tenantId, selectedPropertyId, body.data.lang);
     const next = applyEvent(state, { type: 'lease_created', lease });
     const response: LeaseResponse = { lease, session: signSession(next) };
     return Response.json(response);

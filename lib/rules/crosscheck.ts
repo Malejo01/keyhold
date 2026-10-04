@@ -37,9 +37,10 @@ export function checkNameConsistency(ext: CrosscheckExtraction): Issue[] {
         evidence: {
           field: 'holder_name',
           rule: 'The name on every document must match the ID.',
+          ruleKey: 'name_must_match_id',
           compared: [
-            { docType: 'dni', label: 'Name on ID', value: dni.holderName },
-            { docType: doc.docType, label: `Name on ${DOC_LABEL[doc.docType]}`, value: doc.holderName, mismatch: true },
+            { docType: 'dni', label: 'Name on ID', labelKey: 'name_on_id', raw: dni.holderName, value: dni.holderName },
+            { docType: doc.docType, label: `Name on ${DOC_LABEL[doc.docType]}`, labelKey: 'name_on_document', raw: doc.holderName, value: doc.holderName, mismatch: true },
           ],
         },
       });

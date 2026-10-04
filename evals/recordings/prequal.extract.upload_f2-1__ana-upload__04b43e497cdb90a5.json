@@ -1,0 +1,21 @@
+{
+  "key": "04b43e497cdb90a5ccf8804468bf84b3cf62195a190d67d9c29c2631d1891287",
+  "agent": "prequal.extract.upload@f2-1",
+  "kind": "structured",
+  "label": "ana-upload",
+  "model": "gemini-3.5-flash-lite",
+  "output": {
+    "applicantName": "ANA LUCIA TESTA FICTICIA",
+    "documentsPresent": [
+      "dni",
+      "payslip",
+      "income_proof",
+      "guarantee"
+    ],
+    "payslipIssueDate": "2026-05-08",
+    "monthlyIncomeUsdc": 2450
+  },
+  "provider": "gemini",
+  "source": "recorded",
+  "recordedAt": "2026-10-04T06:19:58.146Z"
+}

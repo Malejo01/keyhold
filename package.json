@@ -9,6 +9,7 @@
     "lint": "eslint",
     "test": "vitest run",
     "evals": "tsx evals/run.ts",
+    "samples": "tsx scripts/generate-sample-docs.ts",
     "setup:devnet": "tsx scripts/setup-devnet.ts"
   },
   "dependencies": {
@@ -23,6 +24,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
@@ -30,6 +32,7 @@
     "dotenv": "^18.0.5",
     "eslint": "^9",
     "eslint-config-next": "16.3.8",
+    "pdf-lib": "^1.17.1",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
     "typescript": "^5",

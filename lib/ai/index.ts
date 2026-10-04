@@ -5,9 +5,9 @@ import { replayKey } from './hash';
 import { modelFor, selectedProviderName } from './models';
 import { withRetry } from './retry';
 import { emitRecording, findRecording } from './replay';
-import type { AiBlock, AiMessage, AiProvider, AiSource, ChatStepResult, ModelRole, Recording, ToolDefinition } from './types';
+import type { AiAttachment, AiBlock, AiMessage, AiProvider, AiSource, ChatStepResult, ModelRole, Recording, ToolDefinition } from './types';
 
-export type { AiBlock, AiMessage, AiSource, ChatStepResult, ModelRole, ToolDefinition } from './types';
+export type { AiAttachment, AiBlock, AiMessage, AiSource, ChatStepResult, ModelRole, ToolDefinition } from './types';
 export { AiRefusalError } from './errors';
 export { selectedProviderName } from './models';
 
@@ -130,12 +130,26 @@ export interface StructuredOptions<T> {
   /** User content. Part of the replay key. */
   input: string;
   schema: z.ZodType<T>;
+  /** Files read together with `input` (multimodal extraction). */
+  attachments?: AiAttachment[];
+  /**
+   * Extra context that identifies the request in replay when `attachments` are present. With attachments the key is
+   * agent + sha256 of the file bytes (+ this context); `input` (which carries file names) is deliberately left out.
+   */
+  keyContext?: unknown;
   label?: string;
   maxTokens?: number;
 }
 
+/** Replay key: agent + input, or agent + sha256 of the attached files (sorted) + optional context. */
+export function structuredKey(opts: Pick<StructuredOptions<unknown>, 'agent' | 'input' | 'attachments' | 'keyContext'>): string {
+  if (!opts.attachments?.length) return replayKey(opts.agent, opts.input);
+  const files = opts.attachments.map((a) => a.sha256).sort();
+  return replayKey(opts.agent, opts.keyContext === undefined ? { files } : { files, context: opts.keyContext });
+}
+
 export async function generateStructured<T>(opts: StructuredOptions<T>): Promise<{ data: T; source: AiSource }> {
-  const key = replayKey(opts.agent, opts.input);
+  const key = structuredKey(opts);
   if (aiMode() === 'replay') {
     const rec = findRecording(key);
     if (!rec || rec.kind !== 'structured') throw new ReplayMissError(opts.agent, key);
@@ -149,6 +163,7 @@ export async function generateStructured<T>(opts: StructuredOptions<T>): Promise
     model,
     system: opts.system,
     user: opts.input,
+    attachments: opts.attachments,
     jsonSchema: toJsonSchema(opts.schema),
     maxTokens: opts.maxTokens ?? 2000,
   };

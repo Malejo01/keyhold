@@ -16,7 +16,9 @@ import { findProperty, loadCatalog } from './catalog';
 import { detectLanguage, formatUsdc, type Lang } from './language';
 import { addMonthsTs, createLeaseDraft } from './lease';
 import { runListingsAgent } from './listings';
-import { evaluateTenant } from './prequal';
+import { evaluateTenant, evaluateUploadedDocuments } from './prequal';
+import type { UploadedDocument } from './uploads';
+import { createHash } from 'node:crypto';
 
 /**
  * Stage machine: SEARCH -> VISIT -> DOCUMENTS -> CONTRACT -> PAYMENT -> ACTIVE -> MOVE_OUT.
@@ -243,10 +245,13 @@ async function handleContract(s: SessionState, message: string, lang: Lang): Pro
     return { reply, cards: [], state: { ...s, stage: 'SEARCH' } };
   }
   const property = findProperty(s.selectedPropertyId);
-  // Never trust the client-held stage for an approval: recompute on the server.
-  const decision = await evaluateTenant(s.tenantId, property?.priceUsdc);
-  if (decision.status !== 'APPROVED') {
-    return { reply: decisionReply(decision, lang), cards: [{ type: 'prequal', decision }], state: { ...s, stage: 'DOCUMENTS' } };
+  // Never trust the client-held stage for an approval: recompute on the server. Uploaded files are not stored, so
+  // for them the server-signed attestation set by runDocumentsUpload stands in for the recomputation.
+  if (!hasUploadApproval(s)) {
+    const decision = await evaluateTenant(s.tenantId, property?.priceUsdc);
+    if (decision.status !== 'APPROVED') {
+      return { reply: decisionReply(decision, lang), cards: [{ type: 'prequal', decision }], state: { ...s, stage: 'DOCUMENTS' } };
+    }
   }
   const lease = createLeaseDraft(s.tenantId, s.selectedPropertyId);
   const next = applyEvent(s, { type: 'lease_created', lease });
@@ -323,6 +328,49 @@ export async function runTurn(state: SessionState, message: string): Promise<Tur
     { role: 'assistant', text: out.reply },
   ]);
   return { reply: out.reply, cards: out.cards, state: { ...out.state, history } };
+}
+
+/** True when this (signed) session carries an APPROVED upload evaluation for the currently selected property. */
+export function hasUploadApproval(state: SessionState): boolean {
+  const u = state.uploadedDocs;
+  return Boolean(u && u.status === 'APPROVED' && state.selectedPropertyId && u.propertyId === state.selectedPropertyId);
+}
+
+function filesDigest(docs: readonly UploadedDocument[]): string {
+  return createHash('sha256')
+    .update(docs.map((d) => d.sha256).sort().join(','))
+    .digest('hex');
+}
+
+function lastUserLanguage(history: ChatTurn[]): Lang {
+  const last = [...history].reverse().find((t) => t.role === 'user');
+  return last ? detectLanguage(last.text) : 'en';
+}
+
+/**
+ * DOCUMENTS stage, real files: the same decision pipeline as the simulated chip, fed with the uploaded files.
+ * The model only reads the files; approval, expiry, name matching and income ratio come from lib/rules, and the stage
+ * moves to CONTRACT here, in code, only on APPROVED. Throws (ReplayMissError, provider errors) for the route to map.
+ */
+export async function runDocumentsUpload(state: SessionState, docs: readonly UploadedDocument[]): Promise<TurnResult> {
+  if (state.stage !== 'DOCUMENTS' || !state.tenantId) throw new Error('Documents can only be uploaded in the DOCUMENTS stage.');
+  const lang = lastUserLanguage(state.history);
+  const property = state.selectedPropertyId ? findProperty(state.selectedPropertyId) : undefined;
+  const decision = await evaluateUploadedDocuments(state.tenantId, docs, property?.priceUsdc);
+
+  const approved = decision.status === 'APPROVED' && property;
+  const next: SessionState = approved
+    ? { ...state, stage: 'CONTRACT', uploadedDocs: { status: 'APPROVED', propertyId: property.id, filesDigest: filesDigest(docs) } }
+    : { ...state, uploadedDocs: undefined };
+  const n = docs.length;
+  const intro =
+    lang === 'es'
+      ? `Revisé ${n === 1 ? 'el archivo' : `los ${n} archivos`} que subiste (demo, datos simulados; no se guardan).`
+      : `I reviewed the ${n === 1 ? 'file' : `${n} files`} you uploaded (demo, simulated data; nothing is stored).`;
+  const reply = `${intro}\n${decisionReply(decision, lang)}`;
+  const userText = lang === 'es' ? `Sub� ${n} ${n === 1 ? 'documento' : 'documentos'}.` : `Uploaded ${n} ${n === 1 ? 'document' : 'documents'}.`;
+  const history = boundedHistory([...next.history, { role: 'user', text: userText }, { role: 'assistant', text: reply }]);
+  return { reply, cards: [{ type: 'prequal', decision }], state: { ...next, history } };
 }
 
 export type SessionEvent =

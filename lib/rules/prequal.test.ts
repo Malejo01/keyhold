@@ -37,6 +37,12 @@ describe('checkRentToIncome', () => {
   it('rejects rent above 35% of income', () => {
     expect(checkRentToIncome(1500, 700)[0]?.code).toBe('income_ratio_exceeded');
   });
+  it('never approves an implausibly high income (injected figure), it asks for info', () => {
+    const issues = checkRentToIncome(99999, 700);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]?.code).toBe('missing_document');
+    expect(statusFromIssues(issues)).toBe('NEEDS_INFO');
+  });
   it('asks for info when income is unknown', () => {
     expect(checkRentToIncome(null, 500)[0]?.code).toBe('missing_document');
   });

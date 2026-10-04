@@ -3,6 +3,8 @@ import { setRecordingSink } from '../../lib/ai/replay';
 import { evaluateTenant } from '../../lib/agents/prequal';
 import { runListingsAgent } from '../../lib/agents/listings';
 import { TENANT_IDS } from '../../lib/agents/tenants';
+import { RECORDINGS } from '../recordings';
+import { isUploadRecording } from './uploads';
 import { writeRecordings } from './recordings-io';
 
 /** Asked to the listings agent in the no-hallucination eval. Nothing in a 250–700 USDC catalog can match it. */
@@ -28,5 +30,6 @@ export async function recordAllScenarios(): Promise<string[]> {
   } finally {
     setRecordingSink(null);
   }
-  return writeRecordings(collected);
+  // Upload recordings come from evals/record-uploads.ts: keep them when the simulated scenarios are re-recorded.
+  return writeRecordings([...RECORDINGS.filter(isUploadRecording), ...collected]);
 }

@@ -222,8 +222,21 @@ export interface SessionState {
   tenantId?: TenantId;
   selectedPropertyId?: string;
   lease?: LeaseDraft;
+  /**
+   * Set by the server after a real document upload was evaluated and APPROVED (B7). Uploaded files are never stored,
+   * so the lease step cannot re-run the decision from them; this server-signed attestation (covered by the session
+   * HMAC, only valid for `propertyId`) stands in for it. Absent for the simulated-document flow.
+   */
+  uploadedDocs?: UploadedDocsAttestation;
   payments: PaymentResult[];
   history: ChatTurn[];
+}
+
+export interface UploadedDocsAttestation {
+  status: PrequalStatus;
+  propertyId: string;
+  /** sha256 hex over the sorted sha256 of the evaluated files. Hashes only, no content, no names. */
+  filesDigest: string;
 }
 
 export interface SignedSession {

@@ -76,6 +76,14 @@ function mapStop(res: GenerateContentResponse, hasToolUse: boolean): StopReason 
   return 'other';
 }
 
+/** Files first (inline data), then the instruction text that refers to them in order. */
+function userParts(call: StructuredCall): Part[] {
+  const files: Part[] = (call.attachments ?? []).map((a) => ({
+    inlineData: { mimeType: a.mimeType, data: Buffer.from(a.data).toString('base64') },
+  }));
+  return [...files, { text: call.user }];
+}
+
 export class GeminiProvider implements AiProvider {
   readonly name = 'gemini';
   private client: GoogleGenAI | null = null;
@@ -92,7 +100,7 @@ export class GeminiProvider implements AiProvider {
   async generateJson(call: StructuredCall): Promise<unknown> {
     const res = await this.sdk().models.generateContent({
       model: call.model,
-      contents: [{ role: 'user', parts: [{ text: call.user }] }],
+      contents: [{ role: 'user', parts: userParts(call) }],
       config: {
         systemInstruction: call.system,
         maxOutputTokens: call.maxTokens + THINKING_HEADROOM,

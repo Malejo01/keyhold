@@ -239,7 +239,7 @@ export interface PaymentResult {
 // ---------- UI cards ----------
 
 export type UiCard =
-  | { type: 'properties'; properties: Property[] }
+  | { type: 'properties'; properties: Property[]; /** The single picked property awaiting visit confirmation. */ confirmVisit?: boolean }
   | { type: 'prequal'; decision: FinalDecision }
   | { type: 'contract'; lease: LeaseDraft }
   | { type: 'payment'; kind: PaymentKind; quote: PriceQuoteDto }

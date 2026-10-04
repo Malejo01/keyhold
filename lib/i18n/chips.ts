@@ -25,6 +25,12 @@ export const CHIP_TEXT: Record<Lang, readonly [string, string, string, string, s
   ],
 };
 
+/** Message sent by the "Confirm visit" button on the picked property card (the server reads it as a confirmation). */
+export const CONFIRM_VISIT: Record<Lang, string> = {
+  en: 'Confirm visit',
+  es: 'Confirmar visita',
+};
+
 /** Card-button messages ("Book a visit" on a property card). Followed by the property title in the same language. */
 export const BOOK_VISIT_FOR: Record<Lang, string> = {
   en: 'Book a visit for',

@@ -137,6 +137,8 @@ export const en = {
       bedrooms: (n: number) => `${n} ${n === 1 ? "bedroom" : "bedrooms"}`,
       petsOk: "Pets ok",
       bookVisit: "Book a visit",
+      confirmVisit: "Confirm visit",
+      visitConfirmed: "Visit confirmed",
     },
     prequal: {
       region: "Pre-qualification result",

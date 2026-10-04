@@ -138,6 +138,8 @@ export const es: Dict = {
       bedrooms: (n: number) => `${n} ${n === 1 ? "dormitorio" : "dormitorios"}`,
       petsOk: "Acepta mascotas",
       bookVisit: "Reservar visita",
+      confirmVisit: "Confirmar visita",
+      visitConfirmed: "Visita confirmada",
     },
     prequal: {
       region: "Resultado de la precalificación",

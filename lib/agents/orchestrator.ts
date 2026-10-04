@@ -184,7 +184,7 @@ async function handleSearch(s: SessionState, message: string, lang: Lang): Promi
       lang === 'es'
         ? `Buena elección: ${propertyTitle(picked, 'es')} (${picked.zone}, ${picked.priceUsdc} USDC/mes). Puedo agendarte una visita ${VISIT_SLOT.es} (agenda simulada). ¿La confirmo?`
         : `Great choice: ${propertyTitle(picked, 'en')} (${picked.zone}, ${picked.priceUsdc} USDC/month). I can book a visit ${VISIT_SLOT.en} (simulated agenda). Shall I confirm it?`;
-    return { reply, cards: [{ type: 'properties', properties: [picked] }], state: next };
+    return { reply, cards: [{ type: 'properties', properties: [picked], confirmVisit: true }], state: next };
   }
   const turn = await runListingsAgent({ message, history: s.history, catalog, lang });
   const cards: UiCard[] = turn.properties.length > 0 ? [{ type: 'properties', properties: turn.properties }] : [];

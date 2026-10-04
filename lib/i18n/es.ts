@@ -291,7 +291,7 @@ export const es: Dict = {
         prequal: "Reglas de precalificación",
         crosscheck: "Agente de control cruzado (segunda lectura independiente)",
       },
-      onDoc: (doc: string) => `en ${doc}`,
+      onDoc: (doc: string) => `documento: ${doc}`,
       cleared: (names: string) => `Aprobadas sin observaciones: ${names}. No están en la cola.`,
     },
     leases: {

@@ -125,10 +125,12 @@ Format: decision · context · consequence. Status: **Accepted** unless noted.
 - Documents and contract text stay off-chain.
 - Uploaded document text is treated as untrusted data (prompt-injection test in evals).
 
-## AD-15 · Bilingual UI, Spanish by default (decided 2026-10-04)
+## AD-15 · Bilingual UI, English for judges, Spanish for Spanish browsers (decided 2026-10-04, implemented)
 - **Context:** Mauro asked for every text on the web in Spanish; the hackathon asks for the pitch, demo and repo in English.
-- **Decision:** the web UI ships in Spanish and English with an ES | EN switch in the header. Spanish is the default for users; judge-facing videos and screenshots use English. README, code, comments and commits stay in English. Product agents already answer in the user's language.
-- **Timing:** implemented after the pre-selection recording (Sun 04/10), so the English demo script and the production checklist stay valid for that take.
+- **Decision:** the web UI ships in Spanish and English with a prominent ES | EN pill toggle in the hero and chat headers (44 px touch targets, visible focus, `aria-current`, group label "Change language / Cambiar idioma"). README, code, comments and commits stay in English. Product agents answer in the route language.
+- **Routing (`proxy.ts`, matcher `/` only):** `/en` and `/es` are never redirected (the judge link is `/en`). At `/` the `lang` cookie wins; without it, a Spanish-first `Accept-Language` goes to `/es`; anything else goes to `/en`. The toggle sets the cookie (1 year, `SameSite=Lax`, `path=/`, `secure` on https).
+- **Switching mid-demo:** one saved conversation per language (the contract text and its SHA-256 differ per language). Before a lease exists (search, visit, documents) the saved conversation is re-keyed to the new language and its messages are kept; later turns are answered in the new language. Once the conversation has a lease/contract or a payment it stays under the old language and the new page shows a notice with a "Start over in <language>" button; switching back resumes it. A conversation already saved in the destination language is never overwritten.
+- **Timing:** the English demo script runs on `/en`, unchanged by this decision.
 
 ## Open
 - **AD-13 (Proposed):** deposit reduction based on `on_time_streak` for the next lease. Stretch goal for Phase 5.

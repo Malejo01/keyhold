@@ -90,7 +90,7 @@ Not blocking, to close in F2:
 - `scripts/record-demo-txs.ts` rewrites `docs/submission/tx-links.md`; re-add the historical section if it is run again.
 - The custom dev agents in `.claude/agents/` were not registered in this session (it started before the folder existed). They load in a new session.
 
-## Update — Sun 04/10, ~03:15 ART (second session)
+## Update — Sun 04/10, ~00:15 ART (second session)
 
 - First real-browser run done (headless Chrome via CDP); fixes merged to `main` at `c1f2ac0` and deployed. e2e 59/59 on production; recording verdict **GO** (`docs/reviews/phase-1-recording.md`).
 - Videos are recorded by the product team (Ani and teammates); Mauro only does code. No new Gemini key: local uses the current key with `AI_DAILY_CALL_CAP`; production stays `REPLAY=1`.

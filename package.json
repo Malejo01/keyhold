@@ -9,13 +9,18 @@
     "lint": "eslint",
     "test": "vitest run",
     "evals": "tsx evals/run.ts",
-    "setup:devnet": "tsx scripts/setup-devnet.ts"
+    "setup:devnet": "tsx scripts/setup-devnet.ts",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "db:seed": "tsx scripts/seed.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",
     "@google/genai": "^2.27.0",
+    "@neondatabase/serverless": "^1.2.0",
     "@solana/spl-token": "^0.4.15",
     "@solana/web3.js": "^1.99.0",
+    "drizzle-orm": "^0.45.3",
     "framer-motion": "^14.0.0",
     "next": "16.3.8",
     "react": "19.2.8",
@@ -23,11 +28,13 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "dotenv": "^18.0.5",
+    "drizzle-kit": "^0.31.11",
     "eslint": "^9",
     "eslint-config-next": "16.3.8",
     "tailwindcss": "^4",

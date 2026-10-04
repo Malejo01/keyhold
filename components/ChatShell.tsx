@@ -4,7 +4,7 @@ import { AnimatePresence, MotionConfig, motion, useReducedMotion } from "framer-
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PaymentKind, Property, SignedSession, Stage, TenantId } from "@/lib/contracts";
 import { itemIn, messageIn, resetFade, stagger, typingDot, loop } from "@/lib/motion/presets";
-import { fixtureApi, realApi, type Api } from "./api-client";
+import { fixtureApi, isStaleSession, realApi, type Api } from "./api-client";
 import { CardRenderer, type CardContext } from "./cards/CardRenderer";
 import { AgentActivity, AgentActivityCompact } from "./AgentActivity";
 import { deriveActivity } from "./deriveAgents";
@@ -131,6 +131,22 @@ export function ChatShell({ useFixtures }: { useFixtures: boolean }) {
     setMessages((prev) => [...prev, { ...msg, id: newId() }]);
   }, []);
 
+  /**
+   * The server refused the session as out of date (a replayed or duplicated tab). Reloading would restore the same
+   * stale blob from sessionStorage and loop, so drop it: the demo restarts with the same tenant.
+   */
+  const resetStaleSession = useCallback(() => {
+    epochRef.current += 1;
+    sessionRef.current = undefined;
+    setSession(undefined);
+    setMessages([{ id: newId(), role: "assistant", error: true, text: "This session was out of date, so it was reset. Start again from the beginning." }]);
+    setStage("SEARCH");
+    setPending(false);
+    generatingRef.current = false;
+    setGenerating(false);
+    setDraft("");
+  }, []);
+
   const send = useCallback(
     async (text: string) => {
       const message = text.trim();
@@ -147,6 +163,10 @@ export function ChatShell({ useFixtures }: { useFixtures: boolean }) {
         append({ role: "assistant", text: res.reply, cards: res.cards });
       } catch (err) {
         if (epoch !== epochRef.current) return;
+        if (isStaleSession(err)) {
+          resetStaleSession();
+          return;
+        }
         append({
           role: "assistant",
           error: true,
@@ -156,7 +176,7 @@ export function ChatShell({ useFixtures }: { useFixtures: boolean }) {
         if (epoch === epochRef.current) setPending(false);
       }
     },
-    [api, append, applySession, pending],
+    [api, append, applySession, pending, resetStaleSession],
   );
 
   const changePersona = useCallback((id: TenantId) => {
@@ -179,7 +199,16 @@ export function ChatShell({ useFixtures }: { useFixtures: boolean }) {
       const current = sessionRef.current;
       if (!current) throw new Error("Start the conversation first.");
       const epoch = epochRef.current;
-      const res = await api.pay({ kind, session: current });
+      let res;
+      try {
+        res = await api.pay({ kind, session: current });
+      } catch (err) {
+        if (epoch === epochRef.current && isStaleSession(err)) {
+          resetStaleSession();
+          return;
+        }
+        throw err;
+      }
       if (epoch !== epochRef.current) return;
       applySession(res.session);
       setStage(res.session.state.stage);
@@ -189,7 +218,7 @@ export function ChatShell({ useFixtures }: { useFixtures: boolean }) {
         cards: [{ type: "receipt", result: res.result }],
       });
     },
-    [api, append, applySession],
+    [api, append, applySession, resetStaleSession],
   );
 
   // Same path as the "Generate the contract" chip, so the reply carries contract + deposit cards.

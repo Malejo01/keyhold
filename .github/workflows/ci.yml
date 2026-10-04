@@ -122,7 +122,7 @@ jobs:
     env:
       SOLANA_VERSION: "4.1.2" # Agave. Same version Anchor 1.2.0 uses in its own CI.
       ANCHOR_VERSION: "1.2.0" # https://github.com/otter-sec/anchor (formerly coral-xyz/anchor)
-      RUST_VERSION: "1.90.0" # host toolchain that builds the anchor CLI; SBF programs use Solana platform-tools.
+      RUST_VERSION: "1.93.0" # host toolchain that builds the anchor CLI (avm deps need >= 1.91); SBF programs use Solana platform-tools.
     steps:
       - uses: actions/checkout@v7
 

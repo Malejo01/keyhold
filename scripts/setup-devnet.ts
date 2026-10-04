@@ -6,7 +6,7 @@
  *         If it has none, try one airdrop; if that fails, print the address and stop.
  * Step 2: create the tUSDC mint (6 decimals, authority = platform) unless PAYMENT_MINT is already
  *         set, create token accounts for platform (custody), landlord and the 3 tenants, and mint
- *         5,000 tUSDC to every tenant whose balance is below 1,000.
+ *         1,000,000 tUSDC to every tenant whose balance is below 100,000.
  *
  * Devnet only. .env.local is gitignored; never commit it.
  */
@@ -32,8 +32,8 @@ const DEVNET_GENESIS_HASH = "EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG";
 const DECIMALS = 6;
 // BigInt() instead of literals: tsconfig targets ES2017.
 const ONE_TOKEN = BigInt(10 ** DECIMALS);
-const MIN_TENANT_BALANCE = BigInt(1_000) * ONE_TOKEN;
-const TENANT_TOP_UP = BigInt(5_000) * ONE_TOKEN;
+const MIN_TENANT_BALANCE = BigInt(100_000) * ONE_TOKEN;
+const TENANT_TOP_UP = BigInt(1_000_000) * ONE_TOKEN;
 
 const KEY_VARS = [
   "PLATFORM_SECRET_KEY",
@@ -181,9 +181,9 @@ async function main() {
   }
   if (mintTx.instructions.length > 0) {
     await sendAndConfirmTransaction(connection, mintTx, [platform]);
-    console.log(`Minted 5,000 tUSDC to: ${toppedUp.join(", ")}`);
+    console.log(`Minted 1,000,000 tUSDC to: ${toppedUp.join(", ")}`);
   } else {
-    console.log("All tenants already hold at least 1,000 tUSDC.");
+    console.log("All tenants already hold at least 100,000 tUSDC.");
   }
 
   console.log("\nToken accounts and balances (tUSDC):");

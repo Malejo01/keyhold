@@ -28,7 +28,11 @@ Nothing started. Tasks F1-01 to F1-06 are in `PLAN.md` §2.
 
 ## Gate
 
-EVAL_AND_GATE_PLACEHOLDER
+**GO.** After the rename, model change and gate follow-ups (commit `73a8372`), `node tests/e2e/phase0.mjs` ran three times back to back against https://keyhold-app.vercel.app on Sat 2026-10-03 at 23:02 ART: 56/56 checks in each run (13 s, 10 s, and 294 s for the third, which waited out the `/api/chat` rate limit). Each run sends a real deposit and a real rent payment on devnet with the `lease:v1:` memo.
+
+- The reviewer agent's own verdict in `docs/reviews/phase-0.md` was NO-GO for one reason, the tenant wallet running out of test tokens; that was fixed and the reviewer's condition (three passing runs) is met. These last runs were launched by the lead with the reviewer's script, not by the reviewer.
+- Production serves recorded AI answers (`REPLAY=1`), so the gate does not exercise live Gemini. Live Gemini is covered by `pnpm evals`: Ana, Bruno and Carla 3/3 with `gemini-3.5-flash-lite`, live and in replay.
+- Not covered: the UI in a real browser against the real routes, and the vitest unit tests (blocked on this machine).
 
 ## URLs
 

@@ -2,16 +2,5 @@
   "env": {
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
   },
-  "teammateMode": "in-process",
-  "permissions": {
-    "allow": [
-      "Bash(pnpm:*)",
-      "Bash(node:*)",
-      "Bash(tsx:*)",
-      "Bash(git status:*)",
-      "Bash(git diff:*)",
-      "Bash(git add:*)",
-      "Bash(git commit:*)"
-    ]
-  }
+  "teammateMode": "in-process"
 }

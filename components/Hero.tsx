@@ -1,6 +1,7 @@
 "use client";
 
 import { MotionConfig, motion, useReducedMotion } from "framer-motion";
+import Link from "next/link";
 import type { ReactNode } from "react";
 import { APP_NAME } from "@/lib/config/brand";
 import { heroItem, heroStagger } from "@/lib/motion/presets";
@@ -45,8 +46,11 @@ export function Hero({ targetId }: { targetId: string }) {
         animate="show"
         className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-gutter py-8 sm:py-12 lg:py-16"
       >
-        <motion.div variants={heroItem}>
+        <motion.div variants={heroItem} className="flex items-center justify-between gap-3">
           <Logo />
+          <Link href="/agency" className="text-sm font-semibold text-accent underline underline-offset-2">
+            Agency panel
+          </Link>
         </motion.div>
 
         <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">

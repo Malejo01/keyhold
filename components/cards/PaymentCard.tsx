@@ -169,8 +169,8 @@ export function PaymentCard({
               className="flex flex-col gap-2"
             >
               <Button
-                onClick={pay}
-                disabled={locked}
+                onClick={locked ? undefined : pay}
+                aria-disabled={locked || undefined}
                 aria-describedby={locked ? `pay-hint-${kind}` : undefined}
                 className="w-full sm:w-auto sm:self-start"
               >

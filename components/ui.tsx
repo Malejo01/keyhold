@@ -12,10 +12,10 @@ type ButtonVariant = "primary" | "secondary" | "ghost";
 
 const buttonBase =
   "inline-flex items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-semibold " +
-  "transition-colors disabled:cursor-not-allowed disabled:opacity-50 select-none";
+  "transition-colors disabled:cursor-not-allowed disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:opacity-50 select-none";
 
 const buttonVariants: Record<ButtonVariant, string> = {
-  primary: "bg-primary text-primary-foreground hover:bg-primary-hover disabled:hover:bg-primary",
+  primary: "bg-primary text-primary-foreground hover:bg-primary-hover disabled:hover:bg-primary aria-disabled:hover:bg-primary",
   secondary: "border border-border-strong bg-surface text-foreground hover:bg-sunken",
   ghost: "text-muted hover:bg-sunken hover:text-foreground",
 };

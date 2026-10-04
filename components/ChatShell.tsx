@@ -89,7 +89,8 @@ export function ChatShell({ useFixtures }: { useFixtures: boolean }) {
   const epochRef = useRef(0);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const chipsRef = useRef<HTMLUListElement>(null);
+  const generatingRef = useRef(false);
+  const chipsRef =useRef<HTMLUListElement>(null);
 
   // Restore from sessionStorage after mount (reading it during render would cause hydration mismatches).
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -165,6 +166,7 @@ export function ChatShell({ useFixtures }: { useFixtures: boolean }) {
     setMessages([]);
     setStage("SEARCH");
     setPending(false);
+    generatingRef.current = false;
     setGenerating(false);
     setDraft("");
     inputRef.current?.focus();
@@ -188,32 +190,19 @@ export function ChatShell({ useFixtures }: { useFixtures: boolean }) {
     [api, append, applySession],
   );
 
+  // Same path as the "Generate the contract" chip, so the reply carries contract + deposit cards.
   const generateContract = useCallback(async () => {
-    const current = sessionRef.current;
-    if (!current || generating) return;
+    if (generatingRef.current || pending) return;
     const epoch = epochRef.current;
+    generatingRef.current = true;
     setGenerating(true);
     try {
-      const res = await api.lease({ session: current });
-      if (epoch !== epochRef.current) return;
-      applySession(res.session);
-      setStage(res.session.state.stage);
-      append({
-        role: "assistant",
-        text: "Your contract is ready. Read it through before you pay the deposit.",
-        cards: [{ type: "contract", lease: res.lease }],
-      });
-    } catch (err) {
-      if (epoch !== epochRef.current) return;
-      append({
-        role: "assistant",
-        error: true,
-        text: err instanceof Error ? err.message : "The contract could not be created.",
-      });
+      await send("Generate the contract");
     } finally {
+      generatingRef.current = false;
       if (epoch === epochRef.current) setGenerating(false);
     }
-  }, [api, append, applySession, generating]);
+  }, [pending, send]);
 
   const ctx: CardContext = useMemo(
     () => ({
@@ -230,7 +219,11 @@ export function ChatShell({ useFixtures }: { useFixtures: boolean }) {
   );
 
   // Highlight the chip for the natural next step and keep it reachable in the scrolling mobile row.
-  const nextChip = Math.min(NEXT_CHIP[stage], SUGGESTED_PROMPTS.length - 1);
+  const depositPaid = (session?.state.payments ?? []).some((p) => p.kind === "deposit");
+  const nextChip = Math.min(
+    stage === "PAYMENT" && depositPaid ? 5 : NEXT_CHIP[stage],
+    SUGGESTED_PROMPTS.length - 1,
+  );
   useEffect(() => {
     const row = chipsRef.current;
     const chip = row?.querySelector<HTMLElement>("[data-next='true']");

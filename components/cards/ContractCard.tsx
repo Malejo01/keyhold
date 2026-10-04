@@ -87,8 +87,9 @@ export function ContractCard({
       <div className="flex flex-col gap-2 border-t border-border pt-4">
         <div className="flex flex-wrap items-center gap-3">
           <Button
-            onClick={runVerify}
-            disabled={!canVerify || verify.status === "checking"}
+            onClick={canVerify ? runVerify : undefined}
+            aria-disabled={!canVerify || undefined}
+            disabled={verify.status === "checking"}
             aria-describedby="verify-hint"
           >
             {verify.status === "checking" ? "Verifying…" : "Verify"}

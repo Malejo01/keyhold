@@ -195,7 +195,7 @@ export function PrequalCard({
         )}
 
         {canGenerateContract && (
-          <Button onClick={onGenerateContract} disabled={generating} className="self-start">
+          <Button onClick={generating ? undefined : onGenerateContract} aria-disabled={generating || undefined} className="self-start">
             {generating ? "Preparing contract…" : "Generate the contract"}
           </Button>
         )}

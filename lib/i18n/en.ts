@@ -9,9 +9,9 @@ type Step = { title: string; text: string };
 
 export const en = {
   meta: {
-    tagline: "AI leasing back-office for rental agencies",
+    tagline: "AI leasing back-office for property owners",
     description:
-      "AI agents for rental agencies: tenant pre-qualification, contracts and USDC deposit escrow on Solana. Demo on devnet with simulated data.",
+      "AI agents for property owners: tenant pre-qualification, contracts and USDC deposit escrow on Solana. Demo on devnet with simulated data.",
     ogHeadline: "Rental paperwork, checked by AI agents and decided by clear rules.",
     ogLocation: "Built for Salta, Argentina.",
     ogLocale: "en_US",
@@ -29,9 +29,9 @@ export const en = {
   hero: {
     title: "Rental paperwork, checked by AI agents and decided by clear rules.",
     intro: (app: string) =>
-      `${app} is an AI leasing back-office built for rental agencies in Salta, Argentina. It pre-qualifies tenants, prepares the contract and collects the deposit and rent (custodial, devnet test tokens).`,
+      `${app} is an AI leasing back-office built for property owners in Salta, Argentina. It pre-qualifies tenants, prepares the contract and collects the deposit and rent (custodial, devnet test tokens).`,
     cta: "Try the demo",
-    agencyLink: "Agency panel",
+    agencyLink: "Owner panel",
     ctaNote: "No sign-up. Test tokens only.",
     howTitle: "How it works",
     steps: [
@@ -278,15 +278,15 @@ export const en = {
     },
   },
   agency: {
-    metaTitle: (app: string) => `Agency panel · ${app}`,
+    metaTitle: (app: string) => `Owner panel · ${app}`,
     metaDescription:
-      "Demo agency view: applications that need information, and contract and payment status read from Solana devnet.",
+      "Demo owner view: applications that need information, and contract and payment status read from Solana devnet.",
     homeAria: (app: string) => `${app} home`,
     back: "Back to the tenant demo",
-    title: "Agency panel",
+    title: "Owner panel",
     demo: "Demo",
     intro:
-      "What a rental agency sees: applications waiting for information, and the contracts and payments recorded on Solana devnet. Tenants and documents are simulated; the transactions are real devnet transactions with test tokens.",
+      "What a property owner sees: applications waiting for information, and the contracts and payments recorded on Solana devnet. Tenants and documents are simulated; the transactions are real devnet transactions with test tokens.",
     queue: {
       title: "Needs info",
       badge: "Demo queue (simulated tenants)",

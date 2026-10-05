@@ -38,11 +38,49 @@ function fold(text: string): string {
   return text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 }
 
+const ZONE_ALIASES: Record<string, string[]> = {
+  oeste: ['Tres Cerritos', 'San Lorenzo Chico', 'Balcarce'],
+  norte: ['Portezuelo', 'Limache'],
+  sur: ['Barrio Tribuno', 'Villa San Lorenzo'],
+  este: ['Centro'],
+  centro: ['Centro'],
+  macrocentro: ['Macrocentro'],
+};
+
+function zoneMatches(inputZone: string, propertyZone: string): boolean {
+  const normalizedInput = fold(inputZone);
+  const normalizedProperty = fold(propertyZone);
+  if (!normalizedInput) return true;
+  if (normalizedInput === normalizedProperty) return true;
+  if (normalizedInput.includes(normalizedProperty) || normalizedProperty.includes(normalizedInput)) return true;
+  return false;
+}
+
+function resolveZoneCandidates(zoneInput: string | undefined, catalog: Property[]): string[] {
+  if (!zoneInput) return [];
+  const key = fold(zoneInput);
+
+  for (const [alias, zones] of Object.entries(ZONE_ALIASES)) {
+    if (key === alias || key.includes(alias) || alias.includes(key)) {
+      return zones.filter((z) => catalog.some((p) => fold(p.zone) === fold(z)));
+    }
+  }
+
+  const direct = catalog.filter((p) => zoneMatches(zoneInput, p.zone)).map((p) => p.zone);
+  return [...new Set(direct)];
+}
+
 export function searchProperties(catalog: Property[], input: SearchPropertiesInput): Property[] {
-  const zone = input.zone ? fold(input.zone) : null;
+  const zoneCandidates = resolveZoneCandidates(input.zone, catalog);
   return catalog
     .filter((p) => {
-      if (zone && !fold(p.zone).includes(zone) && !zone.includes(fold(p.zone))) return false;
+      const zoneMatchesInput = zoneCandidates.length > 0 ? zoneCandidates.some((zone) => fold(zone) === fold(p.zone)) : true;
+      if (!zoneMatchesInput && input.zone) {
+        const normalizedZone = fold(input.zone);
+        if (!normalizedZone || (!zoneMatches(normalizedZone, p.zone) && !fold(p.zone).includes(normalizedZone) && !normalizedZone.includes(fold(p.zone)))) {
+          return false;
+        }
+      }
       if (input.max_price !== undefined && p.priceUsdc > input.max_price) return false;
       if (input.bedrooms !== undefined && p.bedrooms < input.bedrooms) return false;
       if (input.pets === true && !p.petsAllowed) return false;
@@ -93,9 +131,16 @@ const NUMBER_WORDS: Record<string, number> = {
 export function parseSearchCriteria(message: string, catalog: Property[]): SearchPropertiesInput {
   const text = fold(message);
   const criteria: SearchPropertiesInput = {};
-  const zones = [...new Set(catalog.map((p) => p.zone))].sort((a, b) => b.length - a.length);
-  const zone = zones.find((z) => text.includes(fold(z)));
-  if (zone) criteria.zone = zone;
+
+  const zoneKeysInOrder = ['oeste', 'norte', 'sur', 'este', 'centro', 'macrocentro'];
+  const aliasMatch = zoneKeysInOrder.find((alias) => text.includes(alias));
+  if (aliasMatch) {
+    criteria.zone = aliasMatch;
+  } else {
+    const zones = [...new Set(catalog.map((p) => p.zone))].sort((a, b) => b.length - a.length);
+    const zone = zones.find((z) => text.includes(fold(z)));
+    if (zone) criteria.zone = zone;
+  }
 
   const price = text.match(
     /(?:under|below|less than|max(?:imum)?|up to|at most|hasta|menos de|maximo|por debajo de)\s*(?:usdc|usd|u\$s|\$)?\s*(\d{2,5})/,

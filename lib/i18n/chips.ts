@@ -8,20 +8,20 @@ import type { Lang } from '../contracts';
  */
 export const CHIP_TEXT: Record<Lang, readonly [string, string, string, string, string, string]> = {
   en: [
-    '2-bedroom near Tres Cerritos, under 500 USDC, pets ok',
-    'Book a visit',
-    'Upload my documents',
-    'Generate the contract',
-    'Pay the deposit',
-    'Pay my first rent',
+    'I want apartments in Centro, 2 bedrooms, max 450',
+    'I need something in the West with pets',
+    'Show me apartments in Macrocentro',
+    'Look for rentals in the North under 500',
+    'Are there apartments in the South with 1 bedroom?',
+    'Find an apartment in the East under 400',
   ],
   es: [
-    '2 ambientes cerca de Tres Cerritos, menos de 500 USDC, acepta mascotas',
-    'Reservar visita',
-    'Subir mis documentos',
-    'Generar el contrato',
-    'Pagar el depósito',
-    'Pagar mi primer alquiler',
+    'Quiero departamentos en Centro, 2 dormitorios, máximo 450',
+    'Necesito algo en Oeste con mascotas',
+    'Muéstrame departamentos en Macrocentro',
+    'Busca alquileres en Norte, bajo 500',
+    '¿Hay departamentos en el Sur con 1 dormitorio?',
+    'Busco departamentos en Este, máximo 400',
   ],
 };
 

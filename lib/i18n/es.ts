@@ -7,9 +7,9 @@ import type { Dict } from "./types";
  */
 export const es: Dict = {
   meta: {
-    tagline: "Back-office de alquileres con IA para inmobiliarias",
+    tagline: "Back-office de alquileres con IA para propietarios",
     description:
-      "Agentes de IA para inmobiliarias: precalificación de inquilinos, contratos y depósito en garantía en USDC sobre Solana. Demo en devnet con datos simulados.",
+      "Agentes de IA para propietarios: precalificación de inquilinos, contratos y depósito en garantía en USDC sobre Solana. Demo en devnet con datos simulados.",
     ogHeadline: "Los trámites de alquiler, revisados por agentes de IA y decididos por reglas claras.",
     ogLocation: "Hecho en Salta, Argentina.",
     ogLocale: "es_AR",
@@ -27,9 +27,9 @@ export const es: Dict = {
   hero: {
     title: "Los trámites de alquiler, revisados por agentes de IA y decididos por reglas claras.",
     intro: (app: string) =>
-      `${app} es un back-office de alquileres con IA para inmobiliarias de Salta, Argentina. Precalifica inquilinos, prepara el contrato y gestiona el depósito en garantía (custodia de la plataforma, devnet) y el alquiler, con tokens de prueba.`,
+      `${app} es un back-office de alquileres con IA para propietarios de Salta, Argentina. Precalifica inquilinos, prepara el contrato y gestiona el depósito en garantía (custodia de la plataforma, devnet) y el alquiler, con tokens de prueba.`,
     cta: "Probar la demo",
-    agencyLink: "Panel de la inmobiliaria",
+    agencyLink: "Panel del propietario",
     ctaNote: "Sin registro. Solo tokens de prueba.",
     howTitle: "Cómo funciona",
     steps: [
@@ -210,7 +210,7 @@ export const es: Dict = {
       why: "Motivo",
       allPassed: "Se cumplieron todos los controles y el control cruzado independiente coincide.",
       needsInfoFooter:
-        "La inmobiliaria puede continuar cuando se corrijan los puntos de arriba. Subí los documentos actualizados para intentarlo de nuevo.",
+        "El propietario puede continuar cuando se corrijan los puntos de arriba. Subí los documentos actualizados para intentarlo de nuevo.",
       generate: "Generar el contrato",
       preparing: "Preparando el contrato…",
     },
@@ -274,15 +274,15 @@ export const es: Dict = {
     },
   },
   agency: {
-    metaTitle: (app: string) => `Panel de la inmobiliaria · ${app}`,
+    metaTitle: (app: string) => `Panel del propietario · ${app}`,
     metaDescription:
-      "Vista demo de la inmobiliaria: solicitudes que necesitan información y estado de contratos y pagos leído desde Solana devnet.",
+      "Vista demo del propietario: solicitudes que necesitan información y estado de contratos y pagos leído desde Solana devnet.",
     homeAria: (app: string) => `Inicio de ${app}`,
     back: "Volver a la demo del inquilino",
-    title: "Panel de la inmobiliaria",
+    title: "Panel del propietario",
     demo: "Demo",
     intro:
-      "Lo que ve una inmobiliaria: solicitudes que esperan información, y los contratos y pagos registrados en Solana devnet. Los inquilinos y los documentos son simulados; las transacciones son reales en devnet, con tokens de prueba.",
+      "Lo que ve un propietario: solicitudes que esperan información, y los contratos y pagos registrados en Solana devnet. Los inquilinos y los documentos son simulados; las transacciones son reales en devnet, con tokens de prueba.",
     queue: {
       title: "Falta información",
       badge: "Cola de demo (inquilinos simulados)",
@@ -323,7 +323,7 @@ export const es: Dict = {
       reasonLabel: "Motivo (se hashea con sha256 en el servidor; el texto no se guarda)",
       reasonPlaceholder: "p. ej. Inspección de salida acordada; descuento por repintado",
       reasonHint: "No escribas datos personales. Solo el hash va a la blockchain.",
-      approverLabel: "Segunda aprobación (junto con la inmobiliaria)",
+      approverLabel: "Segunda aprobación (junto con el propietario)",
       tenant: "Inquilino",
       landlord: "Propietario",
       simulatedNote:
@@ -357,7 +357,7 @@ export const es: Dict = {
       reasonHash: "Hash del motivo: ",
       releaseTx: "Transacción de liberación",
       releaseDeposit: "Liberar depósito",
-      releaseUnavailable: "La liberación no está disponible en este despliegue (falta la clave de la inmobiliaria o el PIN de la demo, o la custodia no es de la plataforma).",
+      releaseUnavailable: "La liberación no está disponible en este despliegue (falta la clave del propietario, o el PIN de la demo, o la custodia no es de la plataforma).",
       loadFailed: (status: number) => `No se pudo cargar el historial de devnet (HTTP ${status}).`,
       loadNetwork: "Error de red al leer el historial de devnet.",
       loaded: (n: number) => `Se cargaron ${n} ${n === 1 ? "contrato" : "contratos"} desde devnet.`,
